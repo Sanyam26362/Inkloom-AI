@@ -14,36 +14,36 @@ interface Step {
 const steps: Step[] = [
   {
     id: 1,
-    title: "1. Upload files",
+    title: "1. Upload copy & multi-modal media",
     bullets: [
-      "Upload once, share instantly",
-      "Eliminate version confusion",
-      "Keep files review-ready",
+      "Paste text, Markdown, HTML, or upload audio/video reels",
+      "Automatic speech-to-text & on-screen visual dialogue extraction",
+      "Reverse-offset PII scrubber masks sensitive entities locally",
     ],
     image: "/images/12-upload-any-file.webp",
-    alt: "Upload any file to Filestage",
+    alt: "Upload any collateral to Inkloom AI",
   },
   {
     id: 2,
-    title: "2. Get feedback",
+    title: "2. Real-time computational policy audit",
     bullets: [
-      "Gather feedback in one place",
-      "Align reviews faster with Review Agents",
-      "Resolve comments quickly",
+      "In-memory regex matching for banned terms & preferred wording",
+      "pgvector cosine similarity matches brand guideline chunks",
+      "Calculates instant 0-100 compliance score with severity weights",
     ],
     image: "/images/13-collect-feedback-directly-on-the-file.webp",
-    alt: "Collect feedback directly on the file",
+    alt: "Execute brand compliance audit with Inkloom AI",
   },
   {
     id: 3,
-    title: "3. Approved",
+    title: "3. Defensible approval & sign-off",
     bullets: [
-      "Speed up final approvals",
-      "Track approval status clearly",
-      "Keep compliance-ready records",
+      "Resolve findings or override with mandatory review justifications",
+      "Role-based transitions (Creator, Reviewer, Brand Manager)",
+      "Immutable audit log generated for enterprise record-keeping",
     ],
     image: "/images/14-track-status-in-real-time.webp",
-    alt: "Track status in real-time",
+    alt: "Defensible sign-off in Inkloom AI",
   },
 ];
 
@@ -56,10 +56,10 @@ export function Section5_WorkflowSteps() {
       <div className="max-w-[1164px] mx-auto px-4 sm:px-6">
         <div className="mb-12 text-left">
           <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.2] mb-3">
-            From upload to approval in 3 simple steps
+            From collateral intake to approved publication in 3 steps
           </h2>
-          <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#374151] max-w-[700px]">
-            Filestage’s Review Agents speed up approvals by flagging routine errors from the start.
+          <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#374151] max-w-[750px]">
+            Inkloom AI’s dual deterministic engine and pgvector RAG pipeline catches unapproved terminology, incorrect tone, and regulatory violations instantly.
           </p>
         </div>
 

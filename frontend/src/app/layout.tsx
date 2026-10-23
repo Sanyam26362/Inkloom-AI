@@ -4,9 +4,9 @@ import { AppContextProvider } from "@/context/AppContext";
 import { AppShell } from "@/components/shell/AppShell";
 
 export const metadata: Metadata = {
-  title: "Filestage: Online Proofing Software – Free Trial & Demo",
+  title: "Inkloom AI — Enterprise Brand Governance & Multi-Modal Content Auditing",
   description:
-    "The online proofing software for 30% faster approvals. Centralize feedback, track versions, and catch costly errors before approval with our automated online proofing software.",
+    "Autonomous computational policy adherence across cross-channel collateral, multi-modal audio & video QA, and pgvector RAG pipeline.",
   icons: {
     icon: "/icons/favicon-1.png",
   },

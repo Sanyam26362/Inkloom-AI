@@ -9,11 +9,11 @@ export function Section11_Checkpoint() {
     <section className="py-16 bg-white text-center">
       <div className="max-w-[1164px] mx-auto px-4 sm:px-6 flex flex-col items-center">
         <h2 className="font-['Domine',serif] text-2xl sm:text-[34px] font-bold text-[#111827] leading-[1.25] mb-4 max-w-[800px]">
-          Your final checkpoint before anything goes live
+          Your final checkpoint before collateral goes live
         </h2>
 
         <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#4b5563] leading-relaxed max-w-[760px] mb-8">
-          Filestage helps teams move fast with less risk by creating a centralized System of Evidence for every asset. Each review decision gets logged as you go, leaving a clear audit trail that’s traceable and defensible.
+          Inkloom AI creates an immutable System of Evidence for every piece of content. Every audit score, finding resolution, and manager override is logged with tamper-proof event records and guideline citations.
         </p>
 
         {/* Trust layer diagram */}
@@ -34,12 +34,12 @@ export function Section11_Checkpoint() {
           >
             Start Now
           </Link>
-          <a
-            href="#demo"
+          <Link
+            href="/guidelines"
             className="inline-flex justify-center items-center px-8 py-3.5 font-['Lato',sans-serif] text-base font-bold text-[#005797] border-2 border-[#005797] rounded-full hover:bg-blue-50/60 transition-all duration-300 cursor-pointer"
           >
-            Let&apos;s talk
-          </a>
+            Manage Brand Guidelines
+          </Link>
         </div>
       </div>
     </section>

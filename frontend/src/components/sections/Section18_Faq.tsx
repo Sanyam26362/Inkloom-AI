@@ -9,29 +9,29 @@ interface FaqItem {
 
 const faqs: FaqItem[] = [
   {
-    question: "What is online proofing software?",
+    question: "What is Inkloom AI?",
     answer:
-      "Online proofing software is a web-based platform designed to review and approve creative assets, including documents, designs, videos, audio, and live websites. It provides a centralized collaboration space where stakeholders leave pinpoint comments, annotate directly on files, and submit formal sign-offs.",
+      "Inkloom AI is an enterprise brand identity governance and content auditing platform. It evaluates marketing collateral, social captions, audio voiceovers, and video reels against brand guidelines, prohibited terminology, approved facts, and WCAG accessibility standards before publication.",
   },
   {
-    question: "Who uses online proofing software?",
+    question: "How does multi-modal auditing work for audio and video?",
     answer:
-      "Creative and marketing teams of all sizes use online proofing software to speed up their approval cycles. It is widely adopted by enterprise brand managers, creative agencies, legal compliance reviewers, and video producers who need a clear audit trail and hassle-free stakeholder approvals.",
+      "Inkloom AI automatically transcribes spoken dialogue and extracts meaningful on-screen text from audio files (MP3, WAV, AAC, FLAC) and video reels (MP4, MOV, WEBM). The transcript is structured into an editable revision with timestamp markers and audited directly against your brand rules.",
   },
   {
-    question: "What are the main benefits of online proofing software?",
+    question: "How does the reverse-offset PII scrubber protect confidential data?",
     answer:
-      "The primary benefits include 30% faster approval turnarounds, eliminating version confusion, cutting down endless email chains, and preventing costly errors before publication. It creates an indisputable system of evidence for brand and legal compliance.",
+      "Before sending content for semantic AI analysis, Inkloom AI’s in-memory regex scrubber replaces sensitive emails, phone numbers, API keys, and employee names with non-colliding tokens. After evaluation, original text entities are restored locally, ensuring confidential data never leaks to external providers.",
   },
   {
-    question: "What types of files can I review using online proofing software?",
+    question: "How is the 0–100 compliance score calculated?",
     answer:
-      "You can review virtually any format: PDFs, Microsoft Office documents, Adobe Creative Cloud files (images, vectors), high-definition video formats (MP4, MOV), audio stems, HTML5 banners, packaging die-cuts, and live interactive websites.",
+      "Compliance scoring starts at 100 and applies deterministic deductions based on finding severity: -25 points for CRITICAL violations (banned claims, severe regulatory breaches), -10 points for WARNINGS (unapproved synonyms, contrast defects), and -3 points for SUGGESTIONS (minor tone polishing).",
   },
   {
-    question: "How much does online proofing software cost?",
+    question: "Can brand managers override flagged findings?",
     answer:
-      "Filestage provides a free trial with full feature access, transparent team tiers starting for growing agencies, and custom enterprise plans with dedicated support, custom SLAs, and advanced security configurations.",
+      "Yes. Reviewers and Brand Managers can override specific findings by providing a mandatory audit justification note. Every override, resolution, and revision status change is permanently captured in an immutable event log for enterprise compliance defense.",
   },
 ];
 

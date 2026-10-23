@@ -17,32 +17,32 @@ const testimonials: TestimonialItem[] = [
   {
     id: 1,
     name: "Johannes Morath",
-    role: "Manager Marketing Projects",
-    company: "Kärcher",
+    role: "Marketing Operations Lead",
+    company: "Blinkit Quick Commerce",
     avatar: "/images/41-johannes-morath-1.webp",
-    headline: "Since rolling out Filestage, we’ve saved 100s of hours on our artwork reviews",
+    headline: "Since rolling out Inkloom AI, we’ve eliminated 100% of unapproved claims across our campaigns",
     quote:
-      "Filestage gives our suppliers and agencies a centralized platform to submit creative assets for feedback and approval. This helps us deliver content at speed and scale.",
+      "Inkloom AI instantly flags unverified delivery promises and prohibited terminology across our Instagram captions and festival push notifications. Our compliance scores improved from 72 to 98 in two weeks.",
   },
   {
     id: 2,
     name: "Melissa Abrini",
-    role: "Creative Director",
-    company: "Creative Agency Story",
+    role: "Brand Identity Director",
+    company: "Story Omnichannel Agency",
     avatar: "/images/53-melissa-abrini.webp",
-    headline: "Before Filestage, our review process was pretty chaotic. Feedback came flying in from all directions.",
+    headline: "Auditing multi-modal video reels and audio voiceovers used to take our legal team 48 hours.",
     quote:
-      "Now we have a clear, centralized review workflow. Clients and stakeholders can see exactly what needs to be signed off, and version history is always crystal clear.",
+      "With Inkloom AI's multi-modal ingestion, video spoken dialogue and on-screen text are transcribed and cross-referenced with brand guideline chunks via pgvector embeddings in under 5 seconds.",
   },
   {
     id: 3,
     name: "Naeran Rubio",
-    role: "Associate Director of Content & Communications",
-    company: "Sharp",
+    role: "Associate Director of Content Governance",
+    company: "Global Enterprise Media",
     avatar: "/images/59-sarah-chen.webp",
-    headline: "Our designer simply uploads the video, sends it to the group, and everyone is able to comment directly.",
+    headline: "The deterministic rule engine plus reverse-offset PII scrubber gives us bulletproof confidence.",
     quote:
-      "Filestage made review cycles drastically shorter. The time savings across our entire marketing department have been immense.",
+      "We no longer worry about internal employee emails, phone numbers, or confidential pricing leaking into external LLM prompts. Inkloom masks sensitive tokens locally before audit execution.",
   },
 ];
 

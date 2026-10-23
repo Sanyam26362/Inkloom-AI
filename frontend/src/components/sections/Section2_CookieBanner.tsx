@@ -12,18 +12,17 @@ export function Section2_CookieBanner() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex-1">
           <p className="font-['Lato',sans-serif] text-[16px] font-bold text-[#212121] mb-1">
-            We value your privacy
+            Inkloom AI Data Privacy &amp; PII Confidentiality Notice
           </p>
           <p className="font-['Lato',sans-serif] text-[13px] text-[#4b5563] leading-relaxed">
-            We use cookies to deliver and improve our services. If you&apos;re not happy with our{" "}
+            Inkloom AI processes all brand collateral using local reverse-offset PII scrubbers before invoking external model APIs. We use cookies and session storage strictly for platform operations and telemetry. Review our{" "}
             <a href="#" className="underline text-[#1863dc] hover:text-[#005797]">
-              Privacy Notice
+              Security Architecture
             </a>{" "}
-            or{" "}
+            and{" "}
             <a href="#" className="underline text-[#1863dc] hover:text-[#005797]">
-              Cookie Policy
-            </a>
-            , click &quot;Do not share my personal information&quot; to opt-out.
+              Confidentiality Charter
+            </a>.
           </p>
         </div>
 
@@ -32,13 +31,13 @@ export function Section2_CookieBanner() {
             onClick={() => setIsVisible(false)}
             className="text-[13px] font-medium text-[#1863dc] hover:underline whitespace-nowrap cursor-pointer"
           >
-            Do not share my personal information
+            Review privacy parameters
           </button>
           <button
             onClick={() => setIsVisible(false)}
             className="px-5 py-2 bg-[#005797] hover:bg-[#004578] text-white text-xs font-bold rounded-full transition-colors cursor-pointer"
           >
-            Accept All
+            Acknowledge &amp; Continue
           </button>
         </div>
       </div>

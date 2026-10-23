@@ -15,25 +15,25 @@ const tabs: Tab[] = [
   {
     id: "workflows",
     label: "Review workflows",
-    heading: "Follow the same review process for your entire project",
+    heading: "Automate structured review paths from draft to publication",
     description:
-      "Relax knowing that everything will be approved by the right people in the right order. Set up custom review steps and automate handoffs.",
+      "Relax knowing that every asset will be audited against brand rules and approved by authorized managers before release. Configure role-based review states with automated handoffs.",
     image: "/images/02-review-workflows.webp",
   },
   {
-    id: "due-dates",
-    label: "Due date reminders",
-    heading: "Set due dates in your dashboard to make sure feedback arrives on time",
+    id: "compliance",
+    label: "Compliance scoring",
+    heading: "Live 0-100 compliance scores with severity-weighted deductions",
     description:
-      "Automated reminder emails gently nudge stakeholders before deadlines expire, keeping projects on schedule without manual follow-ups.",
+      "Critical violations deduct 25 points, warnings deduct 10 points, and suggestions deduct 3 points. View violation categories and auto-remediation progress in real time.",
     image: "/images/05-due-date-reminders.webp",
   },
   {
     id: "tracking",
     label: "Approval tracking",
-    heading: "Track all your approvals in your online dashboard in real time",
+    heading: "Track every review status, comment thread, and decision in real time",
     description:
-      "Gain full visibility into who has reviewed, who has approved, and what changes are pending across every file and campaign.",
+      "Gain complete visibility into who reviewed, what corrections were applied, and who authorized overrides across all your active campaigns.",
     image: "/images/06-approval-tracking.webp",
   },
 ];
@@ -47,10 +47,10 @@ export function Section13_ProjectManager() {
       <div className="max-w-[1246px] mx-auto px-4 sm:px-6">
         <div className="text-left mb-10">
           <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-[#005797] text-xs font-bold uppercase tracking-wider mb-3">
-            For Project Managers & Marketers
+            For Project Managers &amp; Brand Leads
           </span>
           <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25]">
-            A clear overview for project managers and marketers
+            A clear overview for project managers and brand directors
           </h2>
         </div>
 
@@ -112,7 +112,7 @@ export function Section13_ProjectManager() {
           </div>
           <div className="flex-1">
             <p className="font-['Domine',serif] text-base sm:text-lg italic text-[#111827] mb-2 leading-relaxed">
-              &ldquo;Before Filestage, our review process was pretty chaotic. Feedback came flying in from all directions – emails, Slack, PowerPoint decks, even WhatsApp (yes, really). It felt like one’s entire role was chasing approvals.&rdquo;
+              &ldquo;Before Inkloom AI, our brand reviews were completely ad-hoc. Unverified delivery claims and prohibited terminology slipped into press releases and Instagram ads. Inkloom AI catches every discrepancy before launch.&rdquo;
             </p>
             <p className="font-['Lato',sans-serif] text-sm text-[#4b5563]">
               <span className="font-bold text-[#111827]">Melissa Abrini</span> — Creative Director at Creative Agency Story

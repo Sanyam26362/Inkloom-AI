@@ -14,26 +14,26 @@ interface Tab {
 const tabs: Tab[] = [
   {
     id: "notifications",
-    label: "Email notifications",
-    heading: "Get an email notification when there’s a new file or version to review",
+    label: "Real-time alerts",
+    heading: "Instant notifications when collateral requires reviewer or manager review",
     description:
-      "Integrate with Microsoft Teams or Slack to receive notifications in your dedicated channels. Reviewers click one link and review immediately without creating passwords.",
+      "Role-based alerts ensure review queues move swiftly without bottlenecks. Reviewers see pending drafts, compliance scores, and flagged severity breakdowns immediately.",
     image: "/images/03-email-notifications-1.webp",
   },
   {
     id: "annotations",
-    label: "Annotations",
-    heading: "Simply click on what you want to change and add your comment",
+    label: "Audit annotations",
+    heading: "Explore detailed findings with guideline citations and recommended fixes",
     description:
-      "Barcode scanning, color code inspection, and text-selection highlights give clients intuitive ways to mark up exactly what they mean.",
+      "Deterministic term replacements, WCAG contrast ratios, and semantic guideline matches are presented in clear, interactive finding cards with full context.",
     image: "/images/09-barcode-annotations.webp",
   },
   {
     id: "decisions",
-    label: "Review decisions",
-    heading: "Submit review decisions in one click: Approve or Request Changes",
+    label: "Defensible sign-offs",
+    heading: "Formally approve, request changes, or override findings with required notes",
     description:
-      "Clear green approvals and red change requests eliminate guesswork, ensuring production teams know precisely when an asset is greenlit.",
+      "Brand managers can approve compliant collateral or override specific warnings by submitting a logged justification, guaranteeing a transparent and accountable review trail.",
     image: "/images/10-review-decisions.webp",
   },
 ];
@@ -47,10 +47,10 @@ export function Section15_Stakeholders() {
       <div className="max-w-[1246px] mx-auto px-4 sm:px-6">
         <div className="text-left mb-10">
           <span className="inline-block px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider mb-3">
-            For Clients & Stakeholders
+            For Reviewers &amp; Stakeholders
           </span>
           <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25]">
-            Faster feedback for clients and stakeholders
+            Defensible review decisions and stakeholder alignment
           </h2>
         </div>
 
@@ -112,10 +112,10 @@ export function Section15_Stakeholders() {
           </div>
           <div className="flex-1">
             <p className="font-['Domine',serif] text-base sm:text-lg italic text-[#111827] mb-2 leading-relaxed">
-              &ldquo;Filestage makes things easy. All the files and versions are in the same place. The clients really appreciate the ease of use and being able to have a clear overview of their projects.&rdquo;
+              &ldquo;Inkloom AI makes compliance reviews transparent. We know with mathematical certainty which rule was triggered, why it failed, and what the approved correction is. The audit history protects our brand reputation.&rdquo;
             </p>
             <p className="font-['Lato',sans-serif] text-sm text-[#4b5563]">
-              <span className="font-bold text-[#111827]">Sarah Chen</span> — Copy Director/Medical Director, Publicis Health France
+              <span className="font-bold text-[#111827]">Sarah Chen</span> — Compliance Review Director
             </p>
           </div>
         </div>

@@ -13,33 +13,33 @@ interface Tab {
 
 const tabs: Tab[] = [
   {
-    id: "file-sharing",
-    label: "File sharing",
-    heading: "Simply drag a file into your dashboard to share it and start a review",
+    id: "multi-modal",
+    label: "Multi-modal intake",
+    heading: "Upload copy, Markdown, audio voiceovers, or video reels",
     description:
-      "Share designs, videos, audio, documents, and live websites in one easy-to-use platform. No account required for external reviewers.",
+      "Paste text, Markdown, HTML, or upload audio (MP3, WAV) and video reels (MP4, MOV). Speech-to-text and on-screen dialogue are parsed into editable audit revisions automatically.",
     image: "/images/01-upload-files-to-filestage.webp",
   },
   {
-    id: "comment-threads",
-    label: "Comment threads",
-    heading: "Get clear and consolidated feedback right on top of your files",
+    id: "inline-highlights",
+    label: "Inline violation highlights",
+    heading: "Inspect pinpoint violation spans with exact brand guideline citations",
     description:
-      "Pinpoint exact coordinates, highlight text, and draw directly on visual assets. Keep discussions organized in threaded comments.",
+      "Every finding displays severity (Critical, Warning, Suggestion), explanation of policy conflict, and approved replacement terms according to your company handbook.",
     image: "/images/07-packaging-file-review-comment-threads.webp",
   },
   {
-    id: "to-do-lists",
-    label: "To-do lists",
-    heading: "Use comments as an interactive to-do list for revision cycles",
+    id: "remediation",
+    label: "One-click remediation",
+    heading: "Apply suggested terminology and track version improvements",
     description:
-      "Check off items as revisions are completed so you never miss a required edit or overlook critical stakeholder input.",
+      "Resolve findings, accept suggested rewrites, or post contextual comments directly on each violation card to keep creators and reviewers perfectly synchronized.",
     image: "/images/08-to-do-lists.webp",
   },
 ];
 
 export function Section14_Creatives() {
-  const [activeTab, setActiveTab] = useState("file-sharing");
+  const [activeTab, setActiveTab] = useState("multi-modal");
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
 
   return (
@@ -47,10 +47,10 @@ export function Section14_Creatives() {
       <div className="max-w-[1246px] mx-auto px-4 sm:px-6">
         <div className="text-left mb-10">
           <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-3">
-            For Creatives & Designers
+            For Creators &amp; Copywriters
           </span>
           <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25]">
-            More time for creatives to focus on their craft
+            Empowering creative teams with instant brand guardrails
           </h2>
         </div>
 
@@ -112,10 +112,10 @@ export function Section14_Creatives() {
           </div>
           <div className="flex-1">
             <p className="font-['Domine',serif] text-base sm:text-lg italic text-[#111827] mb-2 leading-relaxed">
-              &ldquo;Our designer simply uploads the video, sends it to the group, and everyone is able to comment and select the area where the changes need to happen.&rdquo;
+              &ldquo;Our copywriters simply upload video reels and audio voiceovers. Inkloom AI immediately flags unapproved delivery guarantees, verifies claims against our facts database, and checks color contrast automatically.&rdquo;
             </p>
             <p className="font-['Lato',sans-serif] text-sm text-[#4b5563]">
-              <span className="font-bold text-[#111827]">Naeran Rubio</span> — Associate Director of Content & Communications, Sharp
+              <span className="font-bold text-[#111827]">Naeran Rubio</span> — Associate Director of Content &amp; Communications
             </p>
           </div>
         </div>

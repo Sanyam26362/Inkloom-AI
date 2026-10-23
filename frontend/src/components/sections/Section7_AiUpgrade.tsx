@@ -6,23 +6,23 @@ import Image from "next/image";
 export function Section7_AiUpgrade() {
   const features = [
     {
-      title: "Automated error detection",
-      desc: "Catch typos, broken links, and technical issues before reviewers see them.",
+      title: "Deterministic Terminology & Claims",
+      desc: "Instantly flags banned terms (e.g. 'instant', 'guaranteed') and auto-suggests approved brand phrasing.",
       icon: "check_circle",
     },
     {
-      title: "Brand guideline checks",
-      desc: "Ensure every asset follows approved fonts, colors, logos, and tone of voice.",
+      title: "pgvector Semantic Guideline RAG",
+      desc: "Uses 768-dimensional embeddings to retrieve exact company guidelines for tone, voice, and visual rules.",
       icon: "verified",
     },
     {
-      title: "Compliance and risk detection",
-      desc: "Catch regulatory issues, labeling mistakes, and high-risk content early.",
+      title: "Reverse-Offset PII Sanitizer",
+      desc: "Local regex slicing replaces sensitive customer data, API keys, and phone numbers before model evaluation.",
       icon: "gavel",
     },
     {
-      title: "Context-aware suggestions",
-      desc: "Get intelligent feedback tailored to your project and industry.",
+      title: "Multi-Modal Audio & Video QA",
+      desc: "Transcribes spoken dialogue and on-screen text to identify off-brand statements and regulatory risks.",
       icon: "psychology",
     },
   ];
@@ -51,11 +51,11 @@ export function Section7_AiUpgrade() {
             </span>
 
             <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25] mb-4">
-              Your reviews just got an upgrade
+              Enterprise brand governance, powered by AI &amp; deterministic rules
             </h2>
 
             <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#4b5563] leading-relaxed mb-8">
-              Review Agents scan creative assets for errors, brand inconsistencies, and compliance risks before reviewers even start.
+              Inkloom AI evaluates copy, audio transcripts, and video frames against your active brand profile, approved claims, and industry disclaimers.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">

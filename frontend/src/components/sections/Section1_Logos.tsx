@@ -8,12 +8,19 @@ export function Section1_Logos() {
     <section className="py-12 bg-white border-y border-gray-100 overflow-hidden">
       <div className="max-w-[1164px] mx-auto px-4 sm:px-6 text-center">
         <h3 className="font-['Lato',sans-serif] text-lg sm:text-[22px] font-normal text-[#111827] mb-8 leading-[1.3]">
-          Trusted by professionals from top brands and agencies
+          Engineered for high-velocity brands, quick commerce &amp; modern creative teams
         </h3>
 
-        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 md:gap-16 opacity-85 grayscale hover:grayscale-0 transition-all duration-300">
+        <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 md:gap-14 opacity-90 transition-all duration-300">
+          {/* Blinkit Benchmark Profile */}
+          <div className="h-[32px] px-3 py-1 rounded-md bg-[#F8C200]/20 border border-[#F8C200]/50 flex items-center justify-center">
+            <span className="font-black text-xl tracking-tight text-[#1C1C1E] font-sans">
+              blink<span className="text-[#00A36C]">it</span>
+            </span>
+          </div>
+
           {/* Capri-Sun */}
-          <div className="h-[30px] flex items-center justify-center">
+          <div className="h-[30px] flex items-center justify-center grayscale hover:grayscale-0 transition-all">
             <Image
               src="/images/52-caprisun-logo.webp"
               alt="Capri-Sun"
@@ -24,7 +31,7 @@ export function Section1_Logos() {
           </div>
 
           {/* Siemens */}
-          <div className="h-[30px] flex items-center justify-center">
+          <div className="h-[30px] flex items-center justify-center grayscale hover:grayscale-0 transition-all">
             <Image
               src="/images/50-siemens-logo.webp"
               alt="Siemens"
@@ -35,7 +42,7 @@ export function Section1_Logos() {
           </div>
 
           {/* Liebherr */}
-          <div className="h-[30px] flex items-center justify-center">
+          <div className="h-[30px] flex items-center justify-center grayscale hover:grayscale-0 transition-all">
             <Image
               src="/images/49-liebherr-logo-2.webp"
               alt="Liebherr"
@@ -46,7 +53,7 @@ export function Section1_Logos() {
           </div>
 
           {/* Lonsdale */}
-          <div className="h-[30px] flex items-center justify-center">
+          <div className="h-[30px] flex items-center justify-center grayscale hover:grayscale-0 transition-all">
             <Image
               src="/images/51-lonsdale-logo.webp"
               alt="Lonsdale"
@@ -56,29 +63,15 @@ export function Section1_Logos() {
             />
           </div>
 
-          {/* Penny */}
-          <div className="h-[30px] flex items-center justify-center">
-            <span className="font-extrabold text-2xl tracking-tighter text-[#cc0000] font-sans">
-              PENNY.
-            </span>
-          </div>
-
           {/* Sharp */}
-          <div className="h-[30px] flex items-center justify-center">
+          <div className="h-[30px] flex items-center justify-center grayscale hover:grayscale-0 transition-all">
             <span className="font-black text-2xl tracking-wider text-[#e60012] font-sans uppercase">
               SHARP
             </span>
           </div>
 
-          {/* Lukkien */}
-          <div className="h-[30px] flex items-center justify-center">
-            <span className="font-bold text-xl tracking-wide text-[#374151] font-sans">
-              lukkien
-            </span>
-          </div>
-
-          {/* Rexroth */}
-          <div className="h-[30px] flex items-center justify-center">
+          {/* Bosch Rexroth */}
+          <div className="h-[30px] flex items-center justify-center grayscale hover:grayscale-0 transition-all">
             <span className="font-semibold text-lg tracking-tight text-[#003865] font-sans">
               Bosch Rexroth
             </span>

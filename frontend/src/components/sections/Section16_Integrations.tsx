@@ -5,28 +5,28 @@ import React from "react";
 export function Section16_Integrations() {
   const categories = [
     {
-      title: "Project management",
-      desc: "Assign review tasks to your teammates and track file statuses in Asana, Jira, Monday.com, ClickUp, and Trello.",
-      badge: "Workflow Sync",
-      apps: ["Asana", "Jira", "Monday", "ClickUp", "Trello"],
+      title: "Vector Search & Caching",
+      desc: "PostgreSQL 16 with pgvector v0.8.7 for 768-dim cosine similarity retrieval, paired with Redis 7 for high-throughput rule caching.",
+      badge: "pgvector & Redis",
+      apps: ["PostgreSQL", "pgvector", "Redis", "Async SQLAlchemy", "Alembic"],
     },
     {
-      title: "Messenger",
-      desc: "Share files, comments, and review decisions in your favorite channels with Slack and Microsoft Teams.",
-      badge: "Real-time Alerts",
-      apps: ["Slack", "Microsoft Teams", "Email", "Webhooks"],
+      title: "Multi-Modal AI Engines",
+      desc: "Google GenAI SDK (Gemini 3.5 Flash & Gemini Embedding 2) with fast fallback to Groq for sub-second semantic evaluation.",
+      badge: "GenAI & Groq",
+      apps: ["Google GenAI", "Gemini 3.5", "Groq", "PyMuPDF", "Pillow"],
     },
     {
-      title: "Content creation",
-      desc: "Upload files and see comments directly inside Adobe Creative Cloud, Figma, and Canva to iterate faster.",
-      badge: "Native Plugins",
-      apps: ["Adobe Premiere", "Photoshop", "InDesign", "Figma"],
+      title: "Collateral Formats Supported",
+      desc: "Audits text copy, Markdown documents, HTML emails, voiceover audio tracks, and full video reels with synchronized captions.",
+      badge: "Multi-Modal",
+      apps: ["Text / Markdown", "HTML Collateral", "MP3 / WAV Audio", "MP4 / MOV Video", "PDF Guidelines"],
     },
     {
-      title: "And many more!",
-      desc: "Connect Filestage with over 5,000+ applications through Zapier, Make, and our enterprise REST API.",
-      badge: "Custom APIs",
-      apps: ["Zapier", "Make", "REST API", "Google Drive"],
+      title: "Enterprise REST API",
+      desc: "FastAPI architecture providing 27 fully tested endpoints, OpenAPI JSON specs, and RBAC authentication headers.",
+      badge: "27 Endpoints",
+      apps: ["FastAPI", "OpenAPI", "Pydantic v2", "Pytest Suite", "Docker"],
     },
   ];
 
@@ -35,13 +35,13 @@ export function Section16_Integrations() {
       <div className="max-w-[1164px] mx-auto px-4 sm:px-6">
         <div className="text-center mb-14 max-w-[800px] mx-auto">
           <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-[#005797] text-xs font-bold uppercase tracking-wider mb-3">
-            Ecosystem & APIs
+            Technology Stack &amp; Infrastructure
           </span>
           <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25] mb-4">
-            Fits seamlessly into your team’s existing workflow
+            Built on modern, high-performance infrastructure
           </h2>
           <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#4b5563] leading-relaxed">
-            Connect Filestage with your project management, creative, and collaboration tools so approvals stay in sync across your entire workflow.
+            Inkloom AI connects asynchronous Python services, pgvector embeddings, and multi-modal models to ensure your brand rules run with sub-second latency.
           </p>
         </div>
 

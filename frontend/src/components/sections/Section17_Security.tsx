@@ -6,20 +6,20 @@ import Image from "next/image";
 export function Section17_Security() {
   const securityFeatures = [
     {
-      title: "AES-256 Data Encryption",
-      desc: "All files in transit and at rest are encrypted with bank-grade AES-256 security protocols.",
+      title: "Reverse-Offset PII Scrubber",
+      desc: "Masks emails, phone numbers, and internal secrets locally before invoking external model endpoints.",
     },
     {
-      title: "Granular Access & Permissions",
-      desc: "Password-protected review links and role-based access ensure confidentiality across agencies and clients.",
+      title: "Anti-Prompt-Injection Fences",
+      desc: "Strict delimiter isolation prevents adversarial collateral copy from hijacking audit instructions.",
     },
     {
-      title: "100% GDPR Compliant",
-      desc: "Hosted on certified EU/German cloud facilities with strict data residency and privacy adherence.",
+      title: "Role-Based Access Control (RBAC)",
+      desc: "Fine-grained permissions enforce distinct actions across Creator, Reviewer, and Brand Manager roles.",
     },
     {
-      title: "Tamper-Proof Audit Trail",
-      desc: "Every comment, timestamp, and sign-off decision is permanently logged for regulatory peace of mind.",
+      title: "Immutable Event History",
+      desc: "Every revision, finding resolution, and manager override is preserved in an audit-ready database log.",
     },
   ];
 
@@ -30,15 +30,15 @@ export function Section17_Security() {
           {/* Left Column: Security Details */}
           <div className="lg:col-span-7 flex flex-col items-start">
             <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-3">
-              Enterprise Grade Protection
+              Confidentiality &amp; Architecture
             </span>
 
             <h2 className="font-['Domine',serif] text-2xl sm:text-[34px] font-bold text-[#111827] leading-[1.25] mb-4">
-              Share content with confidence
+              Audit corporate collateral with zero data leak risk
             </h2>
 
             <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#4b5563] leading-relaxed mb-8">
-              Filestage protects your files with enterprise-grade security, including AES-256 encryption and ISO 27001-certified infrastructure. Password-protected links and email verification ensure only authorized reviewers can view sensitive materials.
+              Inkloom AI protects corporate secrets with built-in reverse-offset PII scrubbers. Sensitive credentials, internal pricing, and customer records never leave your infrastructure without explicit redaction.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full mb-8">
@@ -59,18 +59,18 @@ export function Section17_Security() {
               ))}
             </div>
 
-            <button className="inline-flex items-center gap-2 text-[#005797] font-['Lato',sans-serif] text-base font-bold hover:underline cursor-pointer">
-              <span>Explore enterprise security features</span>
+            <div className="inline-flex items-center gap-2 text-[#005797] font-['Lato',sans-serif] text-base font-bold">
+              <span>Zero external token consumption for deterministic checks</span>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
-            </button>
+            </div>
           </div>
 
           {/* Right Column: Security Badges & Certifications */}
           <div className="lg:col-span-5 flex flex-col items-center justify-center p-8 bg-white rounded-3xl border border-gray-200/90 shadow-lg text-center">
             <h3 className="font-['Domine',serif] text-xl font-bold text-[#111827] mb-6">
-              Certified & Audited Worldwide
+              Enterprise Governance Assurance
             </h3>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-6">
@@ -106,7 +106,7 @@ export function Section17_Security() {
             </div>
 
             <p className="font-['Lato',sans-serif] text-xs text-gray-500 max-w-[340px]">
-              Annual external penetration testing and independent SOC 2 Type II audits ensure your confidential intellectual property remains secure.
+              Every API call enforces strict schema validation and parameter sanitization to guarantee enterprise-level security.
             </p>
           </div>
         </div>
