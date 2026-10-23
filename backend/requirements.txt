@@ -25,3 +25,7 @@ tenacity==9.0.0
 PyMuPDF==1.24.11
 Pillow==10.4.0
 numpy==2.1.2
+
+# Testing & Quality Assurance
+pytest==9.1.1
+pytest-asyncio==1.4.0
