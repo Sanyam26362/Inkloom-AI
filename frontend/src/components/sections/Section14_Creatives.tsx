@@ -13,59 +13,56 @@ interface Tab {
 
 const tabs: Tab[] = [
   {
-    id: "multi-modal",
-    label: "Multi-modal intake",
-    heading: "Upload copy, Markdown, audio voiceovers, or video reels",
+    id: "file-sharing",
+    label: "File sharing",
+    heading: "Simply drag a file into your dashboard to share it and start a review",
     description:
-      "Paste text, Markdown, HTML, or upload audio (MP3, WAV) and video reels (MP4, MOV). Speech-to-text and on-screen dialogue are parsed into editable audit revisions automatically.",
+      "Share designs, video reels, audio stems, HTML copy, and live websites in one easy-to-use platform. No account required for external reviewers.",
     image: "/images/01-upload-files-to-filestage.webp",
   },
   {
-    id: "inline-highlights",
-    label: "Inline violation highlights",
-    heading: "Inspect pinpoint violation spans with exact brand guideline citations",
+    id: "comment-threads",
+    label: "Comment threads",
+    heading: "Get clear and consolidated feedback right on top of your files",
     description:
-      "Every finding displays severity (Critical, Warning, Suggestion), explanation of policy conflict, and approved replacement terms according to your company handbook.",
+      "Pinpoint exact coordinates, highlight text, and draw directly on visual assets. Keep discussions organized in threaded comments.",
     image: "/images/07-packaging-file-review-comment-threads.webp",
   },
   {
-    id: "remediation",
-    label: "One-click remediation",
-    heading: "Apply suggested terminology and track version improvements",
+    id: "to-do-lists",
+    label: "To-do lists",
+    heading: "Use comments as a to-do list in Inkloom AI",
     description:
-      "Resolve findings, accept suggested rewrites, or post contextual comments directly on each violation card to keep creators and reviewers perfectly synchronized.",
+      "Check off items as revisions are completed so you never miss a required edit or overlook critical stakeholder input.",
     image: "/images/08-to-do-lists.webp",
   },
 ];
 
 export function Section14_Creatives() {
-  const [activeTab, setActiveTab] = useState("multi-modal");
+  const [activeTab, setActiveTab] = useState("file-sharing");
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
 
   return (
-    <section className="py-20 bg-[#fafafa]">
+    <section className="py-20 bg-palette-7/30 font-sans text-base leading-[1.4] text-text-primary">
       <div className="max-w-[1246px] mx-auto px-4 sm:px-6">
-        <div className="text-left mb-10">
-          <span className="inline-block px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-3">
-            For Creators &amp; Copywriters
-          </span>
-          <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25]">
-            Empowering creative teams with instant brand guardrails
+        <div className="text-left mb-8">
+          <h2 className="font-serif text-2xl font-bold leading-[1.2] text-equally-action-color">
+            More time for creatives to focus on their craft
           </h2>
         </div>
 
         {/* Feature Tabs */}
-        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto gap-2">
+        <div className="flex border-b border-border mb-8 overflow-x-auto gap-4">
           {tabs.map((tab) => {
             const isActive = tab.id === activeTab;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`pb-4 px-4 font-['Lato',sans-serif] text-base font-bold transition-all whitespace-nowrap cursor-pointer border-b-2 -mb-[2px] ${
+                className={`pb-4 px-2 font-sans text-base font-bold leading-[1.4] transition-all whitespace-nowrap cursor-pointer border-b-2 -mb-[2px] ${
                   isActive
-                    ? "border-[#005797] text-[#005797]"
-                    : "border-transparent text-gray-500 hover:text-gray-900"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-muted hover:text-equally-action-color"
                 }`}
               >
                 {tab.label}
@@ -77,31 +74,31 @@ export function Section14_Creatives() {
         {/* Tab Content & Graphic */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center mb-12">
           <div className="lg:col-span-5 flex flex-col">
-            <h3 className="font-['Domine',serif] text-xl sm:text-2xl font-bold text-[#111827] mb-3 leading-snug">
+            <h3 className="font-serif text-xl font-bold leading-[1.2] text-equally-action-color mb-3">
               {currentTab.heading}
             </h3>
-            <p className="font-['Lato',sans-serif] text-base text-[#4b5563] leading-relaxed">
+            <p className="font-sans text-base leading-[1.4] text-text-primary">
               {currentTab.description}
             </p>
           </div>
 
           <div className="lg:col-span-7">
-            <div className="relative rounded-2xl overflow-hidden border border-gray-200 shadow-xl bg-white p-2 min-h-[340px] flex items-center justify-center">
+            <div className="relative rounded-sm overflow-hidden border border-border shadow-sm bg-background p-2 min-h-[340px] flex items-center justify-center">
               <Image
                 key={currentTab.id}
                 src={currentTab.image}
                 alt={currentTab.heading}
                 width={794}
                 height={449}
-                className="w-full h-auto object-cover rounded-xl transition-opacity duration-300"
+                className="w-full h-auto object-cover rounded-sm transition-opacity duration-300"
               />
             </div>
           </div>
         </div>
 
         {/* Customer Quote Card */}
-        <div className="bg-white border border-gray-200/80 rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 shadow-sm">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm shrink-0 bg-gray-100">
+        <div className="bg-background border border-border rounded-sm p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 shadow-2xs">
+          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-background shadow-2xs shrink-0 bg-palette-7">
             <Image
               src="/images/59-sarah-chen.webp"
               alt="Naeran Rubio"
@@ -111,11 +108,11 @@ export function Section14_Creatives() {
             />
           </div>
           <div className="flex-1">
-            <p className="font-['Domine',serif] text-base sm:text-lg italic text-[#111827] mb-2 leading-relaxed">
-              &ldquo;Our copywriters simply upload video reels and audio voiceovers. Inkloom AI immediately flags unapproved delivery guarantees, verifies claims against our facts database, and checks color contrast automatically.&rdquo;
+            <p className="font-serif text-lg font-normal italic leading-[1.4] text-equally-action-color mb-2">
+              &ldquo;Our designer simply uploads the video reel, sends it to the group, and everyone is able to comment and select the area where the changes need to happen. Inkloom AI immediately verifies our claims against our facts database.&rdquo;
             </p>
-            <p className="font-['Lato',sans-serif] text-sm text-[#4b5563]">
-              <span className="font-bold text-[#111827]">Naeran Rubio</span> — Associate Director of Content &amp; Communications
+            <p className="font-sans text-base leading-[1.4]">
+              <span className="font-bold text-equally-action-color">Naeran Rubio</span> — <span className="text-text-muted">Associate Director of Content &amp; Communications, Sharp</span>
             </p>
           </div>
         </div>

@@ -9,9 +9,14 @@ interface FaqItem {
 
 const faqs: FaqItem[] = [
   {
-    question: "What is Inkloom AI?",
+    question: "What is online proofing software and how does Inkloom AI work?",
     answer:
-      "Inkloom AI is an enterprise brand identity governance and content auditing platform. It evaluates marketing collateral, social captions, audio voiceovers, and video reels against brand guidelines, prohibited terminology, approved facts, and WCAG accessibility standards before publication.",
+      "Online proofing software is a tool used to review and approve creative assets, including artwork, documents, videos, and audio. Inkloom AI adds computational governance: auditing marketing collateral, social captions, audio voiceovers, and video reels against brand guidelines, prohibited terminology, approved facts, and WCAG accessibility standards before publication.",
+  },
+  {
+    question: "Who uses online proofing and brand governance platforms?",
+    answer:
+      "Creative and marketing teams of all sizes use online proofing software to speed up review cycles. Inkloom AI is designed for brands and agencies that produce high volumes of content, collaborate across multiple reviewers, and must maintain strict compliance.",
   },
   {
     question: "How does multi-modal auditing work for audio and video?",
@@ -28,11 +33,6 @@ const faqs: FaqItem[] = [
     answer:
       "Compliance scoring starts at 100 and applies deterministic deductions based on finding severity: -25 points for CRITICAL violations (banned claims, severe regulatory breaches), -10 points for WARNINGS (unapproved synonyms, contrast defects), and -3 points for SUGGESTIONS (minor tone polishing).",
   },
-  {
-    question: "Can brand managers override flagged findings?",
-    answer:
-      "Yes. Reviewers and Brand Managers can override specific findings by providing a mandatory audit justification note. Every override, resolution, and revision status change is permanently captured in an immutable event log for enterprise compliance defense.",
-  },
 ];
 
 export function Section18_Faq() {
@@ -43,14 +43,11 @@ export function Section18_Faq() {
   };
 
   return (
-    <section id="faq" className="py-20 bg-white">
+    <section id="faq" className="py-20 bg-background font-sans text-base leading-[1.4] text-text-primary">
       <div className="max-w-[860px] mx-auto px-4 sm:px-6">
         <div className="text-center mb-12">
-          <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-[#005797] text-xs font-bold uppercase tracking-wider mb-3">
-            Common Questions
-          </span>
-          <h2 className="font-['Domine',serif] text-3xl sm:text-[36px] font-bold text-[#111827] leading-tight">
-            Frequently Asked Questions
+          <h2 className="font-serif text-2xl font-bold leading-[1.2] text-equally-action-color">
+            FAQs
           </h2>
         </div>
 
@@ -60,18 +57,18 @@ export function Section18_Faq() {
             return (
               <div
                 key={idx}
-                className="border border-gray-200/90 rounded-2xl overflow-hidden transition-colors bg-white shadow-2xs"
+                className="border border-border rounded-sm overflow-hidden bg-background shadow-2xs"
               >
                 <button
                   type="button"
                   onClick={() => toggle(idx)}
-                  className="w-full flex items-center justify-between p-6 text-left cursor-pointer hover:bg-gray-50/80 transition-colors"
+                  className="w-full flex items-center justify-between p-6 text-left cursor-pointer hover:bg-palette-7/30 transition-colors"
                   aria-expanded={isOpen}
                 >
-                  <span className="font-['Lato',sans-serif] text-lg sm:text-[19px] font-bold text-[#111827]">
+                  <span className="font-sans text-base font-bold leading-[1.4] text-equally-action-color">
                     {faq.question}
                   </span>
-                  <span className="ml-4 shrink-0 text-[#005797]">
+                  <span className="ml-4 shrink-0 text-primary">
                     <svg
                       className={`w-5 h-5 transform transition-transform duration-300 ${
                         isOpen ? "rotate-180" : ""
@@ -86,7 +83,7 @@ export function Section18_Faq() {
                 </button>
 
                 {isOpen && (
-                  <div className="px-6 pb-6 pt-1 text-base text-[#4b5563] font-['Lato',sans-serif] leading-relaxed border-t border-gray-100 animate-fadeIn">
+                  <div className="px-6 pb-6 pt-1 font-sans text-base leading-[1.4] text-text-primary border-t border-palette-1">
                     {faq.answer}
                   </div>
                 )}

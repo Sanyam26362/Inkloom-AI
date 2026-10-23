@@ -28,7 +28,7 @@ import { Section22_Copyright } from "@/components/sections/Section22_Copyright";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white text-[#374151] font-['Lato',sans-serif] selection:bg-[#ffe29f] selection:text-[#111827]">
+    <div className="min-h-screen bg-background text-text-primary font-sans selection:bg-accent selection:text-equally-action-color">
       {/* 1. header */}
       <Header />
 

@@ -11,14 +11,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isLandingPage) {
     return (
-      <div className="min-h-screen w-full bg-white text-gray-900 overflow-x-hidden selection:bg-[#ffe29f] selection:text-[#111827]">
+      <div className="landing-scope min-h-screen w-full bg-background text-text-primary overflow-x-hidden selection:bg-accent selection:text-equally-action-color">
         {children}
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-surface">
+    <div className="flex min-h-screen w-full bg-surface text-on-surface">
       <Sidebar />
       <div className="pl-0 lg:pl-72 flex flex-col flex-1 min-w-0">
         <Header />

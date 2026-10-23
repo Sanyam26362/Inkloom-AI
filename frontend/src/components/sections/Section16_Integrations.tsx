@@ -31,17 +31,14 @@ export function Section16_Integrations() {
   ];
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-background font-sans text-base leading-[1.4] text-text-primary">
       <div className="max-w-[1164px] mx-auto px-4 sm:px-6">
         <div className="text-center mb-14 max-w-[800px] mx-auto">
-          <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-[#005797] text-xs font-bold uppercase tracking-wider mb-3">
-            Technology Stack &amp; Infrastructure
-          </span>
-          <h2 className="font-['Domine',serif] text-2xl sm:text-[31px] font-bold text-[#111827] leading-[1.25] mb-4">
-            Built on modern, high-performance infrastructure
+          <h2 className="font-serif text-2xl font-bold leading-[1.2] text-equally-action-color mb-4">
+            Fits seamlessly into your team’s existing workflow
           </h2>
-          <p className="font-['Lato',sans-serif] text-base sm:text-lg text-[#4b5563] leading-relaxed">
-            Inkloom AI connects asynchronous Python services, pgvector embeddings, and multi-modal models to ensure your brand rules run with sub-second latency.
+          <p className="font-sans text-base leading-[1.4] text-text-muted">
+            Connect Inkloom AI with your project management, creative, and collaboration tools so approvals stay in sync across your workflow.
           </p>
         </div>
 
@@ -49,27 +46,27 @@ export function Section16_Integrations() {
           {categories.map((cat, idx) => (
             <div
               key={idx}
-              className="p-8 rounded-2xl bg-[#f9fafb] border border-gray-200/80 hover:bg-white hover:border-[#005797]/40 hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
+              className="flex flex-col shrink-0 px-10 py-8 font-sans text-base leading-[1.4] text-text-primary border-[0.67px] border-border rounded-sm bg-palette-7/20 hover:bg-background hover:shadow-sm transition-all duration-300 justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-['Lato',sans-serif] text-xl font-bold text-[#111827]">
+                  <h3 className="font-sans text-base font-bold leading-[1.4] text-equally-action-color">
                     {cat.title}
                   </h3>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-100/60 text-[#005797]">
+                  <span className="text-3xs font-semibold px-2 py-0.5 rounded-sm bg-palette-14 text-primary">
                     {cat.badge}
                   </span>
                 </div>
-                <p className="font-['Lato',sans-serif] text-sm sm:text-base text-[#4b5563] leading-relaxed mb-6">
+                <p className="font-sans text-base leading-[1.4] text-text-muted mb-6">
                   {cat.desc}
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-gray-200/60">
+              <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-palette-1">
                 {cat.apps.map((app, aIdx) => (
                   <span
                     key={aIdx}
-                    className="text-xs font-medium px-3 py-1 bg-white border border-gray-200 rounded-full text-gray-700 shadow-2xs"
+                    className="text-2xs font-normal px-3 py-1 bg-background border border-border rounded-sm text-text-primary"
                   >
                     {app}
                   </span>
