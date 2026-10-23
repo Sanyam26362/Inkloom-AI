@@ -1,0 +1,48 @@
+# Python & Virtual Env
+.venv/
+.venv312/
+venv/
+backend/.venv/
+backend/.venv312/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Local Uploads & Temp Storage
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Database & Docker Local Volumes
+postgres_data/
+redis_data/
+*.db
+*.sqlite3
+
+# Frontend (Node / Next / Vite)
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# Logs & Testing
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
