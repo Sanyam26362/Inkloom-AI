@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useApp } from "@/context/AppContext";
 
 export function Header() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { theme, toggleTheme } = useApp();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[100] h-[72px] bg-background/95 backdrop-blur-md border-b border-palette-1 font-sans text-base leading-[1.4] text-text-primary transition-all duration-200">
@@ -42,6 +44,18 @@ export function Header() {
 
         {/* Right CTA Actions */}
         <div className="hidden sm:flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-2 rounded-full border border-palette-1 hover:bg-palette-7/60 text-equally-action-color transition-colors flex items-center justify-center cursor-pointer shadow-2xs"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle theme mode"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              {theme === "dark" ? "light_mode" : "dark_mode"}
+            </span>
+          </button>
+
           <Link
             href="/dashboard"
             className="text-equally-action-color hover:text-primary text-xs font-bold px-3 py-2 transition-colors font-sans"

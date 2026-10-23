@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { BrandProfile, HealthCheckResponse, UserRole } from "@/lib/types";
 import { api } from "@/lib/api";
 
+export type ThemeMode = "light" | "dark";
+
 interface AppContextType {
   brands: BrandProfile[];
   activeBrand: BrandProfile | null;
@@ -16,6 +18,9 @@ interface AppContextType {
   brandsError: string | null;
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
+  theme: ThemeMode;
+  setTheme: (theme: ThemeMode) => void;
+  toggleTheme: () => void;
   refreshBrands: () => Promise<void>;
   refreshHealth: () => Promise<void>;
 }
@@ -30,6 +35,40 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [isLoadingBrands, setIsLoadingBrands] = useState<boolean>(true);
   const [brandsError, setBrandsError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [theme, setThemeState] = useState<ThemeMode>("light");
+
+  // Load and synchronize theme on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("inkloom_theme") as ThemeMode | null;
+      if (saved === "dark" || saved === "light") {
+        setThemeState(saved);
+        if (saved === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      }
+    } catch {
+      // localStorage may fail in restricted browser envs
+    }
+  }, []);
+
+  const setTheme = useCallback((t: ThemeMode) => {
+    setThemeState(t);
+    try {
+      localStorage.setItem("inkloom_theme", t);
+    } catch {}
+    if (t === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -118,6 +157,9 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         brandsError,
         isMobileMenuOpen,
         setIsMobileMenuOpen,
+        theme,
+        setTheme,
+        toggleTheme,
         refreshBrands: fetchBrands,
         refreshHealth: fetchHealth,
       }}

@@ -18,7 +18,11 @@ export function Header() {
     health,
     isMobileMenuOpen,
     setIsMobileMenuOpen,
+    theme,
+    toggleTheme,
   } = useApp();
+
+  const isDark = theme === "dark";
 
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
@@ -35,24 +39,38 @@ export function Header() {
   const roles: UserRole[] = ["CREATOR", "REVIEWER", "MANAGER"];
 
   return (
-    <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-surface/90 backdrop-blur-xl border-b border-outline-variant/30 shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-md lg:px-gutter-desktop">
+    <header
+      className={`fixed top-0 left-0 lg:left-72 right-0 h-16 backdrop-blur-md border-b shadow-2xs z-40 flex items-center justify-between px-4 lg:px-8 font-sans transition-colors ${
+        isDark ? "bg-[#1b1b1f]/95 border-[#292a2d] text-[#e3e2e6]" : "bg-white/95 border-[#e5e7eb] text-[#111827]"
+      }`}
+    >
       {/* Left side: Hamburger, Breadcrumb & Brand Dropdown */}
-      <div className="flex items-center gap-space-sm lg:gap-space-lg">
+      <div className="flex items-center gap-3 lg:gap-6">
         {/* Mobile Hamburger */}
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-1.5 rounded-lg bg-surface-container text-on-surface lg:hidden hover:bg-surface-container-high transition-colors"
+          className={`p-1.5 rounded-md border lg:hidden transition-colors ${
+            isDark
+              ? "bg-[#1f1f23] border-[#292a2d] text-white hover:bg-[#292a2d]"
+              : "bg-white border-[#e5e7eb] text-[#111827] hover:bg-[#f4f4f4]"
+          }`}
           title="Toggle Navigation Menu"
         >
           <span className="material-symbols-outlined text-[20px]">menu</span>
         </button>
 
         {/* Breadcrumb */}
-        <div className="hidden sm:flex items-center gap-2 text-outline font-body-sm text-[13px]">
-          <span className="text-on-surface-variant font-medium">Inkloom Governance</span>
-          <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-          <span className="text-on-surface font-semibold">{getBreadcrumbTitle()}</span>
+        <div className="hidden sm:flex items-center gap-2 font-sans text-[13px]">
+          <span className={isDark ? "text-[#9ca3af] font-medium" : "text-[#4b5563] font-medium"}>
+            Inkloom Governance
+          </span>
+          <span className={`material-symbols-outlined text-[14px] ${isDark ? "text-[#6b7280]" : "text-[#9ca3af]"}`}>
+            chevron_right
+          </span>
+          <span className={`font-bold ${isDark ? "text-white" : "text-[#111827]"}`}>
+            {getBreadcrumbTitle()}
+          </span>
         </div>
 
         {/* Active Brand Selector Dropdown */}
@@ -60,35 +78,57 @@ export function Header() {
           <button
             type="button"
             onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-            className="flex items-center gap-space-sm px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface transition-colors cursor-pointer text-left"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md border shadow-2xs transition-colors cursor-pointer text-left ${
+              isDark
+                ? "bg-[#1f1f23] border-[#292a2d] text-white hover:bg-[#292a2d]"
+                : "bg-white border-[#e5e7eb] text-[#111827] hover:bg-[#f8fafc]"
+            }`}
           >
-            <span className="material-symbols-outlined text-primary text-[18px]">verified_user</span>
+            <span
+              className={`material-symbols-outlined text-[18px] ${
+                isDark ? "text-[#d2bbff]" : "text-primary"
+              }`}
+            >
+              verified_user
+            </span>
             <div className="flex flex-col">
-              <span className="font-body-sm text-[13px] font-medium leading-tight">
+              <span className={`font-sans text-[13px] font-bold leading-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
                 {activeBrand ? activeBrand.name : "Blinkit"}
               </span>
-              <span className="text-[10px] text-outline font-mono leading-none">
+              <span className={`text-[10px] font-mono leading-none ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
                 ID #{activeBrandId} · {activeBrand?.industry || "Enterprise"}
               </span>
             </div>
-            <span className="material-symbols-outlined text-outline text-[16px] ml-1">
+            <span className={`material-symbols-outlined text-[16px] ml-1 ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
               arrow_drop_down
             </span>
           </button>
 
           {isBrandDropdownOpen && (
             <div
-              className="absolute left-0 mt-1 w-72 rounded-xl bg-surface-container-high border border-outline-variant/40 shadow-2xl py-1 z-50 max-h-80 overflow-y-auto"
+              className={`absolute left-0 mt-1 w-72 rounded-xl border shadow-xl py-1 z-50 max-h-80 overflow-y-auto ${
+                isDark ? "bg-[#1b1b1f] border-[#292a2d] text-white" : "bg-white border-[#e5e7eb] text-[#111827]"
+              }`}
               onMouseLeave={() => setIsBrandDropdownOpen(false)}
             >
-              <div className="px-3 py-2 border-b border-outline-variant/20 flex items-center justify-between">
-                <span className="text-[11px] font-label-sm uppercase tracking-wider text-outline">
+              <div
+                className={`px-3 py-2 border-b flex items-center justify-between ${
+                  isDark ? "border-[#292a2d] bg-[#121316]" : "border-[#e5e7eb] bg-[#f8fafc]"
+                }`}
+              >
+                <span
+                  className={`text-[11px] font-sans uppercase tracking-wider font-bold ${
+                    isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
+                  }`}
+                >
                   Select Governed Brand ({brands.length})
                 </span>
                 <Link
                   href="/guidelines"
                   onClick={() => setIsBrandDropdownOpen(false)}
-                  className="text-[11px] text-primary hover:underline font-medium"
+                  className={`text-[11px] hover:underline font-bold ${
+                    isDark ? "text-[#d2bbff]" : "text-primary"
+                  }`}
                 >
                   Manage Brands
                 </Link>
@@ -102,16 +142,30 @@ export function Header() {
                     setActiveBrandId(b.id);
                     setIsBrandDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-[13px] flex items-center justify-between hover:bg-surface-container-highest transition-colors ${
-                    b.id === activeBrandId ? "bg-primary-container/20 text-primary font-semibold" : "text-on-surface"
+                  className={`w-full text-left px-3 py-2 text-[13px] flex items-center justify-between transition-colors ${
+                    b.id === activeBrandId
+                      ? isDark
+                        ? "bg-[#7c3aed]/20 text-[#d2bbff] font-bold"
+                        : "bg-[#ebf6ff] text-primary font-bold"
+                      : isDark
+                      ? "text-[#d1d5db] hover:bg-[#292a2d]"
+                      : "text-[#374151] hover:bg-[#f8fafc]"
                   }`}
                 >
                   <div className="flex flex-col truncate pr-2">
-                    <span className="truncate">{b.name}</span>
-                    <span className="text-[11px] text-outline font-mono">{b.industry}</span>
+                    <span className="truncate font-sans font-medium">{b.name}</span>
+                    <span className={`text-[11px] font-mono ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                      {b.industry}
+                    </span>
                   </div>
                   {b.id === activeBrandId && (
-                    <span className="material-symbols-outlined text-primary text-[16px]">check</span>
+                    <span
+                      className={`material-symbols-outlined text-[16px] ${
+                        isDark ? "text-[#d2bbff]" : "text-primary"
+                      }`}
+                    >
+                      check
+                    </span>
                   )}
                 </button>
               ))}
@@ -120,52 +174,85 @@ export function Header() {
         </div>
       </div>
 
-      {/* Right side: Search, Role Simulation Switcher, Org Health, New Audit CTA */}
-      <div className="flex items-center gap-space-md">
+      {/* Right side: Search, Theme Toggle, Role Switcher, New Audit CTA */}
+      <div className="flex items-center gap-3">
         {/* Search Input */}
         <div className="relative hidden md:flex items-center">
-          <span className="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span>
+          <span className={`material-symbols-outlined absolute left-3 text-[18px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+            search
+          </span>
           <input
             type="text"
             placeholder="Search guidelines, rules, past audits... ⌘K"
-            className="w-72 h-9 pl-9 pr-4 rounded-lg bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-[13px] border border-outline-variant/30 focus:outline-none focus:ring-1 focus:ring-primary-container transition-all"
+            className={`w-72 h-9 pl-9 pr-4 rounded-full font-sans text-[13px] border focus:outline-none transition-all ${
+              isDark
+                ? "bg-[#121316] border-[#292a2d] text-white placeholder:text-[#9ca3af] focus:border-[#7c3aed]"
+                : "bg-[#f8fafc] border-[#e5e7eb] text-[#111827] placeholder:text-[#6b7280] focus:ring-1 focus:ring-primary focus:bg-white"
+            }`}
           />
         </div>
+
+        {/* Theme Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className={`p-2 rounded-full border shadow-2xs transition-all cursor-pointer flex items-center justify-center ${
+            isDark
+              ? "bg-[#1f1f23] border-[#292a2d] text-amber-400 hover:bg-[#292a2d]"
+              : "bg-white border-[#e5e7eb] text-[#6b7280] hover:bg-[#f8fafc] hover:text-[#111827]"
+          }`}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label="Toggle theme mode"
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {isDark ? "dark_mode" : "light_mode"}
+          </span>
+        </button>
 
         {/* Development Role Simulator Toggle */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-            className="flex items-center gap-1.5 px-space-sm py-1 rounded-lg bg-surface-container border border-outline-variant/40 hover:bg-surface-container-high transition-colors"
-            title="Development RBAC Role Switcher (Simulates x-user-role header)"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-2xs transition-colors cursor-pointer ${
+              isDark
+                ? "bg-[#1f1f23] border-[#292a2d] hover:bg-[#292a2d] text-white"
+                : "bg-white border-[#e5e7eb] hover:bg-[#f8fafc] text-[#111827]"
+            }`}
+            title="Development RBAC Role Switcher"
           >
-            <span className="text-[10px] font-label-sm uppercase tracking-wider text-outline">Role:</span>
+            <span className={`text-[10px] font-sans uppercase tracking-wider font-bold ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+              Role:
+            </span>
             <span
-              className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-semibold ${
-                currentRole === "CREATOR"
-                  ? "bg-secondary-container/40 text-secondary-fixed"
-                  : currentRole === "REVIEWER"
-                  ? "bg-primary-container/40 text-primary-fixed"
-                  : "bg-tertiary-container/40 text-tertiary-fixed"
+              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
+                isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
               }`}
             >
               {currentRole}
             </span>
-            <span className="material-symbols-outlined text-outline text-[16px]">tune</span>
+            <span className={`material-symbols-outlined text-[16px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+              tune
+            </span>
           </button>
 
           {isRoleDropdownOpen && (
             <div
-              className="absolute right-0 mt-1 w-64 rounded-xl bg-surface-container-high border border-outline-variant/40 shadow-2xl p-2 z-50"
+              className={`absolute right-0 mt-1 w-64 rounded-xl border shadow-xl p-2 z-50 ${
+                isDark ? "bg-[#1b1b1f] border-[#292a2d] text-white" : "bg-white border-[#e5e7eb] text-[#111827]"
+              }`}
               onMouseLeave={() => setIsRoleDropdownOpen(false)}
             >
-              <div className="px-2 py-1 mb-1 border-b border-outline-variant/20">
-                <span className="text-[11px] font-label-sm uppercase tracking-wider text-outline">
+              <div
+                className={`px-2 py-1 mb-1 border-b rounded-t-lg ${
+                  isDark ? "border-[#292a2d] bg-[#121316]" : "border-[#e5e7eb] bg-[#f8fafc]"
+                }`}
+              >
+                <span className={`text-[11px] font-sans uppercase tracking-wider font-bold ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
                   Simulate RBAC Identity (Dev)
                 </span>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">
-                  Appends <code className="font-mono text-primary text-[10px]">x-user-role</code> to API calls.
+                <p className={`text-[11px] mt-0.5 ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
+                  Appends <code className={`font-mono text-[10px] ${isDark ? "text-[#d2bbff]" : "text-primary"}`}>x-user-role</code> to API calls.
                 </p>
               </div>
 
@@ -177,20 +264,30 @@ export function Header() {
                     setCurrentRole(r);
                     setIsRoleDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] flex items-center justify-between hover:bg-surface-container-highest transition-colors ${
-                    r === currentRole ? "bg-primary-container/20 text-primary font-semibold" : "text-on-surface"
+                  className={`w-full text-left px-2.5 py-1.5 rounded-md text-[12px] flex items-center justify-between transition-colors ${
+                    currentRole === r
+                      ? isDark
+                        ? "bg-[#7c3aed]/20 text-[#d2bbff] font-bold"
+                        : "bg-[#ebf6ff] text-primary font-bold"
+                      : isDark
+                      ? "text-[#d1d5db] hover:bg-[#292a2d]"
+                      : "text-[#374151] hover:bg-[#f8fafc]"
                   }`}
                 >
                   <div className="flex flex-col">
-                    <span className="font-mono font-medium">{r}</span>
-                    <span className="text-[10px] text-outline">
-                      {r === "CREATOR" && "Drafts submissions, triggers audits"}
-                      {r === "REVIEWER" && "Approves, overrides findings, reviews"}
-                      {r === "MANAGER" && "Full administrative governance"}
+                    <span className="font-mono font-bold">{r}</span>
+                    <span className={`text-[10px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                      {r === "CREATOR"
+                        ? "Drafting & pre-flight checks"
+                        : r === "REVIEWER"
+                        ? "Finding review & overrides"
+                        : "Brand settings & rule configuration"}
                     </span>
                   </div>
-                  {r === currentRole && (
-                    <span className="material-symbols-outlined text-primary text-[16px]">check</span>
+                  {currentRole === r && (
+                    <span className={`material-symbols-outlined text-[14px] ${isDark ? "text-[#d2bbff]" : "text-primary"}`}>
+                      check
+                    </span>
                   )}
                 </button>
               ))}
@@ -198,19 +295,15 @@ export function Header() {
           )}
         </div>
 
-        {/* Engine Health Badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container border border-outline-variant/20 text-tertiary font-label-md text-[12px] font-medium">
-          <span className="material-symbols-outlined text-[16px]">shield_with_heart</span>
-          <span>{health?.status === "healthy" ? "Engine 100%" : "Connecting"}</span>
-        </div>
-
-        {/* New Audit CTA */}
+        {/* Action Button: New Audit */}
         <Link
           href="/audit"
-          className="flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container font-headline-sm text-[13px] font-semibold shadow-[0_0_14px_rgba(124,58,237,0.4)] transition-all cursor-pointer"
+          className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full font-sans text-[13px] font-bold shadow-xs transition-all cursor-pointer ${
+            isDark ? "bg-[#7c3aed] hover:bg-[#6d28d9] text-white" : "bg-primary hover:bg-[#004578] text-white"
+          }`}
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          <span>New Audit</span>
+          <span className="material-symbols-outlined text-[18px]">add_circle</span>
+          <span className="hidden sm:inline">New Audit</span>
         </Link>
       </div>
     </header>
