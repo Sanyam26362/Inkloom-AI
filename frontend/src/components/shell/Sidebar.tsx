@@ -12,7 +12,7 @@ export function Sidebar() {
   const navItems = [
     {
       label: "Dashboard",
-      path: "/",
+      path: "/dashboard",
       icon: "dashboard",
       badge: null,
     },
@@ -29,9 +29,9 @@ export function Sidebar() {
       badge: null,
     },
     {
-      label: "API Testing",
-      path: "/api-console",
-      icon: "terminal",
+      label: "Landing Page",
+      path: "/",
+      icon: "language",
       badge: "Live",
     },
   ];
