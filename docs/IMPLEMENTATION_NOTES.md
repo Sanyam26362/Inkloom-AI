@@ -241,15 +241,42 @@ Phase 1 focuses exclusively on making the AI calling pipeline reliable, asynchro
   - Uses `select(Submission).with_for_update()` to prevent race conditions on `current_version` increments.
   - Automatically schedules a background re-audit task for the newly created revision.
 
-## 6. Admin Queue & Intelligence Stats Endpoints
-- `GET /api/v1/admin/queue`:
-  - Paginated, filterable by `verdict`, `status`, `media_type`, `brand_id`, `campaign_id`.
-  - Lightweight projections joining brand and campaign without loading heavy media blobs.
-  - Aggregates open critical and warning finding counts per item.
-- `GET /api/v1/admin/stats`:
-  - AI verdict vs Admin final decision agreement rate percentage.
-  - Override rate per guideline chunk (`times_overridden / times_triggered`).
-  - Total submission, verdict, and status distribution counts.
+# Phase 7 Implementation Notes: Frontend Flow
+
+## 1. Asset & Section Cleanup
+- Cleaned 48 legacy Filestage webp marketing screenshots from `frontend/public/images/`.
+- Removed 22 duplicate static marketing sections from `frontend/src/components/sections/`.
+- Transformed the home route (`/`) from a static marketing clone into an interactive, 4-step onboarding wizard.
+
+## 2. Interactive Onboarding Wizard (`/`)
+- Step 1: Select Enterprise Brand (Turnkey Blinkit Quick-Commerce demo with pre-configured tone, approved hex palette, and banned terms vs. custom brand onboarding).
+- Step 2: Guidelines Ingestion (1-click load of Blinkit Diwali 2026 pack calling `/packs/blinkit/load` or drag-and-drop custom PDF/Markdown upload).
+- Step 3: Review & Edit Extracted RuleSet (Interactive palette color swatches with hex input and delete, zero-tolerance banned terms badges, preferred terminology replacement mappings, and decision rules).
+- Step 4: Persona Selection & Direct Launch:
+  - Alex Rivera (Creator) -> `/content` (Creator Studio)
+  - Sasha Bloom (Judge) -> `/judge` (Judge Canvas)
+  - Jordan Vance (Admin) -> `/dashboard` (Admin Governance Queue)
+
+## 3. JWT Authentication & Persona Switcher
+- AppContext and Header automatically sync user persona with backend JWT authentication (`POST /api/v1/auth/login`).
+- All requests through `frontend/src/lib/api.ts` automatically attach `Authorization: Bearer <token>` from `localStorage.getItem("inkloom_token")`.
+- Header role dropdown supports all roles: `CREATOR`, `JUDGE`, `ADMIN`, `REVIEWER`, `MANAGER` with visual role dots and instant persona switching.
+
+## 4. Judge Canvas & Demo Presets (`/judge`)
+- Prominent source toggle: "Preloaded Blinkit Guidelines" vs "Upload Custom Guidelines".
+- 1-Click Judge presets:
+  - Spider-Man superhero test (violates prohibited visual elements, triggers `CRITICAL` finding and `FAIL` verdict).
+  - Compliant Diwali sweets test (matches approved `#F8C200` palette, Diwali event cues, triggers `PASS` verdict).
+  - Instant delivery claims test (violates banned terminology "instant delivery guaranteed", triggers `WARNING`).
+- Multi-modal audit runner supports Instagram Post, Poster/Banner, Video, Audio, and Text Copy.
+- Authoritative verdict badges (`PASS`, `NEEDS_REVIEW`, `FAIL`), compliance progress gauge, severity distribution cards, category icons, flagged excerpt snippets, and suggested corrections.
+
+## 5. Admin Governance Dashboard (`/dashboard`)
+- KPI grid: Total submissions, Average compliance score, Auto-remediation rate, Flagged ambiguous guidelines.
+- Submissions review table with quick approve and reject actions passing mandatory administrative explanation notes.
+- Non-swallowed error handling: errors (e.g. HTTP 409 from unresolved critical findings) surface in visible toast banners with 8-second auto-dismiss.
+- Intelligence widgets: Top recurring policy violations progress bars and flagged ambiguous guidelines override rate table.
+
 
 
 

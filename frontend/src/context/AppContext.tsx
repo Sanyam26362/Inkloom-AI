@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { BrandProfile, HealthCheckResponse, UserRole } from "@/lib/types";
+import { BrandProfile, HealthCheckResponse, UserRole, UserProfileResponse, Campaign } from "@/lib/types";
 import { api } from "@/lib/api";
 
 export type ThemeMode = "light" | "dark";
@@ -11,8 +11,15 @@ interface AppContextType {
   activeBrand: BrandProfile | null;
   activeBrandId: number;
   setActiveBrandId: (id: number) => void;
+  campaigns: Campaign[];
+  activeCampaignId: number | null;
+  setActiveCampaignId: (id: number | null) => void;
+  refreshCampaigns: () => Promise<void>;
+  user: UserProfileResponse | null;
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
+  loginAsDemoUser: (role: UserRole) => Promise<void>;
+  logout: () => void;
   health: HealthCheckResponse | null;
   isLoadingBrands: boolean;
   brandsError: string | null;
@@ -34,16 +41,18 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppContextProvider({ children }: { children: React.ReactNode }) {
   const [brands, setBrands] = useState<BrandProfile[]>([]);
-  // Do not guess a brand id before the API has returned the seeded profiles.
-  // IDs are database-generated, so the demo Blinkit brand is not guaranteed to be 1.
   const [activeBrandId, setActiveBrandId] = useState<number>(0);
-  const [currentRole, setCurrentRole] = useState<UserRole>("REVIEWER");
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [activeCampaignId, setActiveCampaignId] = useState<number | null>(null);
+  const [currentRole, setCurrentRoleState] = useState<UserRole>("CREATOR");
+  const [user, setUser] = useState<UserProfileResponse | null>(null);
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [isLoadingBrands, setIsLoadingBrands] = useState<boolean>(true);
   const [brandsError, setBrandsError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [theme, setThemeState] = useState<ThemeMode>("light");
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarCollapsed((prev) => !prev);
@@ -53,19 +62,26 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     setRefreshKey((k) => k + 1);
   }, []);
 
-  const [theme, setThemeState] = useState<ThemeMode>("light");
-
   // Synchronize document theme class and state on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("inkloom_theme") as ThemeMode | null;
-      if (saved === "dark" || saved === "light") {
+      const savedTheme = localStorage.getItem("inkloom_theme") as ThemeMode | null;
+      if (savedTheme === "dark" || savedTheme === "light") {
         /* eslint-disable-next-line react-hooks/set-state-in-effect */
-        setThemeState(saved);
-        if (saved === "dark") {
+        setThemeState(savedTheme);
+        if (savedTheme === "dark") {
           document.documentElement.classList.add("dark");
         } else {
           document.documentElement.classList.remove("dark");
+        }
+      }
+
+      const savedUserStr = localStorage.getItem("inkloom_user");
+      if (savedUserStr) {
+        const parsed = JSON.parse(savedUserStr);
+        setUser(parsed);
+        if (parsed.role) {
+          setCurrentRoleState(parsed.role as UserRole);
         }
       }
     } catch {
@@ -89,24 +105,60 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 
+  const loginAsDemoUser = useCallback(async (role: UserRole) => {
+    try {
+      const res = await api.login({ role });
+      setUser(res.user);
+      setCurrentRoleState(role);
+    } catch (err) {
+      console.error("Failed to login as demo user:", err);
+    }
+  }, []);
+
+  const setCurrentRole = useCallback((role: UserRole) => {
+    setCurrentRoleState(role);
+    loginAsDemoUser(role);
+  }, [loginAsDemoUser]);
+
+  const logout = useCallback(() => {
+    api.logout();
+    setUser(null);
+  }, []);
+
   const fetchHealth = useCallback(async () => {
     try {
       const h = await api.getHealth();
       setHealth(h);
     } catch {
-      // Backend may be starting or offline
       setHealth(null);
     }
   }, []);
+
+  const fetchCampaigns = useCallback(async () => {
+    if (!activeBrandId) return;
+    try {
+      const list = await api.listCampaigns(activeBrandId);
+      setCampaigns(list);
+      if (list.length > 0 && !activeCampaignId) {
+        const active = list.find((c) => c.is_active);
+        setActiveCampaignId(active ? active.id : list[0].id);
+      }
+    } catch {
+      setCampaigns([]);
+    }
+  }, [activeBrandId, activeCampaignId]);
 
   const fetchBrands = useCallback(async () => {
     setIsLoadingBrands(true);
     setBrandsError(null);
     try {
-      const data = await api.listBrands({ userRole: currentRole });
+      // Ensure we have a valid token if not already present
+      if (typeof window !== "undefined" && !localStorage.getItem("inkloom_token")) {
+        await loginAsDemoUser(currentRole);
+      }
+      const data = await api.listBrands();
       setBrands(data);
       if (data.length > 0) {
-        // Keep Blinkit as the demo client when the seed contains multiple profiles.
         const found = data.find((b) => b.id === activeBrandId);
         if (!found) {
           const blinkit = data.find((b) => b.name.toLowerCase() === "blinkit");
@@ -119,7 +171,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setIsLoadingBrands(false);
     }
-  }, [currentRole, activeBrandId]);
+  }, [currentRole, activeBrandId, loginAsDemoUser]);
 
   useEffect(() => {
     let ignore = false;
@@ -134,7 +186,10 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       try {
         setIsLoadingBrands(true);
         setBrandsError(null);
-        const data = await api.listBrands({ userRole: currentRole });
+        if (typeof window !== "undefined" && !localStorage.getItem("inkloom_token")) {
+          await loginAsDemoUser(currentRole);
+        }
+        const data = await api.listBrands();
         if (!ignore) {
           setBrands(data);
           if (data.length > 0) {
@@ -160,7 +215,14 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     return () => {
       ignore = true;
     };
-  }, [currentRole, activeBrandId]);
+  }, [activeBrandId, currentRole, loginAsDemoUser]);
+
+  useEffect(() => {
+    if (activeBrandId) {
+      /* eslint-disable-next-line react-hooks/set-state-in-effect */
+      fetchCampaigns();
+    }
+  }, [activeBrandId, fetchCampaigns]);
 
   const activeBrand = brands.find((b) => b.id === activeBrandId) || brands[0] || null;
 
@@ -171,8 +233,15 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         activeBrand,
         activeBrandId,
         setActiveBrandId,
+        campaigns,
+        activeCampaignId,
+        setActiveCampaignId,
+        refreshCampaigns: fetchCampaigns,
+        user,
         currentRole,
         setCurrentRole,
+        loginAsDemoUser,
+        logout,
         health,
         isLoadingBrands,
         brandsError,

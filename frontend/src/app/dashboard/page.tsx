@@ -33,8 +33,13 @@ export default function GovernanceDashboardPage() {
 
   const handleQuickStatusUpdate = async (subId: number, targetStatus: SubmissionStatus) => {
     setUpdatingId(subId);
+    setError(null);
     try {
-      await api.updateStatus(subId, targetStatus, undefined, { userRole: currentRole });
+      const notes =
+        targetStatus === "CHANGES_REQUESTED" || targetStatus === "REJECTED"
+          ? "Administrative review: Revision requested by governance lead."
+          : undefined;
+      await api.updateStatus(subId, targetStatus, notes, { userRole: currentRole });
       setSubmissions((prev) =>
         prev.map((s) => (s.id === subId ? { ...s, status: targetStatus } : s))
       );
@@ -42,8 +47,10 @@ export default function GovernanceDashboardPage() {
         const analyticsData = await api.getAnalytics(activeBrandId, { userRole: currentRole });
         setAnalytics(analyticsData);
       }
-    } catch (e) {
-      console.error("Failed to update status", e);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Cannot update status to ${targetStatus}: ${msg}`);
+      setTimeout(() => setError(null), 8000);
     } finally {
       setUpdatingId(null);
     }

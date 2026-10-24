@@ -38,7 +38,13 @@ export function Header() {
     return "Dashboard";
   };
 
-  const roles: UserRole[] = ["CREATOR", "REVIEWER", "MANAGER"];
+  const roles: { role: UserRole; name: string; color: string }[] = [
+    { role: "CREATOR", name: "Alex Rivera (Creator)", color: "bg-emerald-500" },
+    { role: "JUDGE", name: "Sasha Bloom (Judge)", color: "bg-amber-500" },
+    { role: "ADMIN", name: "Jordan Vance (Admin)", color: "bg-purple-500" },
+    { role: "REVIEWER", name: "Reviewer (Legacy)", color: "bg-blue-500" },
+    { role: "MANAGER", name: "Manager (Legacy)", color: "bg-indigo-500" },
+  ];
 
   return (
     <header
@@ -250,21 +256,21 @@ export function Header() {
 
           {isRoleDropdownOpen && (
             <div
-              className={`absolute right-0 mt-1.5 w-36 rounded-xl border shadow-xl p-1 z-50 ${
+              className={`absolute right-0 mt-1.5 w-52 rounded-xl border shadow-xl p-1 z-50 ${
                 isDark ? "bg-[#1b1b1f] border-[#3b3c44] text-white" : "bg-white border-[#cbd5e1] text-[#111827]"
               }`}
               onMouseLeave={() => setIsRoleDropdownOpen(false)}
             >
-              {roles.map((r) => (
+              {roles.map((item) => (
                 <button
-                  key={r}
+                  key={item.role}
                   type="button"
                   onClick={() => {
-                    setCurrentRole(r);
+                    setCurrentRole(item.role);
                     setIsRoleDropdownOpen(false);
                   }}
                   className={`w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                    currentRole === r
+                    currentRole === item.role
                       ? isDark
                         ? "bg-[#7c3aed]/20 text-[#d2bbff] font-bold"
                         : "bg-[#ebf6ff] text-primary font-bold"
@@ -274,18 +280,10 @@ export function Header() {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        r === "MANAGER"
-                          ? "bg-purple-500"
-                          : r === "REVIEWER"
-                          ? "bg-blue-500"
-                          : "bg-emerald-500"
-                      }`}
-                    />
-                    <span className="font-sans font-medium capitalize">{r.toLowerCase()}</span>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />
+                    <span className="font-sans font-medium">{item.name}</span>
                   </div>
-                  {currentRole === r && (
+                  {currentRole === item.role && (
                     <span
                       className={`material-symbols-outlined text-[15px] ${
                         isDark ? "text-[#d2bbff]" : "text-primary"

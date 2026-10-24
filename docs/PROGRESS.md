@@ -116,11 +116,47 @@
   - PII scrubber enhancements: eliminates false-positive phone detections on order numbers (`Order #1002345678`), invoice numbers, and prices (`Rs. 999`, `₹1000`, `$1200`), and handles overlapping replacements safely.
   - Idempotent re-audit: automatically cleans up existing findings for the same revision before re-inserting fresh findings.
   - In-memory execution (`persist=False`): returns pure audit output without mutating submission or revision state.
+### Phase 5: Media Pipelines
+- **Completed**:
+  - Image audit pipeline: integrated real Cloudinary upload (`UploadService.upload_image`) with local fallback; enhanced color extraction with OpenCV k-means clustering; dynamic palette matching against brand RuleSet; accessibility alt-text checks; OCR text extraction; structured Gemini vision audit with `gemini-3.5-flash`.
+  - Audio audit pipeline (`backend/app/services/audio_service.py`): real duration extraction via `wave` and `eyed3`; silence detection; speech-to-text transcription via Gemini multi-modal input; spoken terminology and banned term verification.
+  - Video audit pipeline (`backend/app/services/video_service.py`): real OpenCV frame extraction (`cv2.VideoCapture`) sampling keyframes across video duration; audio track extraction; multi-frame and transcript audit.
+  - Social post pipeline (`POST /api/v1/submissions/{id}/upload-post`): evaluates Instagram post package (creative image + caption copy + hashtags + campaign event) in a single integrated audit.
+  - Background async audit job queue: Redis queue with polling endpoint `GET /api/v1/submissions/{id}/audit-status` returning progress percentage, current step, and live results.
 - **Test Results**:
-  - Regression and acceptance suite `test_phase4_verdicts_detectors.py`: 20/20 passed (covering BG-TC-01 through BG-TC-09, false positives, idempotency, and in-memory execution).
-  - Full backend test suite: 87/87 passed (100%).
-  - Frontend typecheck (`tsc --noEmit`): 0 errors.
-  - Frontend lint (`npm run lint`): 0 errors.
+  - `test_phase5_media_pipelines.py`: 8/8 passed.
+
+### Phase 6: Auth, Roles, and Approval Workflow
+- **Completed**:
+  - Secure JWT authentication (`HS256`, 24h expiration) with password hashing (PBKDF2 HMAC-SHA256); demo accounts seeded (`Alex Rivera - Creator`, `Sasha Bloom - Judge`, `Jordan Vance - Admin`).
+  - Added additive Alembic migration `27e8a94b301c_add_users_and_tenant_isolation.py` creating `user_accounts` table and adding tenant isolation columns (`tenant_id`, `owner_id`) to `brand_profiles`.
+  - Enforced strict JWT authentication in `get_current_user`: raw untrusted `x-user-role` headers without a valid Bearer token are rejected with HTTP 401.
+  - Role-based access control with `UserRole` enum (`CREATOR`, `JUDGE`, `ADMIN`, `REVIEWER`, `MANAGER`).
+  - Concurrency protection: `create_new_revision` uses `select(Submission).with_for_update()` to prevent race conditions on version increments and automatically triggers background re-audits.
+  - Approval deadlock fix: `_recalculate_revision_and_verdict` recalculates compliance score and effective verdict (`FAIL` -> `NEEDS_REVIEW` -> `PASS`) whenever findings are overridden or resolved.
+  - Status transition matrix enforced (`DRAFT -> AUDITING -> NEEDS_REVIEW | CHANGES_REQUESTED | REJECTED -> APPROVED`). Rejection requires mandatory explanation (HTTP 400).
+  - Admin governance API: `GET /api/v1/admin/queue` and `GET /api/v1/admin/stats` computing AI verdict agreement rate, guideline override rates, and distributions.
+- **Test Results**:
+  - Full backend test suite: 104/104 passed (100%).
+
+### Phase 7: Frontend Flow
+- **Completed**:
+  - Cleaned legacy copied marketing sections and unused Filestage webp images.
+  - Enhanced API client (`frontend/src/lib/api.ts`): JWT bearer token handling via localStorage, auth endpoints (`login`, `getMe`, `getDemoUsers`), premade packs (`listPacks`, `loadPack`), campaigns, rulesets, and admin queue/stats endpoints.
+  - Interactive 4-step Onboarding Wizard (`frontend/src/app/page.tsx`):
+    - Step 1: Select enterprise client (Turnkey Blinkit demo vs custom brand).
+    - Step 2: Ingest guidelines (1-click load of Blinkit Diwali 2026 pack or custom PDF/MD upload).
+    - Step 3: Review and edit extracted RuleSet (interactive hex color swatches with add/remove, banned term badges, preferred terminology replacements).
+    - Step 4: Demo persona selection & launch (Alex Rivera -> Creator Studio, Sasha Bloom -> Judge Canvas, Jordan Vance -> Admin Dashboard).
+  - Judge Canvas (`frontend/src/app/judge/page.tsx`): Preloaded guidelines vs custom upload, 1-click test presets (Spider-Man off-brand violation, Compliant Diwali sweets, Instant delivery claims), multi-modal playground (Instagram post, poster, audio, video, text), live score, verdict badges, and detailed findings.
+  - Creator Studio (`frontend/src/app/content/page.tsx`): Guided asset creation and direct routing to audit workspace.
+  - Admin Governance Dashboard (`frontend/src/app/dashboard/page.tsx`): Live analytics KPI grid, recent submissions queue with quick approve/reject actions, robust error handling with visible toasts, top violation breakdowns, and ambiguous guideline overrides table.
+  - Shell & Navigation (`Header.tsx`, `Sidebar.tsx`): Integrated persona switcher with real JWT authentication, theme toggling (dark/light mode), responsive navigation.
+- **Verification**:
+  - `npx tsc --noEmit`: 0 errors.
+  - `npm run lint`: 0 errors.
+  - `npm run build`: Production build succeeded (10/10 static pages generated).
+
 
 
 
