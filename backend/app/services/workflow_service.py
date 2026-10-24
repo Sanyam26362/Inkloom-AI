@@ -98,6 +98,34 @@ class WorkflowService:
         finding.resolved_by = user.user_name
         finding.resolved_at = datetime.now(timezone.utc)
 
+        # Recalculate compliance score for the revision based on remaining OPEN findings
+        open_findings_stmt = (
+            select(AuditFinding)
+            .where(AuditFinding.revision_id == finding.revision_id)
+            .where(AuditFinding.id != finding.id)
+            .where(AuditFinding.resolution_state == "OPEN")
+        )
+        remaining_open = list((await session.execute(open_findings_stmt)).scalars().all())
+        score = 100.0
+        for f in remaining_open:
+            if f.severity == "CRITICAL":
+                score -= 25.0
+            elif f.severity == "WARNING":
+                score -= 10.0
+            elif f.severity == "SUGGESTION":
+                score -= 3.0
+        effective_score = max(0.0, round(score, 1))
+
+        rev_stmt = select(SubmissionRevision).where(SubmissionRevision.id == finding.revision_id)
+        rev = (await session.execute(rev_stmt)).scalar_one_or_none()
+        if rev:
+            rev.compliance_score = effective_score
+
+        sub_stmt = select(Submission).where(Submission.id == finding.submission_id)
+        sub = (await session.execute(sub_stmt)).scalar_one_or_none()
+        if sub:
+            sub.compliance_score = effective_score
+
         # Increment guideline chunk override counter if cited
         if finding.cited_chunk_id:
             chunk_stmt = select(GuidelineChunk).where(GuidelineChunk.id == finding.cited_chunk_id)
@@ -115,7 +143,7 @@ class WorkflowService:
             from_status=None,
             to_status=None,
             notes=f"Finding #{finding.id} ({finding.category}) overridden: {reason}",
-            metadata_json={"finding_id": finding.id, "reason": reason, "category": finding.category},
+            metadata_json={"finding_id": finding.id, "reason": reason, "category": finding.category, "new_score": effective_score},
         )
         session.add(event)
         await session.commit()
@@ -135,19 +163,25 @@ class WorkflowService:
         Governs status transitions (NEEDS_REVIEW, CHANGES_REQUESTED, APPROVED).
         Only REVIEWER or MANAGER can APPROVE or CHANGES_REQUESTED.
         """
-        valid_statuses = {"DRAFT", "NEEDS_REVIEW", "CHANGES_REQUESTED", "APPROVED"}
+        valid_statuses = {"DRAFT", "NEEDS_REVIEW", "CHANGES_REQUESTED", "APPROVED", "REJECTED"}
         if target_status not in valid_statuses:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {target_status}. Must be one of {valid_statuses}",
             )
 
-        if target_status in ("APPROVED", "CHANGES_REQUESTED"):
+        if target_status in ("APPROVED", "CHANGES_REQUESTED", "REJECTED"):
             if user.role not in (UserRole.REVIEWER, UserRole.MANAGER):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail=f"Only REVIEWER or MANAGER role can transition status to {target_status}.",
                 )
+
+        if target_status == "REJECTED" and not notes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A rejection reason or note is required to transition status to REJECTED.",
+            )
 
         stmt = select(Submission).where(Submission.id == submission_id)
         res = await session.execute(stmt)

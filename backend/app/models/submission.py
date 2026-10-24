@@ -14,13 +14,22 @@ class Submission(Base):
     brand_id: Mapped[int] = mapped_column(
         ForeignKey("brand_profiles.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    campaign_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     content_format: Mapped[str] = mapped_column(
         String(50), default="TEXT"
     )  # TEXT, MARKDOWN, HTML, IMAGE, AUDIO, VIDEO, DOCUMENT
     status: Mapped[str] = mapped_column(
         String(50), default="DRAFT", index=True
-    )  # DRAFT, AUDITING, NEEDS_REVIEW, CHANGES_REQUESTED, APPROVED
+    )  # DRAFT, AUDITING, NEEDS_REVIEW, CHANGES_REQUESTED, APPROVED, REJECTED
+    verdict: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # PASS, NEEDS_REVIEW, FAIL
+    platform: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # instagram, poster, youtube, etc.
 
     current_version: Mapped[int] = mapped_column(Integer, default=1)
     compliance_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -39,6 +48,7 @@ class Submission(Base):
 
     # Relationships
     brand: Mapped["BrandProfile"] = relationship("BrandProfile", back_populates="submissions")
+    campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="submissions")
     revisions: Mapped[List["SubmissionRevision"]] = relationship(
         "SubmissionRevision",
         back_populates="submission",

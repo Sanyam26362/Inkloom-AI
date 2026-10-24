@@ -34,7 +34,7 @@ def mock_external_ai(monkeypatch):
     async def mock_embed(text: str, task_type: str = "RETRIEVAL_DOCUMENT"):
         return mock_vector
 
-    async def mock_semantic(scrubbed_text, tone_persona, guidelines_context, approved_facts):
+    async def mock_semantic(scrubbed_text, tone_persona, guidelines_context, approved_facts, *args, **kwargs):
         return {
             "ai_status": "ok",
             "findings": [

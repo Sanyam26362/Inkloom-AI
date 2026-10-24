@@ -1,9 +1,12 @@
+import re
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.brand import BrandProfile
+from app.models.campaign import Campaign
+from app.models.ruleset import RuleSet
 from app.models.guideline_chunk import GuidelineChunk
 from app.models.submission import Submission, SubmissionRevision
 from app.models.finding import AuditFinding
@@ -18,6 +21,56 @@ logger = logging.getLogger(__name__)
 
 class AuditService:
     """Orchestrates deterministic rule execution, RAG guideline retrieval, and semantic AI auditing."""
+
+    @staticmethod
+    def matches_subject(subject: str, text: str) -> bool:
+        """Matches a keyword using word boundaries and case-insensitivity to avoid false positives."""
+        if not subject or not text:
+            return False
+        pattern = rf"\b{re.escape(subject.strip())}\b"
+        return bool(re.search(pattern, text, re.IGNORECASE))
+
+    @classmethod
+    async def get_active_ruleset_and_campaign(
+        cls,
+        session: AsyncSession,
+        brand_id: int,
+        campaign_id: Optional[int] = None,
+        event_name: Optional[str] = None,
+    ) -> Tuple[Optional[Campaign], Optional[RuleSet]]:
+        """Resolves campaign and active ruleset for a brand."""
+        campaign: Optional[Campaign] = None
+        if campaign_id:
+            c_res = await session.execute(
+                select(Campaign).where(Campaign.id == campaign_id, Campaign.brand_id == brand_id)
+            )
+            campaign = c_res.scalar_one_or_none()
+        elif event_name and event_name.strip():
+            c_res = await session.execute(
+                select(Campaign)
+                .where(Campaign.brand_id == brand_id, Campaign.name.ilike(f"%{event_name.strip()}%"))
+                .order_by(Campaign.created_at.desc())
+            )
+            campaign = c_res.scalar_one_or_none()
+
+        ruleset: Optional[RuleSet] = None
+        if campaign:
+            rs_res = await session.execute(
+                select(RuleSet)
+                .where(RuleSet.brand_id == brand_id, RuleSet.campaign_id == campaign.id, RuleSet.is_active == True)
+                .order_by(RuleSet.version.desc())
+            )
+            ruleset = rs_res.scalar_one_or_none()
+
+        if not ruleset:
+            rs_res = await session.execute(
+                select(RuleSet)
+                .where(RuleSet.brand_id == brand_id, RuleSet.is_active == True)
+                .order_by(RuleSet.version.desc())
+            )
+            ruleset = rs_res.scalar_one_or_none()
+
+        return campaign, ruleset
 
     @classmethod
     async def retrieve_relevant_guidelines(
@@ -156,6 +209,8 @@ class AuditService:
         session: AsyncSession,
         submission: Submission,
         revision: SubmissionRevision,
+        campaign_id: Optional[int] = None,
+        event: Optional[str] = None,
         actor_id: str = "system_auditor",
         actor_name: str = "Inkloom Governance Engine",
         actor_role: str = "SYSTEM",
@@ -164,12 +219,13 @@ class AuditService:
     ) -> Dict[str, Any]:
         """
         Runs complete governance audit on a submission revision:
-        1. PII Scrubbing
-        2. Deterministic Rule Matching (banned terms, preferred terminology)
-        3. RAG Guideline Retrieval (pgvector)
-        4. Semantic LLM Analysis (Gemini)
-        5. Finding Deduplication and Score Calculation
-        6. DB Persistence
+        1. Campaign & RuleSet resolution
+        2. PII Scrubbing
+        3. Deterministic Rule Matching (banned terms, preferred terminology)
+        4. RAG Guideline Retrieval (pgvector)
+        5. Semantic LLM Analysis (Gemini)
+        6. Finding Deduplication and Score Calculation
+        7. DB Persistence
         """
         # Fetch brand profile
         brand_stmt = select(BrandProfile).where(BrandProfile.id == submission.brand_id)
@@ -178,14 +234,30 @@ class AuditService:
         if not brand:
             raise ValueError(f"BrandProfile with id {submission.brand_id} not found")
 
+        # Resolve Campaign and RuleSet
+        effective_campaign_id = campaign_id or submission.campaign_id
+        campaign_event = event or (additional_metadata.get("campaign_event") if additional_metadata else None)
+        campaign, ruleset = await cls.get_active_ruleset_and_campaign(
+            session=session,
+            brand_id=submission.brand_id,
+            campaign_id=effective_campaign_id,
+            event_name=campaign_event,
+        )
+        if campaign and not submission.campaign_id:
+            submission.campaign_id = campaign.id
+
+        effective_banned = ruleset.banned_terms if ruleset and ruleset.banned_terms else (brand.banned_terms or [])
+        effective_pref = ruleset.preferred_terminology if ruleset and ruleset.preferred_terminology else (brand.preferred_terminology or {})
+        effective_facts = ruleset.approved_facts if ruleset and ruleset.approved_facts else (brand.approved_facts or [])
+
         content = revision.content_body or ""
         all_draft_findings: List[FindingDraft] = []
 
         # 1. Deterministic Rule Engine (in-memory, immediate)
         deterministic_findings = RuleEngine.run_all_deterministic_checks(
             text=content,
-            banned_terms=brand.banned_terms or [],
-            preferred_terminology=brand.preferred_terminology or {},
+            banned_terms=effective_banned,
+            preferred_terminology=effective_pref,
         )
         all_draft_findings.extend(deterministic_findings)
 
@@ -215,6 +287,24 @@ class AuditService:
         ai_status = "ok"
         ai_error: Optional[str] = None
 
+        campaign_dict = {
+            "id": campaign.id,
+            "name": campaign.name,
+            "description": campaign.description,
+            "goals": campaign.goals,
+            "required_cues": campaign.required_cues,
+            "prohibited_items": campaign.prohibited_items,
+        } if campaign else None
+
+        ruleset_dict = {
+            "version": ruleset.version,
+            "banned_terms": ruleset.banned_terms,
+            "preferred_terminology": ruleset.preferred_terminology,
+            "approved_facts": ruleset.approved_facts,
+            "required_phrases": ruleset.required_phrases,
+            "exaggeration_terms": ruleset.exaggeration_terms,
+        } if ruleset else None
+
         if scrubbed_text.strip():
             if gemini_service.is_available:
                 try:
@@ -222,7 +312,10 @@ class AuditService:
                         scrubbed_text=scrubbed_text,
                         tone_persona=brand.tone_persona or "",
                         guidelines_context=guidelines_context,
-                        approved_facts=brand.approved_facts or [],
+                        approved_facts=effective_facts,
+                        campaign=campaign_dict,
+                        ruleset=ruleset_dict,
+                        campaign_event=campaign.name if campaign else campaign_event,
                     )
                 except Exception as exc:
                     ai_result = {
@@ -246,7 +339,7 @@ class AuditService:
                     restored_flagged = ConfidentialityScrubber.restore(flagged, restore_map)
                     restored_suggestion = ConfidentialityScrubber.restore(suggestion, restore_map)
 
-                    citation = "Brand Tone & Style Persona"
+                    citation = f"{brand.name} Tone & Style Guidelines"
                     if cited_id and cited_id in retrieved_map:
                         citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
 
@@ -265,6 +358,7 @@ class AuditService:
             else:
                 ai_status = "failed"
                 ai_error = "Gemini AI service is offline or unconfigured."
+
 
         # Fail closed: when any AI step fails or is unavailable, add visible WARNING finding
         if ai_status == "failed":
@@ -397,21 +491,48 @@ class AuditService:
         persist: bool = True,
         additional_metadata: Optional[Dict[str, Any]] = None,
         campaign_event: Optional[str] = None,
+        campaign_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Runs visual brand governance audit on an uploaded image revision:
-        1. Brand Profile & Visual Context Fetch
+        1. Brand Profile & Dynamic Campaign / RuleSet Resolution
         2. RAG Guideline Retrieval
         3. Multimodal Vision Analysis via Gemini
-        4. Deterministic checks on any visible text
+        4. Deterministic checks on visible text and structured visual elements
         5. Finding Deduplication and Compliance Score Calculation
-        6. DB Persistence of Findings & Audit Trail Event
+        6. DB Persistence of Findings & Audit Trail Event (when persist=True)
         """
         brand_stmt = select(BrandProfile).where(BrandProfile.id == submission.brand_id)
         brand_res = await session.execute(brand_stmt)
         brand = brand_res.scalar_one_or_none()
         if not brand:
             raise ValueError(f"BrandProfile with id {submission.brand_id} not found")
+
+        # Resolve Campaign and RuleSet
+        effective_campaign_id = campaign_id or submission.campaign_id
+        campaign, ruleset = await cls.get_active_ruleset_and_campaign(
+            session=session,
+            brand_id=submission.brand_id,
+            campaign_id=effective_campaign_id,
+            event_name=campaign_event,
+        )
+        if campaign and not submission.campaign_id and persist:
+            submission.campaign_id = campaign.id
+
+        effective_event = campaign.name if campaign else campaign_event
+        effective_palette = ruleset.palette if ruleset and ruleset.palette else (brand.approved_hex_palette or [])
+        effective_banned_terms = ruleset.banned_terms if ruleset and ruleset.banned_terms else (brand.banned_terms or [])
+        effective_pref_terms = ruleset.preferred_terminology if ruleset and ruleset.preferred_terminology else (brand.preferred_terminology or {})
+        effective_facts = ruleset.approved_facts if ruleset and ruleset.approved_facts else (brand.approved_facts or [])
+
+        # Prohibited visual subjects from Campaign + RuleSet
+        effective_prohibited_subjects: List[str] = []
+        if campaign and campaign.prohibited_items:
+            effective_prohibited_subjects.extend([str(item).lower() for item in campaign.prohibited_items])
+        if ruleset and ruleset.prohibited_visual_subjects:
+            effective_prohibited_subjects.extend([str(item).lower() for item in ruleset.prohibited_visual_subjects])
+        # Deduplicate
+        effective_prohibited_subjects = list(dict.fromkeys(effective_prohibited_subjects))
 
         image_metadata = DocumentService.analyze_image(image_bytes)
 
@@ -421,7 +542,7 @@ class AuditService:
             brand_id=brand.id,
             query_text=(
                 "visual brand identity colors accessibility contrast typography logo imagery "
-                f"{campaign_event or ''} event fit safety"
+                f"{effective_event or ''} event fit safety"
             ),
             limit=5,
         )
@@ -439,57 +560,69 @@ class AuditService:
 
         all_draft_findings: List[FindingDraft] = []
 
-        # ── Pre-check: deterministic banned visual subject scan ───────────────────────
-        # These keywords are always CRITICAL for brand campaigns, regardless of what the
-        # vision model says. This prevents the AI from silently approving off-brand content.
-        BANNED_VISUAL_SUBJECTS = [
-            "spiderman", "spider-man", "spider man",
-            "batman", "superman", "iron man", "ironman", "thor", "captain america",
-            "hulk", "avengers", "marvel", "dc comics", "wonder woman", "aquaman",
-            "wolverine", "deadpool", "black panther", "x-men", "xmen",
-            "cartoon", "anime", "animated character", "fictional character",
-            "movie character", "superhero", "supervillain", "comic book",
-        ]
-
-        # Also scan the submission title and any media alt-text for keyword hints
+        # ── Pre-check: deterministic scan on submission text metadata ─────────────────
         scan_targets = [
-            (revision.content_body or "").lower(),
-            (revision.alt_text or "").lower(),
-            (submission.title or "").lower(),
+            (revision.content_body or ""),
+            (revision.alt_text or ""),
+            (submission.title or ""),
         ]
+        detected_in_metadata = set()
         for scan_text in scan_targets:
-            for subject in BANNED_VISUAL_SUBJECTS:
-                if subject in scan_text:
-                    all_draft_findings.append(
-                        FindingDraft(
-                            category="EVENT_FIT",
-                            severity="CRITICAL",
-                            detector_source="DETERMINISTIC_RULE",
-                            flagged_excerpt=subject,
-                            explanation=(
-                                f"Detected banned visual subject '{subject}' in submission metadata. "
-                                "Brand campaigns must not feature superheroes, cartoon characters, or fictional characters. "
-                                f"Campaign event: {campaign_event or 'General'}"
-                            ),
-                            guideline_citation="Brand Governance Policy - Prohibited Visual Subjects",
-                            suggested_correction=(
-                                "Replace with brand-appropriate visuals relevant to the campaign event. "
-                                "Use authentic brand photography or approved illustration styles."
-                            ),
-                        )
-                    )
-                    break  # One finding per source is enough
+            for subject in effective_prohibited_subjects:
+                if cls.matches_subject(subject, scan_text):
+                    detected_in_metadata.add(subject)
+
+        for subject in detected_in_metadata:
+            all_draft_findings.append(
+                FindingDraft(
+                    category="EVENT_FIT",
+                    severity="CRITICAL",
+                    detector_source="DETERMINISTIC_RULE",
+                    flagged_excerpt=subject,
+                    explanation=(
+                        f"Detected prohibited visual subject '{subject}' in submission metadata. "
+                        f"{brand.name} brand governance policies strictly prohibit these subjects in campaign content. "
+                        f"Campaign: {effective_event or 'General'}"
+                    ),
+                    guideline_citation=f"{brand.name} Brand Governance Policy - Prohibited Visual Subjects",
+                    suggested_correction=(
+                        f"Replace with brand-appropriate visuals adhering to {brand.name} guidelines "
+                        + (f"and approved {campaign.name} campaign elements." if campaign else ".")
+                    ),
+                )
+            )
+
+        campaign_dict = {
+            "id": campaign.id,
+            "name": campaign.name,
+            "description": campaign.description,
+            "goals": campaign.goals,
+            "required_cues": campaign.required_cues,
+            "prohibited_items": campaign.prohibited_items,
+        } if campaign else None
+
+        ruleset_dict = {
+            "version": ruleset.version,
+            "banned_terms": ruleset.banned_terms,
+            "preferred_terminology": ruleset.preferred_terminology,
+            "approved_facts": ruleset.approved_facts,
+            "required_phrases": ruleset.required_phrases,
+            "exaggeration_terms": ruleset.exaggeration_terms,
+            "prohibited_visual_subjects": ruleset.prohibited_visual_subjects,
+        } if ruleset else None
 
         try:
             vision_result = await gemini_service.audit_image_semantic(
                 image_bytes=image_bytes,
                 mime_type=mime_type,
                 tone_persona=brand.tone_persona or "",
-                approved_hex_palette=brand.approved_hex_palette or [],
-                approved_facts=brand.approved_facts or [],
-                banned_terms=brand.banned_terms or [],
+                approved_hex_palette=effective_palette,
+                approved_facts=effective_facts,
+                banned_terms=effective_banned_terms,
                 guidelines_context=guidelines_context,
-                campaign_event=campaign_event,
+                campaign_event=effective_event,
+                campaign=campaign_dict,
+                ruleset=ruleset_dict,
             )
         except Exception as exc:
             vision_result = {
@@ -508,14 +641,12 @@ class AuditService:
                     detector_source="AI_VISION_ENGINE",
                     flagged_excerpt="AI Visual Analysis Incomplete",
                     explanation=f"AI analysis incomplete: {vision_ai_error or 'Vision service unavailable'}",
-                    guideline_citation="Brand Visual Reliability Policy",
+                    guideline_citation=f"{brand.name} Visual Reliability Policy",
                     suggested_correction="Ensure visual asset is accessible and retry the audit.",
                 )
             )
 
         visible_text_list = vision_result.get("visible_text", [])
-        # Prefer the local pixel analysis for colors. Model-described colors are useful
-        # context, but cannot replace deterministic evidence from the uploaded file.
         local_dominant_colors = image_metadata.get("dominant_hex_colors", [])
         model_dominant_colors = vision_result.get("dominant_colors", []) or []
         dominant_colors = local_dominant_colors or model_dominant_colors
@@ -530,11 +661,9 @@ class AuditService:
 
         local_palette_match = cls.calculate_palette_match(
             observed_colors=local_dominant_colors or model_dominant_colors,
-            approved_colors=brand.approved_hex_palette or [],
+            approved_colors=effective_palette,
         )
 
-        # Use the more conservative result if the model and local analysis disagree.
-        # This prevents a failed/uncertain model call from producing a false 100% score.
         if local_palette_match is not None and model_palette_match is not None:
             palette_match_pct = min(local_palette_match, model_palette_match)
         elif local_palette_match is not None:
@@ -545,15 +674,27 @@ class AuditService:
             palette_match_pct = 0.0
 
         if local_palette_match is not None and local_palette_match < 80:
+            palette_citation = None
+            if retrieved_chunks:
+                for c in retrieved_chunks:
+                    if "color" in c.section_reference.lower() or "palette" in c.section_reference.lower():
+                        palette_citation = f"{c.source_document} ({c.section_reference})"
+                        break
+            if not palette_citation:
+                palette_citation = f"{brand.name} Visual Identity Standards (Color Usage & Palette Compliance)"
+
             all_draft_findings.append(
                 FindingDraft(
                     category="VISUAL",
                     severity="WARNING",
                     detector_source="DETERMINISTIC_RULE",
                     flagged_excerpt=", ".join(dominant_colors[:3]),
-                    explanation="The extracted dominant colors are not sufficiently aligned with the approved Blinkit palette.",
-                    guideline_citation="Blinkit Visual Identity Standards 2024.pdf (Section 3: Color Usage & WCAG Compliance)",
-                    suggested_correction="Rework the creative around Blinkit Yellow (#F8C200), Dark Charcoal (#1C1C1E), and approved supporting colors.",
+                    explanation=f"The extracted dominant colors are not sufficiently aligned with the approved {brand.name} palette.",
+                    guideline_citation=palette_citation,
+                    suggested_correction=(
+                        f"Rework the creative around approved {brand.name} brand colors: "
+                        f"{', '.join(effective_palette[:4]) if effective_palette else 'approved brand palette'}."
+                    ),
                 )
             )
         raw_findings = vision_result.get("findings", [])
@@ -567,13 +708,12 @@ class AuditService:
             suggestion = vf.get("suggested_correction", "")
             cited_id = vf.get("cited_guideline_id")
 
-            # Force CRITICAL severity if finding relates to superheroes or prohibited characters
-            lower_flag = (flagged + " " + explanation).lower()
-            if any(s in lower_flag for s in ["spiderman", "spider-man", "superhero", "batman", "marvel", "cartoon"]):
+            # Force CRITICAL severity only if flagged excerpt matches prohibited visual subjects
+            if any(cls.matches_subject(s, flagged) for s in effective_prohibited_subjects):
                 category = "EVENT_FIT"
                 severity = "CRITICAL"
 
-            citation = "Brand Visual Identity Guidelines"
+            citation = f"{brand.name} Visual Identity Guidelines"
             if cited_id and cited_id in retrieved_map:
                 citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
 
@@ -590,27 +730,40 @@ class AuditService:
                 )
             )
 
-        # ── Deterministic Post-Check on Vision Results ──────────────────────────────
-        # Inspect overall_summary, detected_subjects, and visible text to prevent any
-        # superhero or prohibited character from slipping through as compliant.
-        model_summary = (vision_result.get("overall_summary") or "").lower()
-        detected_subjects = [str(s).lower() for s in (vision_result.get("detected_subjects") or [])]
-        prohibited_found = [str(p).lower() for p in (vision_result.get("prohibited_elements_found") or [])]
-        findings_text = " ".join([
-            (f.get("explanation") or "") + " " + (f.get("flagged_excerpt") or "")
-            for f in raw_findings
-        ]).lower()
-        visible_text_str = " ".join(visible_text_list).lower()
-        combined_vision_text = f"{model_summary} {' '.join(detected_subjects)} {' '.join(prohibited_found)} {findings_text} {visible_text_str}"
-
+        # ── Deterministic Post-Check on Structured Vision Results ────────────────────
+        # Inspect structured detected_subjects, prohibited_elements_found, and visible_text.
+        # DO NOT scan model summary or explanations to prevent false positives when the model
+        # states "no prohibited elements found".
+        detected_subjects = [str(s) for s in (vision_result.get("detected_subjects") or [])]
+        prohibited_found = [str(p) for p in (vision_result.get("prohibited_elements_found") or [])]
         has_prohibited_flag = vision_result.get("has_prohibited_elements", False)
-        detected_banned = []
-        for subject in BANNED_VISUAL_SUBJECTS:
-            if subject in combined_vision_text:
-                detected_banned.append(subject)
+
+        detected_banned = set()
+        for subject in effective_prohibited_subjects:
+            for p in prohibited_found:
+                if cls.matches_subject(subject, p):
+                    detected_banned.add(subject)
+            for s in detected_subjects:
+                if cls.matches_subject(subject, s):
+                    detected_banned.add(subject)
+            for vt in visible_text_list:
+                if cls.matches_subject(subject, vt):
+                    detected_banned.add(subject)
 
         if has_prohibited_flag or detected_banned:
-            banned_display = ", ".join(set(detected_banned)) if detected_banned else "Spider-Man / Superhero Character"
+            banned_display = ", ".join(sorted(detected_banned)) if detected_banned else "Prohibited Visual Subject"
+            guard_citation = None
+            if retrieved_chunks:
+                for c in retrieved_chunks:
+                    if "prohibit" in c.section_reference.lower() or "visual" in c.section_reference.lower():
+                        guard_citation = f"{c.source_document} ({c.section_reference})"
+                        break
+            if not guard_citation:
+                if ruleset and ruleset.source_documents:
+                    guard_citation = f"{ruleset.source_documents[0]} (Prohibited Visual Elements)"
+                else:
+                    guard_citation = f"{brand.name} Brand Guidelines (Prohibited Visual Elements)"
+
             all_draft_findings.append(
                 FindingDraft(
                     category="EVENT_FIT",
@@ -618,45 +771,56 @@ class AuditService:
                     detector_source="DETERMINISTIC_EVENT_GUARD",
                     flagged_excerpt=banned_display,
                     explanation=(
-                        f"Detected prohibited character/visual subject '{banned_display}' in visual analysis. "
-                        "Blinkit Brand Governance & Compliance Guidelines (Section 4: Prohibited Visual Elements, Rule 7) "
-                        "strictly prohibit all copyrighted characters (Spider-Man, Iron Man, Mickey Mouse, etc.) and fictional superheroes. "
-                        f"Campaign event: {campaign_event or 'Diwali 2026'}. This is an immediate FAIL violation."
+                        f"Detected prohibited visual subject '{banned_display}' in visual analysis. "
+                        f"{brand.name} brand governance policies strictly prohibit these subjects in campaign content. "
+                        + (f"Campaign: {effective_event}." if effective_event else "")
                     ),
-                    guideline_citation="Blinkit Diwali 2026 Brand Guidelines (Section 4: Prohibited Visual Elements, Rule 7)",
+                    guideline_citation=guard_citation,
                     suggested_correction=(
-                        "Immediately replace with brand-compliant visual featuring approved Diwali elements "
-                        "(diyas, rangoli, marigold flowers, festive sweets, gift hampers) and Blinkit Yellow (#F8C200) / Charcoal (#1C1C1E)."
+                        f"Immediately replace with brand-compliant visual adhering to {brand.name} guidelines "
+                        + (f"and approved {campaign.name} campaign elements." if campaign else ".")
                     ),
                 )
             )
 
-        # Diwali Minimum Cue Threshold Check (Section 3: at least 2 Diwali cues required; 0 cues = automatic FAIL)
-        event_lower = (campaign_event or "").lower()
-        is_diwali = "diwali" in event_lower or "deepavali" in event_lower or not campaign_event
-        if is_diwali:
-            diwali_cues = vision_result.get("diwali_cues_detected") or []
-            diwali_keywords = ["diya", "diyas", "lamp", "rangoli", "marigold", "toran", "festive lights", "fairy lights", "mithai", "sweets", "laddoo", "gift", "hamper", "deepavali", "diwali"]
-            found_cues_in_text = [k for k in diwali_keywords if k in combined_vision_text]
-            total_cues = len(diwali_cues) + len(found_cues_in_text)
+        # ── Dynamic Campaign Minimum Cue Threshold Check ─────────────────────────────
+        # Only check if campaign defines required_cues and min_required_cues > 0
+        if campaign and campaign.required_cues and campaign.min_required_cues > 0:
+            event_cues = vision_result.get("event_cues_detected") or vision_result.get("diwali_cues_detected") or []
+            matched_cues = set()
+            for req_cue in campaign.required_cues:
+                for ec in event_cues:
+                    if cls.matches_subject(req_cue, str(ec)):
+                        matched_cues.add(req_cue)
+                for vt in visible_text_list:
+                    if cls.matches_subject(req_cue, vt):
+                        matched_cues.add(req_cue)
 
-            if total_cues == 0:
+            if len(matched_cues) < campaign.min_required_cues:
+                cue_citation = None
+                if retrieved_chunks:
+                    for c in retrieved_chunks:
+                        if "campaign" in c.source_document.lower() or "cue" in c.section_reference.lower() or "visual" in c.section_reference.lower():
+                            cue_citation = f"{c.source_document} ({c.section_reference})"
+                            break
+                if not cue_citation:
+                    cue_citation = f"{campaign.name} Campaign Brief (Visual Requirements)"
+
                 all_draft_findings.append(
                     FindingDraft(
                         category="EVENT_FIT",
                         severity="CRITICAL",
                         detector_source="DETERMINISTIC_EVENT_GUARD",
-                        flagged_excerpt="Zero Diwali Festive Cues",
+                        flagged_excerpt=f"Insufficient Campaign Cues ({len(matched_cues)} found, {campaign.min_required_cues} required)",
                         explanation=(
-                            "Diwali Minimum Cue Threshold Violation: Asset contains 0 approved Diwali festive cues. "
-                            "Under Section 3 of Blinkit Diwali Brand Guidelines, every visual asset must include at least two (2) "
-                            "clear festive cues (diyas, rangoli, marigold flowers, festive lights, lanterns, sweets, gift boxes, or festive headline). "
-                            "Zero cues triggers an automatic FAIL."
+                            f"Campaign Minimum Cue Threshold Violation: Asset contains {len(matched_cues)} approved cues for '{campaign.name}'. "
+                            f"Under {campaign.name} campaign guidelines, visual assets must include at least {campaign.min_required_cues} "
+                            f"approved campaign cues ({', '.join(campaign.required_cues[:5])})."
                         ),
-                        guideline_citation="Blinkit Diwali 2026 Brand Guidelines (Section 3: Diwali Visual Requirements)",
+                        guideline_citation=cue_citation,
                         suggested_correction=(
-                            "Incorporate at least two clear Diwali festive cues such as clay diyas, festive sweets (mithai), "
-                            "marigold garlands, or a festive headline ('Happy Diwali') onto the Blinkit canvas."
+                            f"Incorporate at least {campaign.min_required_cues} clear {campaign.name} campaign cues such as "
+                            f"{', '.join(campaign.required_cues[:4])} onto the creative canvas."
                         ),
                     )
                 )
@@ -666,27 +830,23 @@ class AuditService:
             combined_visible_text = " ".join(visible_text_list)
             text_findings = RuleEngine.run_all_deterministic_checks(
                 text=combined_visible_text,
-                banned_terms=brand.banned_terms or [],
-                preferred_terminology=brand.preferred_terminology or {},
+                banned_terms=effective_banned_terms,
+                preferred_terminology=effective_pref_terms,
             )
             all_draft_findings.extend(text_findings)
 
-        # An event rule must never silently pass when the vision provider is
-        # unavailable. A review warning is safer than presenting an unrelated
-        # image as event-compliant.
-        if campaign_event and not gemini_service.is_available:
+        if effective_event and not gemini_service.is_available:
             all_draft_findings.append(
                 FindingDraft(
                     category="EVENT_FIT",
                     severity="WARNING",
                     detector_source="EVENT_GUARD",
-                    flagged_excerpt=f"{campaign_event} visual fit could not be verified",
-                    explanation=f"The {campaign_event} event rule requires visual semantic analysis, but the vision provider is unavailable.",
-                    guideline_citation=f"Campaign Brief: {campaign_event}",
-                    suggested_correction=f"Retry the audit with the vision service enabled and use a clearly {campaign_event}-relevant visual.",
+                    flagged_excerpt=f"{effective_event} visual fit could not be verified",
+                    explanation=f"The {effective_event} event rule requires visual semantic analysis, but the vision provider is unavailable.",
+                    guideline_citation=f"Campaign Brief: {effective_event}",
+                    suggested_correction=f"Retry the audit with the vision service enabled and use a clearly {effective_event}-relevant visual.",
                 )
             )
-
 
         # Deduplicate
         seen_keys = set()
@@ -699,6 +859,21 @@ class AuditService:
 
         # Calculate score
         score = cls.calculate_compliance_score(deduped_findings)
+
+        # If persist=False: return pure in-memory result without mutating submission/revision
+        if not persist:
+            return {
+                "draft_findings": deduped_findings,
+                "visible_text": visible_text_list,
+                "dominant_colors": dominant_colors,
+                "palette_match_pct": palette_match_pct,
+                "image_metadata": image_metadata,
+                "ai_status": vision_ai_status,
+                "ai_error": vision_ai_error,
+                "compliance_score": score,
+            }
+
+        # Mutate revision and submission only when persist=True
         revision.compliance_score = score
         revision.ai_governance_metadata = {
             "visible_text": visible_text_list,
@@ -706,7 +881,7 @@ class AuditService:
             "palette_match_pct": palette_match_pct,
             "image_metadata": image_metadata,
             "findings_count": len(deduped_findings),
-            "campaign_event": campaign_event,
+            "campaign_event": effective_event,
             "ai_status": vision_ai_status,
             "ai_error": vision_ai_error,
         }
@@ -717,8 +892,7 @@ class AuditService:
             if "ai_error" in additional_metadata:
                 vision_ai_error = additional_metadata["ai_error"]
         submission.compliance_score = score
-        if persist:
-            submission.content_format = "IMAGE"
+        submission.content_format = "IMAGE"
 
         # Fail closed on AI failure
         if vision_ai_status == "failed":
@@ -727,17 +901,6 @@ class AuditService:
             submission.status = "NEEDS_REVIEW"
         else:
             submission.status = "CHANGES_REQUESTED" if any(f.severity == "CRITICAL" for f in deduped_findings) else "NEEDS_REVIEW"
-
-        if not persist:
-            return {
-                "draft_findings": deduped_findings,
-                "visible_text": visible_text_list,
-                "dominant_colors": dominant_colors,
-                "palette_match_pct": palette_match_pct,
-                "image_metadata": image_metadata,
-                "ai_status": vision_ai_status,
-                "ai_error": vision_ai_error,
-            }
 
         # Persist findings
         created_finding_records: List[AuditFinding] = []
@@ -807,4 +970,5 @@ class AuditService:
             "ai_status": vision_ai_status,
             "ai_error": vision_ai_error,
         }
+
 

@@ -51,6 +51,8 @@ async def create_submission(
     """Creates a new content draft submission along with its initial version 1 revision."""
     submission = Submission(
         brand_id=payload.brand_id,
+        campaign_id=payload.campaign_id,
+        platform=payload.platform,
         title=payload.title,
         content_format=payload.content_format,
         status="DRAFT",
@@ -140,6 +142,7 @@ async def get_submission(
 @router.post("/{submission_id}/audit", response_model=AuditExecutionResponse)
 async def execute_audit(
     submission_id: int,
+    campaign_id: Optional[int] = None,
     event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -170,6 +173,8 @@ async def execute_audit(
         session=session,
         submission=submission,
         revision=latest_rev,
+        campaign_id=campaign_id,
+        event=event,
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
@@ -182,6 +187,7 @@ async def execute_audit(
 async def upload_image_and_audit(
     submission_id: int,
     file: UploadFile = File(...),
+    campaign_id: Optional[int] = None,
     event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -275,6 +281,7 @@ async def upload_image_and_audit(
         actor_role=user.role.value,
         additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
         campaign_event=event,
+        campaign_id=campaign_id,
     )
     return audit_result
 
@@ -836,6 +843,36 @@ async def resolve_finding(
 
     finding.resolution_state = payload.resolution_state
     finding.resolved_by = user.user_name
+
+    # Recalculate compliance score for revision & submission based on remaining OPEN findings
+    open_findings_stmt = (
+        select(AuditFinding)
+        .where(AuditFinding.revision_id == finding.revision_id)
+        .where(AuditFinding.id != finding.id)
+        .where(AuditFinding.resolution_state == "OPEN")
+    )
+
+    remaining_open = list((await session.execute(open_findings_stmt)).scalars().all())
+    score = 100.0
+    for f in remaining_open:
+        if f.severity == "CRITICAL":
+            score -= 25.0
+        elif f.severity == "WARNING":
+            score -= 10.0
+        elif f.severity == "SUGGESTION":
+            score -= 3.0
+    effective_score = max(0.0, round(score, 1))
+
+    rev_stmt = select(SubmissionRevision).where(SubmissionRevision.id == finding.revision_id)
+    rev = (await session.execute(rev_stmt)).scalar_one_or_none()
+    if rev:
+        rev.compliance_score = effective_score
+
+    sub_stmt = select(Submission).where(Submission.id == finding.submission_id)
+    sub = (await session.execute(sub_stmt)).scalar_one_or_none()
+    if sub:
+        sub.compliance_score = effective_score
+
     await session.commit()
     await session.refresh(finding)
     return finding

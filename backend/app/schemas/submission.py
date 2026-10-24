@@ -29,11 +29,13 @@ class SubmissionRevisionResponse(SubmissionRevisionBase):
 
 class SubmissionCreate(BaseModel):
     brand_id: int
+    campaign_id: Optional[int] = None
     title: str = Field(..., min_length=2, max_length=255)
     content_format: str = Field(
         "TEXT",
         description="TEXT, MARKDOWN, HTML, IMAGE, AUDIO, VIDEO, or DOCUMENT",
     )
+    platform: Optional[str] = Field(None, description="instagram, poster, youtube, twitter, etc.")
     initial_content: str = Field("", description="Initial copy or text draft")
     media_urls: List[str] = Field(default_factory=list)
     alt_text: Optional[str] = None
@@ -41,14 +43,19 @@ class SubmissionCreate(BaseModel):
 
 class SubmissionUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=2, max_length=255)
+    campaign_id: Optional[int] = None
+    platform: Optional[str] = None
 
 
 class SubmissionResponse(BaseModel):
     id: int
     brand_id: int
+    campaign_id: Optional[int] = None
     title: str
     content_format: str
+    platform: Optional[str] = None
     status: str
+    verdict: Optional[str] = None
     current_version: int
     compliance_score: Optional[float] = None
     creator_id: str
@@ -68,9 +75,11 @@ class AuditExecutionResponse(BaseModel):
     version_number: int
     compliance_score: float
     status: str
+    verdict: Optional[str] = Field("NEEDS_REVIEW", description="PASS | NEEDS_REVIEW | FAIL")
     total_findings: int
     findings_by_severity: Dict[str, int]
     findings: List[AuditFindingResponse]
+    dimension_results: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Per-dimension scoring breakdown")
     confidentiality_report: Dict[str, Any] = Field(default_factory=dict)
     visible_text: Optional[List[str]] = None
     dominant_colors: Optional[List[str]] = None

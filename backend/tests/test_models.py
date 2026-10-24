@@ -9,9 +9,11 @@ from app.models.workflow import WorkflowEvent, ReviewComment
 
 
 def test_expected_tables_registered():
-    """Verify that all 7 required governance tables are registered in DeclarativeBase metadata."""
+    """Verify that all required governance tables are registered in DeclarativeBase metadata."""
     expected_tables = {
         "brand_profiles",
+        "campaigns",
+        "rulesets",
         "guideline_chunks",
         "submissions",
         "submission_revisions",
@@ -21,7 +23,7 @@ def test_expected_tables_registered():
     }
     actual_tables = set(Base.metadata.tables.keys())
     assert expected_tables.issubset(actual_tables), f"Missing tables: {expected_tables - actual_tables}"
-    assert len(expected_tables) == 7
+    assert len(expected_tables) == 9
 
 
 def test_brand_profile_model_attributes():

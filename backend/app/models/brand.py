@@ -45,3 +45,9 @@ class BrandProfile(Base):
     submissions: Mapped[List["Submission"]] = relationship(
         "Submission", back_populates="brand", cascade="all, delete-orphan"
     )
+    campaigns: Mapped[List["Campaign"]] = relationship(
+        "Campaign", back_populates="brand", cascade="all, delete-orphan"
+    )
+    rulesets: Mapped[List["RuleSet"]] = relationship(
+        "RuleSet", back_populates="brand", cascade="all, delete-orphan"
+    )

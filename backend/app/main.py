@@ -31,19 +31,18 @@ async def auto_seed_default_brand() -> None:
                     name="Blinkit",
                     industry="Quick Commerce",
                     tone_persona="Energetic, witty, helpful, culturally relevant, reliable quick commerce voice.",
-                    approved_hex_palette=["#F8CB46", "#0C831F", "#000000", "#FFFFFF"],
-                    banned_terms=["guaranteed fastest", "instant death", "unlimited free groceries", "100% cheapest"],
+                    approved_hex_palette=["#F8C200", "#1C1C1E", "#FFFFFF", "#0C831F", "#FF6B35"],
+                    banned_terms=["guaranteed", "instant", "always", "100%"],
                     preferred_terminology={
                         "10 mins": "10-minute delivery",
                         "delivery boy": "delivery partner",
                         "cheap": "pocket-friendly",
                     },
                     approved_facts=[
-                        {"fact": "Blinkit delivers in 10 minutes across major Indian metros"},
-                        {"fact": "Diwali 2026 Dhamaka features traditional sweets, diyas, pooja thalis, and festive decor"},
-                        {"fact": "Zero minimum order value on select festive deliveries"},
+                        {"claim": "Blinkit delivers in 10 minutes across major Indian metros", "source": "Blinkit Brand Guidelines", "verified": True},
+                        {"claim": "Zero minimum order value on select festive deliveries", "source": "Blinkit Brand Guidelines", "verified": True},
                     ],
-                    visual_guidelines_summary="High-contrast Blinkit Yellow (#F8CB46) & Forest Green (#0C831F). Prominent 10-minute delivery badge. Clean typography with no cluttered comic/superhero imagery unrelated to brand.",
+                    visual_guidelines_summary="High-contrast Blinkit Yellow (#F8C200) and Dark Charcoal (#1C1C1E). Prominent 10-minute delivery badge. Clean typography.",
                     min_wcag_contrast=4.5,
                 )
                 session.add(blinkit)

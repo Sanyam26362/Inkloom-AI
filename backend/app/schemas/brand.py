@@ -11,26 +11,19 @@ class BrandProfileBase(BaseModel):
         description="Detailed tone persona guideline",
     )
     approved_hex_palette: List[str] = Field(
-        default_factory=lambda: ["#0F172A", "#2563EB", "#38BDF8", "#F8FAFC"],
+        default_factory=list,
         description="List of approved brand hex color codes",
     )
     banned_terms: List[str] = Field(
-        default_factory=lambda: ["guaranteed", "unbreakable", "cheapest", "revolutionary", "best-in-class"],
+        default_factory=list,
         description="List of strictly banned terms or claims",
     )
     preferred_terminology: Dict[str, str] = Field(
-        default_factory=lambda: {
-            "client-side": "on-device",
-            "artificial intelligence": "AI-powered governance",
-            "cheap": "cost-effective",
-        },
+        default_factory=dict,
         description="Dictionary mapping deprecated phrases to approved terminology",
     )
     approved_facts: List[Dict[str, Any]] = Field(
-        default_factory=lambda: [
-            {"claim": "99.9% uptime SLA", "source": "SOC2 Report 2026", "verified": True},
-            {"claim": "Over 500 enterprise customers", "source": "Q3 2026 Financial Disclosure", "verified": True},
-        ],
+        default_factory=list,
         description="Verified corporate facts and claims with citations",
     )
     visual_guidelines_summary: str = Field(

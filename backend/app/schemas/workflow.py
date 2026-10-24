@@ -38,5 +38,5 @@ class ReviewCommentResponse(BaseModel):
 
 
 class StatusChangeRequest(BaseModel):
-    target_status: str = Field(..., description="NEEDS_REVIEW, CHANGES_REQUESTED, or APPROVED")
+    target_status: str = Field(..., description="DRAFT, NEEDS_REVIEW, CHANGES_REQUESTED, APPROVED, or REJECTED")
     notes: Optional[str] = Field(None, max_length=1000)

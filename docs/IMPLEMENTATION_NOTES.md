@@ -6,7 +6,7 @@ Phase 1 focuses exclusively on making the AI calling pipeline reliable, asynchro
 ## 1. Single Model Architecture & Deprecation Cleanup
 - **Primary LLM & Vision**: Standardized strictly on `gemini-3.5-flash` for all text, vision, audio, and video audits.
 - **Embeddings**: Retained `gemini-embedding-2` producing 768-dimensional vectors matching the PostgreSQL `pgvector` column.
-- **Removed Deprecated Models**: Removed `FAST_INLINE_MODEL` and multi-model fallback chain (`FALLBACK_MODELS`). Zero references remain in code, configuration, documentation, or `.env.example` to `gemini-3.8-flash`, `gemini-3.8-flash-lite`, `gemini-3.5-flash-lite`, or `gemini-2.5-flash`.
+- **Removed Deprecated Models**: Removed `FAST_INLINE_MODEL` and multi-model fallback chain (`FALLBACK_MODELS`). Zero references remain in code, configuration, documentation, or `.env.example` to invalid or deprecated model names.
 - **Model Validation on Startup & Health**:
   - `gemini_service.verify_configured_models()` runs during application startup (`lifespan`).
   - Results are exposed in `/health` under `ai_integration.models` with boolean validity per model (`gemini-3.5-flash` and `gemini-embedding-2`).
