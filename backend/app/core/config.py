@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,13 @@ class Settings(BaseSettings):
     GEMINI_TIMEOUT_IMAGE: int = 60
     GEMINI_TIMEOUT_MEDIA: int = 180
     GEMINI_TIMEOUT_EMBEDDING: int = 20
+
+    # Authentication & Security
+    JWT_SECRET: str = "inkloom-brand-governance-jwt-secret-key-2026"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    AUTH_DEMO_MODE: bool = True
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000"
 
     # Governance Constants
     DEFAULT_MIN_WCAG_CONTRAST: float = 4.5
@@ -123,6 +131,12 @@ class Settings(BaseSettings):
             self.CLOUDINARY_API_SECRET,
         )
         return any(values) and not all(values)
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        if not self.CORS_ORIGINS:
+            return ["*"]
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
 
 settings = Settings()

@@ -5,13 +5,17 @@ from app.api.v1.guidelines import router as guidelines_router
 from app.api.v1.submissions import router as submissions_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.packs import router as packs_router
+from app.api.v1.auth import router as auth_router
+from app.api.v1.admin import router as admin_router
 
 api_v1_router = APIRouter()
 api_v1_router.include_router(health_router)
+api_v1_router.include_router(auth_router)
 api_v1_router.include_router(brands_router)
 api_v1_router.include_router(guidelines_router)
 api_v1_router.include_router(submissions_router)
 api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(packs_router)
+api_v1_router.include_router(admin_router)
 
 __all__ = ["api_v1_router"]

@@ -5,6 +5,7 @@ from app.models.guideline_chunk import GuidelineChunk
 from app.models.submission import Submission, SubmissionRevision
 from app.models.finding import AuditFinding
 from app.models.workflow import WorkflowEvent, ReviewComment
+from app.models.user import UserAccount
 
 __all__ = [
     "BrandProfile",
@@ -16,4 +17,5 @@ __all__ = [
     "AuditFinding",
     "WorkflowEvent",
     "ReviewComment",
+    "UserAccount",
 ]

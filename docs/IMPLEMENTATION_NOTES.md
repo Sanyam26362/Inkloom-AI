@@ -188,4 +188,68 @@ Phase 1 focuses exclusively on making the AI calling pipeline reliable, asynchro
 - `GET /api/v1/submissions/{id}/audit-status`: Polling endpoint returning live progress or final audit verdict.
 - Upload endpoints support `?background=true`, returning HTTP 202 immediately with job details.
 
+---
+
+# Phase 6 Implementation Notes: Auth, Roles & Approval Workflow
+
+## 1. Real JWT Authentication & Role-Based Access Control
+- Integrated `PyJWT` for signed token issuance and signature verification (`HS256`, 24h expiration) in `app.core.security`.
+- Strict Security Rule: Never trust raw `x-user-role` headers without a valid JWT Bearer token. Any request with `x-user-role` lacking a valid Bearer token is rejected with HTTP 401 Unauthorized.
+- Enforced roles: `CREATOR`, `JUDGE`, `ADMIN` (with backward compatibility aliases `REVIEWER` and `MANAGER`).
+- Added authentication endpoints in `app/api/v1/auth.py`:
+  - `POST /api/v1/auth/login`: Quick persona login via `{"role": "..."}` or verified email/password.
+  - `GET /api/v1/auth/me`: Decoded JWT identity and tenant profile.
+  - `GET /api/v1/auth/demo-users`: Seeded personas (`admin@inkloom.ai`, `judge@inkloom.ai`, `creator@inkloom.ai`).
+
+## 2. Multi-Tenant Isolation
+- Additive Alembic migration `27e8a94b301c_add_users_and_tenant_isolation.py`:
+  - Created `user_accounts` table.
+  - Added indexed `tenant_id` and `owner_id` columns to `brand_profiles`.
+- Scoped `GET /api/v1/brands` by `user.tenant_id` + shared demo brands (`tenant_default`), while granting `ADMIN` visibility across all tenant brands.
+- Auto-seeded demo accounts in application startup (`lifespan`).
+
+## 3. Approval Deadlock Resolution & Effective Verdict Recalculation
+- Overriding or resolving audit findings automatically triggers `WorkflowService._recalculate_revision_and_verdict`:
+  - Recalculates effective compliance score (subtracting only remaining `OPEN` findings).
+  - Authoritatively recalculates effective verdict (`FAIL` if open critical findings remain, `NEEDS_REVIEW` if open warnings remain, `PASS` when all critical and warning findings are resolved/overridden).
+  - Updates `submission.verdict`, `submission.compliance_score`, and revision metadata.
+- Approval rules:
+  - Blocked if any `OPEN` `CRITICAL` findings remain (must be resolved by new revision or overridden with reason).
+  - Blocked if current revision `ai_status != "ok"`.
+  - `JUDGE` / `REVIEWER` can approve `PASS` verdicts.
+  - Only `ADMIN` can approve `NEEDS_REVIEW` verdicts.
+  - Only `ADMIN` can approve `FAIL` verdicts, requiring an explicit written administrative override note.
+
+## 4. Status Transition Matrix & Finding Lockdown
+- Strict transition matrix enforced in `WorkflowService.change_status`:
+  - `DRAFT -> AUDITING`
+  - `AUDITING -> NEEDS_REVIEW | CHANGES_REQUESTED | REJECTED | APPROVED`
+  - `NEEDS_REVIEW -> APPROVED | CHANGES_REQUESTED | REJECTED | AUDITING`
+  - `CHANGES_REQUESTED -> DRAFT | AUDITING | REJECTED`
+  - `REJECTED -> DRAFT`
+  - `APPROVED -> DRAFT` (only via new revision).
+- `REJECTED` status strictly requires a non-empty written reason (HTTP 400).
+- `NEEDS_REVIEW` cannot be set manually without a completed audit of current revision.
+- Locked down `/findings/{id}/override` and `/findings/{id}/resolve`:
+  - Enum validation: `OPEN`, `RESOLVED`, `OVERRIDDEN`, `ACCEPTED`.
+  - `OVERRIDDEN` requires a mandatory justification string.
+  - Role check: Only `JUDGE` or `ADMIN` can override or resolve (creators can accept corrections; direct overrides by creator return HTTP 403).
+  - Audit trail recorded in `WorkflowEvent`.
+
+## 5. Concurrency Protection & Automatic Re-Audits
+- `WorkflowService.create_new_revision`:
+  - Uses `select(Submission).with_for_update()` to prevent race conditions on `current_version` increments.
+  - Automatically schedules a background re-audit task for the newly created revision.
+
+## 6. Admin Queue & Intelligence Stats Endpoints
+- `GET /api/v1/admin/queue`:
+  - Paginated, filterable by `verdict`, `status`, `media_type`, `brand_id`, `campaign_id`.
+  - Lightweight projections joining brand and campaign without loading heavy media blobs.
+  - Aggregates open critical and warning finding counts per item.
+- `GET /api/v1/admin/stats`:
+  - AI verdict vs Admin final decision agreement rate percentage.
+  - Override rate per guideline chunk (`times_overridden / times_triggered`).
+  - Total submission, verdict, and status distribution counts.
+
+
 

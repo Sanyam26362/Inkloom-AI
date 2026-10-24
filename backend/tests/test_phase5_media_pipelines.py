@@ -26,6 +26,9 @@ from app.core.media_validation import (
 from app.services.audit_job_manager import audit_job_manager
 from app.services.audit_service import AuditService
 from app.services.cloudinary_service import cloudinary_service
+from app.core.security import get_auth_headers, UserRole
+
+CREATOR_HEADERS = get_auth_headers(UserRole.CREATOR)
 
 pytestmark = pytest.mark.asyncio
 
@@ -217,7 +220,7 @@ async def test_upload_post_platform_aspect_ratio_and_caption_checks():
                 "platform": "instagram",
             },
             files={"file": ("post.png", valid_png, "image/png")},
-            headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c1"},
+            headers=CREATOR_HEADERS,
         )
         assert res.status_code == 200
         data = res.json()
@@ -241,7 +244,7 @@ async def test_upload_post_platform_aspect_ratio_and_caption_checks():
                 "platform": "instagram",
             },
             files={"file": ("banner.png", weird_png, "image/png")},
-            headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c1"},
+            headers=CREATOR_HEADERS,
         )
         assert res_invalid.status_code == 200
         data_invalid = res_invalid.json()
@@ -287,7 +290,7 @@ async def test_background_audit_and_status_polling():
                 "platform": "instagram",
             },
             files={"file": ("post.png", png_data, "image/png")},
-            headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c2"},
+            headers=CREATOR_HEADERS,
         )
         assert res.status_code == 200
         data = res.json()
@@ -297,7 +300,7 @@ async def test_background_audit_and_status_polling():
         # Poll status
         status_res = await client.get(
             f"/api/v1/submissions/{sub_id}/audit-status",
-            headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c2"},
+            headers=CREATOR_HEADERS,
         )
         assert status_res.status_code == 200
         status_data = status_res.json()
@@ -362,7 +365,7 @@ async def test_native_audio_pipeline_tone_sfx_and_phrases():
             res = await client.post(
                 f"/api/v1/submissions/{sub_id}/upload-audio",
                 files={"file": ("voiceover.wav", wav_bytes, "audio/wav")},
-                headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c3"},
+                headers=CREATOR_HEADERS,
             )
             assert res.status_code == 200
             data = res.json()
@@ -415,7 +418,7 @@ async def test_video_pipeline_frame_extraction_and_end_card():
             res = await client.post(
                 f"/api/v1/submissions/{sub_id}/upload-video",
                 files={"file": ("spot.mp4", mp4_bytes, "video/mp4")},
-                headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c4"},
+                headers=CREATOR_HEADERS,
             )
             assert res.status_code == 200
             data = res.json()
@@ -436,7 +439,7 @@ async def test_video_pipeline_frame_extraction_and_end_card():
             res_frames = await client.post(
                 f"/api/v1/submissions/{sub_id}/upload-video",
                 files={"file": ("spot.mp4", mp4_bytes, "video/mp4")},
-                headers={"x-user-role": "CREATOR", "x-user-name": "Test Creator", "x-user-id": "c4"},
+                headers=CREATOR_HEADERS,
             )
             assert res_frames.status_code == 200
             data_frames = res_frames.json()

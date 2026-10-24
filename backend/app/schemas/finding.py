@@ -24,8 +24,9 @@ class AuditFindingOverrideRequest(BaseModel):
 
 
 class AuditFindingResolveRequest(BaseModel):
-    resolution_state: str = Field("ACCEPTED", description="ACCEPTED or OVERRIDDEN")
+    resolution_state: str = Field("RESOLVED", description="RESOLVED, ACCEPTED, OVERRIDDEN, or OPEN")
     override_reason: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class AuditFindingResponse(AuditFindingBase):

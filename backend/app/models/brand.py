@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlalchemy import String, Text, Float, DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -12,6 +12,8 @@ class BrandProfile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(150), unique=True, nullable=False, index=True)
+    tenant_id: Mapped[Optional[str]] = mapped_column(String(100), default="tenant_default", nullable=True, index=True)
+    owner_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True, default=None)
     industry: Mapped[str] = mapped_column(String(100), default="Technology")
     tone_persona: Mapped[str] = mapped_column(
         Text,

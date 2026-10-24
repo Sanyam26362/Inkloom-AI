@@ -6,19 +6,23 @@ import fitz
 
 from app.services.gemini_service import gemini_service
 from app.core.database import redis_client
+from app.core.security import create_access_token, UserRole
 
-# Synthetic mock headers
+# Synthetic mock headers with valid JWT Bearer tokens
 CREATOR_HEADERS = {
+    "Authorization": f"Bearer {create_access_token({'user_id': 'mock_creator_001', 'user_name': 'Alex Demo Creator', 'role': 'CREATOR'})}",
     "x-user-id": "mock_creator_001",
     "x-user-name": "Alex Demo Creator",
     "x-user-role": "CREATOR",
 }
 REVIEWER_HEADERS = {
+    "Authorization": f"Bearer {create_access_token({'user_id': 'mock_reviewer_001', 'user_name': 'Jordan Demo Reviewer', 'role': 'REVIEWER'})}",
     "x-user-id": "mock_reviewer_001",
     "x-user-name": "Jordan Demo Reviewer",
     "x-user-role": "REVIEWER",
 }
 MANAGER_HEADERS = {
+    "Authorization": f"Bearer {create_access_token({'user_id': 'mock_manager_001', 'user_name': 'Taylor Demo Manager', 'role': 'MANAGER'})}",
     "x-user-id": "mock_manager_001",
     "x-user-name": "Taylor Demo Manager",
     "x-user-role": "MANAGER",

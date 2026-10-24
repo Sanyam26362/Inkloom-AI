@@ -49,6 +49,34 @@ async def auto_seed_default_brand() -> None:
         logger.warning(f"Auto-seed completed or skipped: {seed_err}")
 
 
+async def auto_seed_demo_accounts() -> None:
+    """Seeds demo accounts (admin, judge, creator) if not present in user_accounts table."""
+    from app.core.database import AsyncSessionLocal
+    from app.models.user import UserAccount
+    from app.core.security import DEMO_ACCOUNTS
+    from sqlalchemy import select
+
+    try:
+        async with AsyncSessionLocal() as session:
+            for email, demo_data in DEMO_ACCOUNTS.items():
+                stmt = select(UserAccount).where(UserAccount.email == email)
+                exists = (await session.execute(stmt)).scalar_one_or_none()
+                if not exists:
+                    user = UserAccount(
+                        email=email,
+                        full_name=demo_data["user_name"],
+                        hashed_password=demo_data["password_hash"],
+                        role=demo_data["role"].value,
+                        tenant_id=demo_data.get("tenant_id", "tenant_default"),
+                        is_active=True,
+                    )
+                    session.add(user)
+            await session.commit()
+            logger.info("Demo accounts seeded successfully.")
+    except Exception as e:
+        logger.warning(f"Demo user auto-seed skipped: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manages application startup and graceful shutdown."""
@@ -57,6 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await init_db()
         logger.info("Database and pgvector initialized successfully.")
         await auto_seed_default_brand()
+        await auto_seed_demo_accounts()
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
 
@@ -104,11 +133,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration allowing cross-origin requests from any frontend deployment
+# CORS configuration restricted to configured origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_origin_regex=r"https?://.*",
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

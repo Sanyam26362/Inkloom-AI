@@ -15,14 +15,45 @@
 | **Phase 2** | Data-driven rules, no client hardcoding (Campaign & RuleSet tables, extraction, no festival branches) | ✅ Completed | `phase 2: data-driven rules` (e150ef4) |
 | **Phase 3** | Guideline ingestion & retrieval (PyMuPDF block chunker, markdown chunker, premade packs, deduplication) | ✅ Completed | `phase 3: ingestion and retrieval` (3248029) |
 | **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | ✅ Completed | `phase 4: verdicts and detectors` (0afa0c3) |
-| **Phase 5** | Media pipelines (post upload, video frames + audio track, native audio, async polling) | ✅ Completed | `phase 5: media pipelines` |
-| **Phase 6** | Auth, roles, approval workflow (JWT, deadlock resolution, status matrix, admin queue) | ⏳ Pending | - |
-| **Phase 7** | Frontend flow (onboarding replacing marketing page, judge canvas, creator studio, admin queue) | ⏳ Pending | - |
+| **Phase 5** | Media pipelines (post upload, video frames + audio track, native audio, async polling) | ✅ Completed | `phase 5: media pipelines` (8b8c5b8) |
+| **Phase 6** | Auth, roles, approval workflow (JWT, deadlock resolution, status matrix, admin queue) | ✅ Completed | `phase 6: auth and workflow` |
+| **Phase 7** | Frontend flow (onboarding replacing marketing page, judge canvas, creator studio, admin queue) | ⏳ Next | - |
 | **Phase 8** | Tests, docs, wrap-up (e2e integration tests, README, deployment docs, demo script) | ⏳ Pending | - |
 
 ---
 
 ## Phase Details & Test Results
+
+### Phase 5: Media Pipelines
+- **Completed**:
+  - Magic byte validation (`media_validation.py`) with strict size limits (10MB image, 25MB audio, 100MB video) preventing format spoofing.
+  - Transparent storage provider tracking (`storage_provider`: `"cloudinary"` or `"local"`, `fallback_reason`) on uploads.
+  - `extract_video_frames` with robust fallback order (Cloudinary video transformations -> local ffmpeg -> graceful empty frame list).
+  - Native Gemini audio audit pipeline (`GeminiService.audit_audio` and `AuditService.run_audio_audit`) analyzing voiceover tone, mandatory campaign phrases, background music balance, prohibited SFX (firecrackers, sirens), and timestamped findings.
+  - Video frame analysis with `asyncio.Semaphore(4)` and isolated `AsyncSessionLocal()` per frame to eliminate SQLAlchemy concurrent flushing conflicts, end-card brand palette match verification, and dialogue transcription.
+  - Combined Instagram post creative auditing (`POST /api/v1/submissions/{id}/upload-post`) enforcing aspect ratio (1:1, 4:5, 9:16, 1.91:1), caption length (max 2,200), max hashtags (30), and WCAG 1.1.1 alt-text requirements.
+  - Background asynchronous audit job polling via `AuditJobManager` (`GET /api/v1/submissions/{id}/audit-status`) with real-time status and progress float.
+- **Test Results**:
+  - Media pipeline suite `test_phase5_media_pipelines.py`: 8/8 passed.
+
+### Phase 6: Auth, Roles, and Approval Workflow
+- **Completed**:
+  - Real JWT token issuance and signature verification (`HS256`, 24h expiration) in `app.core.security`.
+  - Rejection of untrusted raw `x-user-role` headers without a valid JWT Bearer token (HTTP 401).
+  - Enforced roles: `CREATOR`, `JUDGE`, `ADMIN` (with aliases `REVIEWER`, `MANAGER`).
+  - Implemented `POST /api/v1/auth/login` (email/password or quick demo selection by role), `GET /api/v1/auth/me`, and `GET /api/v1/auth/demo-users`.
+  - Additive Alembic migration `27e8a94b301c_add_users_and_tenant_isolation.py` creating `user_accounts` table and adding `tenant_id`, `owner_id` to `brand_profiles`.
+  - Multi-tenant brand scoping: users view their tenant brands + shared demo brands (`tenant_default`), while `ADMIN` views all brands.
+  - Auto-seeding of demo accounts on application startup (`lifespan`).
+  - Approval deadlock resolution: overriding or resolving findings automatically recalculates compliance score and effective verdict (`FAIL` -> `NEEDS_REVIEW` -> `PASS`).
+  - Approval matrix: requires 0 OPEN `CRITICAL` findings and `ai_status == "ok"`. Reviewer/Judge approves `PASS`; `ADMIN` required for `NEEDS_REVIEW`; `ADMIN` approving `FAIL` requires an explicit override reason.
+  - Strict status transition matrix (`DRAFT -> AUDITING -> NEEDS_REVIEW | CHANGES_REQUESTED | REJECTED -> APPROVED`). `REJECTED` strictly requires a written reason.
+  - Concurrency safety: `WorkflowService.create_new_revision` utilizes `select(Submission).with_for_update()` to prevent race conditions on version increments and automatically schedules background re-audits.
+  - High-performance admin endpoints: `GET /api/v1/admin/queue` (paginated, filterable, lightweight summaries) and `GET /api/v1/admin/stats` (AI verdict vs admin decision agreement rate, guideline override rates, and distribution breakdowns).
+- **Test Results**:
+  - Acceptance suite `test_phase6_auth_workflow.py`: 9/9 passed.
+  - Full backend test suite: 104/104 passed (100%).
+
 
 ### Phase 1: Reliable AI Calls
 - **Completed**:

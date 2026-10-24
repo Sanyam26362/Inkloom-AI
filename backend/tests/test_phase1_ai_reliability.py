@@ -18,17 +18,10 @@ from httpx import AsyncClient
 
 from app.core.config import settings
 from app.services.gemini_service import gemini_service
+from app.core.security import get_auth_headers, UserRole
 
-CREATOR_HEADERS = {
-    "x-user-id": "creator_test",
-    "x-user-name": "Alex Creator",
-    "x-user-role": "CREATOR",
-}
-REVIEWER_HEADERS = {
-    "x-user-id": "reviewer_test",
-    "x-user-name": "Jordan Reviewer",
-    "x-user-role": "REVIEWER",
-}
+CREATOR_HEADERS = get_auth_headers(UserRole.CREATOR)
+REVIEWER_HEADERS = get_auth_headers(UserRole.JUDGE)
 
 
 async def _create_test_brand_and_submission(client: AsyncClient, text: str = "Our product launch announcement"):

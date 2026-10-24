@@ -1,10 +1,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func, update
+from sqlalchemy import select, func, update, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import CurrentUser, get_current_user
+from app.core.security import CurrentUser, get_current_user, is_admin
 from app.models.brand import BrandProfile
 from app.models.campaign import Campaign
 from app.models.ruleset import RuleSet
@@ -22,8 +22,21 @@ async def list_brands(
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> List[BrandProfile]:
-    """Retrieves all registered brand governance profiles."""
-    stmt = select(BrandProfile).order_by(BrandProfile.created_at.desc())
+    """Retrieves brand profiles scoped by tenant isolation or all for admin."""
+    if is_admin(user.role):
+        stmt = select(BrandProfile).order_by(BrandProfile.created_at.desc())
+    else:
+        stmt = (
+            select(BrandProfile)
+            .where(
+                or_(
+                    BrandProfile.tenant_id == user.tenant_id,
+                    BrandProfile.tenant_id == "tenant_default",
+                    BrandProfile.tenant_id.is_(None),
+                )
+            )
+            .order_by(BrandProfile.created_at.desc())
+        )
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
@@ -44,7 +57,10 @@ async def create_brand(
             detail=f"Brand with name '{payload.name}' already exists.",
         )
 
-    brand = BrandProfile(**payload.model_dump())
+    data = payload.model_dump()
+    data["tenant_id"] = payload.tenant_id or user.tenant_id or "tenant_default"
+    data["owner_id"] = user.user_id
+    brand = BrandProfile(**data)
     session.add(brand)
     await session.commit()
     await session.refresh(brand)

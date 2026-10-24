@@ -36,6 +36,8 @@ class BrandProfileBase(BaseModel):
         le=21.0,
         description="Minimum WCAG contrast ratio threshold (default 4.5 for AA)",
     )
+    tenant_id: Optional[str] = Field("tenant_default", description="Tenant isolation identifier")
+    owner_id: Optional[str] = Field(None, description="User owner identifier")
 
 
 class BrandProfileCreate(BrandProfileBase):
@@ -52,6 +54,8 @@ class BrandProfileUpdate(BaseModel):
     approved_facts: Optional[List[Dict[str, Any]]] = None
     visual_guidelines_summary: Optional[str] = None
     min_wcag_contrast: Optional[float] = Field(None, ge=1.0, le=21.0)
+    tenant_id: Optional[str] = None
+    owner_id: Optional[str] = None
 
 
 class BrandProfileResponse(BrandProfileBase):

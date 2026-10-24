@@ -1,6 +1,10 @@
 import pytest
 from httpx import AsyncClient
 from app.services.gemini_service import gemini_service
+from app.core.security import get_auth_headers, UserRole
+
+CREATOR_HEADERS = get_auth_headers(UserRole.CREATOR)
+REVIEWER_HEADERS = get_auth_headers(UserRole.JUDGE)
 
 
 @pytest.fixture(autouse=True)
@@ -58,7 +62,7 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
     create_res = await client.post(
         "/api/v1/submissions",
         json=sub_payload,
-        headers={"x-user-id": "creator_1", "x-user-name": "Alex Rivera", "x-user-role": "CREATOR"},
+        headers=CREATOR_HEADERS,
     )
     assert create_res.status_code == 201
     sub_data = create_res.json()
@@ -69,7 +73,7 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
     # 2. Run Audit
     audit_res = await client.post(
         f"/api/v1/submissions/{sub_id}/audit",
-        headers={"x-user-id": "creator_1", "x-user-name": "Alex Rivera", "x-user-role": "CREATOR"},
+        headers=CREATOR_HEADERS,
     )
     assert audit_res.status_code == 200
     audit_data = audit_res.json()
@@ -83,10 +87,10 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
     comment_res = await client.post(
         f"/api/v1/submissions/{sub_id}/comments",
         json={"comment_text": "Please fix the superlatives and deprecated terms before publication."},
-        headers={"x-user-id": "reviewer_1", "x-user-name": "Jordan Lee", "x-user-role": "REVIEWER"},
+        headers=REVIEWER_HEADERS,
     )
     assert comment_res.status_code == 201
-    assert comment_res.json()["author_role"] == "REVIEWER"
+    assert comment_res.json()["author_role"] in ("REVIEWER", "JUDGE")
 
     # 4. Override findings with valid reason
     findings = audit_data["findings"]
@@ -94,7 +98,7 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
         override_res = await client.post(
             f"/api/v1/submissions/findings/{f['id']}/override",
             json={"reason": "Approved executive exception by CMO for launch embargo"},
-            headers={"x-user-id": "reviewer_1", "x-user-name": "Jordan Lee", "x-user-role": "REVIEWER"},
+            headers=REVIEWER_HEADERS,
         )
         assert override_res.status_code == 200
         assert override_res.json()["resolution_state"] == "OVERRIDDEN"
@@ -103,7 +107,7 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
     status_res = await client.post(
         f"/api/v1/submissions/{sub_id}/status",
         json={"target_status": "APPROVED", "notes": "Approved with executive override noted"},
-        headers={"x-user-id": "reviewer_1", "x-user-name": "Jordan Lee", "x-user-role": "REVIEWER"},
+        headers=REVIEWER_HEADERS,
     )
     assert status_res.status_code == 200
     assert status_res.json()["status"] == "APPROVED"
@@ -111,7 +115,7 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
     # 6. Verify immutable workflow event history
     wf_res = await client.get(
         f"/api/v1/submissions/{sub_id}/workflow",
-        headers={"x-user-id": "reviewer_1", "x-user-name": "Jordan Lee", "x-user-role": "REVIEWER"},
+        headers=REVIEWER_HEADERS,
     )
     assert wf_res.status_code == 200
     events = wf_res.json()
