@@ -133,6 +133,59 @@ Phase 1 focuses exclusively on making the AI calling pipeline reliable, asynchro
 
 ## 7. Idempotent Audits & In-Memory Execution
 - In `run_audit` and `run_image_audit`, existing findings for the targeted revision are automatically deleted via `delete(AuditFinding).where(AuditFinding.revision_id == revision.id)` prior to inserting new findings.
-- When `persist=False`, all analysis (palette, contrast, PII, guidelines retrieval, vision audit, scoring, and verdict) executes purely in-memory, returning a pure result dictionary without mutating `submission` or `revision` or committing DB records.
+---
+
+# Phase 5 Implementation Notes: Media Pipelines
+
+## 1. Magic Byte Validation & File Size Enforcements
+- Implemented `app.core.media_validation.py` verifying raw file headers (magic bytes) to prevent extension spoofing (e.g., text files renamed to `.wav` or `.mp4`):
+  - **Images**: Max 10MB; PNG (`\x89PNG`), JPEG (`\xFF\xD8\xFF`), WEBP (`RIFF....WEBP`).
+  - **Audio**: Max 25MB; MP3 (ID3 or frame sync `\xFF\xFB/\xF3/\xF2`), WAV (`RIFF....WAVE`), OGG (`OggS`), FLAC (`fLaC`), M4A (`....ftypM4A/mp42/isom`).
+  - **Video**: Max 100MB; MP4/MOV (`....ftyp`), WEBM/MKV (`\x1A\x45\xDF\xA3`), AVI (`RIFF....AVI`).
+- Rejects invalid formats or oversize payloads with HTTP 400.
+
+## 2. Cloudinary & Storage Provider Transparency
+- Eliminated silent Cloudinary fallback in `CloudinaryService`:
+  - `upload_file` returns `storage_provider` (`"cloudinary"` or `"local"`) and explicit `fallback_reason` (e.g. `"cloudinary_not_configured"`, `"cloudinary_upload_error"`).
+  - Tracked in `SubmissionRevision.ai_governance_metadata["storage"]`.
+- `extract_video_frames` follows verified fallback order:
+  - Cloudinary transformation URLs first (when Cloudinary is configured).
+  - Local `ffmpeg` subprocess fallback when binary is available on system `PATH`.
+  - Graceful empty frame list if neither is available (never crashes video audit pipeline).
+
+## 3. Native Audio Audit Pipeline
+- Added `TimestampedAudioFinding` and `GeminiAudioAuditOutput` schemas to `gemini_service.py`.
+- `GeminiService.audit_audio`:
+  - Directly analyzes raw audio using `gemini-3.5-flash` with MIME types (`audio/mp3`, `audio/wav`, etc.).
+  - Evaluates voiceover tone against `BrandProfile.tone_persona` (e.g. friendly, punchy).
+  - Checks for mandatory campaign phrases.
+  - Checks background music vs speech balance.
+  - Prohibited SFX detector flags explosive sounds (firecrackers, sirens, loud bangs) with exact start/end timestamps.
+- `AuditService.run_audio_audit`:
+  - Maps timestamped findings into standardized `AuditFinding` records linked to retrieval chunks.
+  - Re-runs `RuleEngine.evaluate_content_text` on speech transcript to catch banned terms and PII.
+
+## 4. Video Frame Parallel Auditing with Isolated Sessions
+- `AuditService.run_video_audit`:
+  - Extracts keyframes (0%, 25%, 50%, 75%, 100%).
+  - Executes parallel frame vision audits with `asyncio.Semaphore(4)`.
+  - Uses an isolated `AsyncSessionLocal()` per frame to eliminate SQLAlchemy `Session is already flushing` concurrency conflicts.
+  - Verifies end-card brand palette match on final frame (100%).
+  - Checks dialogue transcription and burnt-in captions accessibility.
+
+## 5. Combined Instagram Post Creative Auditing
+- `POST /api/v1/submissions/{id}/upload-post`:
+  - Uploads creative image and caption/hashtags together.
+  - Audits image (palette, subjects, contrast) and copy (terms, PII, tone) in tandem.
+  - Enforces Instagram platform specs:
+    - Supported aspect ratios: 1:1, 4:5, 9:16, 1.91:1 (tolerance ±0.05).
+    - Caption length cap: max 2,200 characters.
+    - Hashtags cap: max 30 hashtags.
+    - Accessibility: alt text mandatory and must be >= 5 words.
+
+## 6. Asynchronous Audit Job Polling
+- Implemented `AuditJobManager` (`app.services.audit_job_manager.py`) tracking background audit executions (`queued`, `running`, `done`, `failed`) with progress float (0.0 to 1.0) and human-readable step descriptions.
+- `GET /api/v1/submissions/{id}/audit-status`: Polling endpoint returning live progress or final audit verdict.
+- Upload endpoints support `?background=true`, returning HTTP 202 immediately with job details.
 
 

@@ -1,5 +1,6 @@
 import re
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,7 @@ from app.core.pii_scrubber import ConfidentialityScrubber
 from app.services.rule_engine import RuleEngine, FindingDraft
 from app.services.document_service import DocumentService
 from app.services.gemini_service import gemini_service
+from app.services.cloudinary_service import cloudinary_service
 
 logger = logging.getLogger(__name__)
 
@@ -1140,5 +1142,905 @@ class AuditService:
             "ai_status": vision_ai_status,
             "ai_error": vision_ai_error,
         }
+
+    @classmethod
+    async def run_post_audit(
+        cls,
+        session: AsyncSession,
+        submission: Submission,
+        revision: SubmissionRevision,
+        image_bytes: bytes,
+        mime_type: str,
+        caption: str,
+        hashtags: Optional[str] = None,
+        alt_text: Optional[str] = None,
+        platform: str = "instagram",
+        actor_id: str = "system_auditor",
+        actor_name: str = "Inkloom Governance Engine",
+        actor_role: str = "SYSTEM",
+        persist: bool = True,
+        additional_metadata: Optional[Dict[str, Any]] = None,
+        campaign_event: Optional[str] = None,
+        campaign_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Audits an Instagram or social post (image + caption + hashtags + alt text) together:
+        1. Enforces platform specs (aspect ratios: 1:1, 4:5, 9:16; caption max length 2200; hashtag limits).
+        2. Evaluates accessibility (alt-text presence and length).
+        3. Audits visual image compliance (palette, contrast, prohibited visuals, event cues).
+        4. Audits text copy (banned terms, preferred terminology, required phrases, exaggeration terms, PII).
+        5. Computes authoritative verdict and per-dimension scores across all dimensions.
+        """
+        all_draft_findings: List[FindingDraft] = []
+        platform_lower = (platform or "instagram").lower()
+
+        # 1. Platform aspect ratio check
+        image_meta = DocumentService.analyze_image(image_bytes)
+        w, h = image_meta["width"], image_meta["height"]
+        ratio = w / float(h) if h > 0 else 1.0
+
+        if platform_lower == "instagram":
+            # Instagram standards: 1:1 (1.0), 4:5 (0.8), 9:16 (0.5625), landscape (1.91)
+            valid_ratios = [1.0, 0.8, 0.5625, 1.91]
+            matches_platform_ratio = any(abs(ratio - vr) <= 0.06 for vr in valid_ratios)
+            if not matches_platform_ratio:
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="VISUAL",
+                        severity="WARNING",
+                        detector_source="PLATFORM_SPEC_VALIDATOR",
+                        flagged_excerpt=f"Aspect ratio {round(ratio, 2)}:1 ({w}x{h})",
+                        explanation=(
+                            f"Image aspect ratio {round(ratio, 2)}:1 ({w}x{h}) does not match standard Instagram dimensions: "
+                            "1:1 (Square, 1080x1080), 4:5 (Portrait, 1080x1350), or 9:16 (Story/Reel, 1080x1920)."
+                        ),
+                        guideline_citation="Instagram Content Specifications - Aspect Ratios",
+                        suggested_correction="Crop or resize canvas to 1:1 (1080x1080) or 4:5 (1080x1350) for optimal feed display.",
+                    )
+                )
+
+            # Caption length (max 2200 chars for Instagram)
+            if len(caption) > 2200:
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="VOICE_TERMINOLOGY",
+                        severity="CRITICAL",
+                        detector_source="PLATFORM_SPEC_VALIDATOR",
+                        flagged_excerpt=f"Caption length {len(caption)} characters",
+                        explanation=f"Instagram enforces a strict limit of 2,200 characters per caption. Current caption has {len(caption)} characters.",
+                        guideline_citation="Instagram Technical Limits - Caption Length",
+                        suggested_correction="Shorten caption to under 2,200 characters (recommended: 125-150 characters for peak engagement).",
+                    )
+                )
+
+            # Hashtag count (max 30 hashtags for Instagram)
+            full_post_text = f"{caption} {hashtags or ''}"
+            detected_tags = re.findall(r"#[A-Za-z0-9_]+", full_post_text)
+            if len(detected_tags) > 30:
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="VOICE_TERMINOLOGY",
+                        severity="CRITICAL",
+                        detector_source="PLATFORM_SPEC_VALIDATOR",
+                        flagged_excerpt=f"{len(detected_tags)} hashtags detected",
+                        explanation=f"Instagram allows a maximum of 30 hashtags per post. Current post includes {len(detected_tags)} hashtags.",
+                        guideline_citation="Instagram Technical Limits - Hashtags",
+                        suggested_correction="Reduce hashtags to 30 or fewer (recommended: 3-5 high-relevance hashtags).",
+                    )
+                )
+
+        # 2. Alt text accessibility check
+        clean_alt = (alt_text or "").strip()
+        if not clean_alt:
+            all_draft_findings.append(
+                FindingDraft(
+                    category="ACCESSIBILITY",
+                    severity="CRITICAL",
+                    detector_source="ACCESSIBILITY_GUARD",
+                    flagged_excerpt="Missing Image Alt Text",
+                    explanation="Visual post is missing descriptive alt text, violating WCAG 2.1 guideline 1.1.1 (Non-text Content).",
+                    guideline_citation="WCAG 2.1 Guideline 1.1.1 Non-text Content",
+                    suggested_correction="Provide concise, descriptive alternative text conveying the key visual elements and messaging.",
+                )
+            )
+        elif len(clean_alt.split()) < 5:
+            all_draft_findings.append(
+                FindingDraft(
+                    category="ACCESSIBILITY",
+                    severity="WARNING",
+                    detector_source="ACCESSIBILITY_GUARD",
+                    flagged_excerpt=f"Alt text: '{clean_alt}'",
+                    explanation=f"Image alt text contains only {len(clean_alt.split())} words, which may be insufficient for visually impaired users.",
+                    guideline_citation="WCAG 2.1 Guideline 1.1.1 Non-text Content",
+                    suggested_correction="Expand alt text with descriptive details (at least 5-10 words describing key visual elements).",
+                )
+            )
+
+        # 3. Visual image audit (in-memory)
+        image_result = await cls.run_image_audit(
+            session=session,
+            submission=submission,
+            revision=revision,
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            actor_role=actor_role,
+            persist=False,
+            campaign_event=campaign_event,
+            campaign_id=campaign_id,
+        )
+        all_draft_findings.extend(image_result.get("draft_findings", []))
+
+        # 4. Copy audit on caption + hashtags
+        brand_stmt = select(BrandProfile).where(BrandProfile.id == submission.brand_id)
+        brand_res = await session.execute(brand_stmt)
+        brand = brand_res.scalar_one_or_none()
+
+        campaign, ruleset = await cls.get_active_ruleset_and_campaign(
+            session=session,
+            brand_id=submission.brand_id,
+            campaign_id=campaign_id or submission.campaign_id,
+            event_name=campaign_event,
+        )
+
+        banned_terms = ruleset.banned_terms if ruleset and ruleset.banned_terms else (brand.banned_terms if brand else [])
+        pref_terms = ruleset.preferred_terminology if ruleset and ruleset.preferred_terminology else (brand.preferred_terminology if brand else {})
+        req_phrases = ruleset.required_phrases if ruleset and ruleset.required_phrases else []
+        exagg_terms = ruleset.exaggeration_terms if ruleset and ruleset.exaggeration_terms else []
+
+        full_copy = f"{caption}\n\n{hashtags}".strip() if hashtags else caption
+        copy_findings = RuleEngine.run_all_deterministic_checks(
+            text=full_copy,
+            banned_terms=banned_terms or [],
+            preferred_terminology=pref_terms or {},
+            required_phrases=req_phrases or [],
+            exaggeration_terms=exagg_terms or [],
+            caption=caption,
+            platform=platform,
+        )
+        all_draft_findings.extend(copy_findings)
+
+        # 5. Semantic text check if AI available
+        ai_status = image_result.get("ai_status", "ok")
+        ai_error = image_result.get("ai_error")
+        if gemini_service.is_available and full_copy.strip():
+            try:
+                retrieved_chunks = await cls.retrieve_relevant_guidelines(
+                    session=session,
+                    brand_id=submission.brand_id,
+                    query_text=f"{full_copy[:200]} {campaign_event or ''}",
+                    limit=5,
+                    media_type="text",
+                    campaign_name=campaign.name if campaign else (campaign_event or ""),
+                )
+                guidelines_ctx = [
+                    {
+                        "id": c.id,
+                        "source_document": c.source_document,
+                        "section_reference": c.section_reference,
+                        "content_text": c.content_text,
+                    }
+                    for c in retrieved_chunks
+                ]
+                semantic_res = await gemini_service.audit_content_semantic(
+                    scrubbed_text=full_copy,
+                    tone_persona=brand.tone_persona if brand else "Clear, authoritative, empathetic",
+                    guidelines_context=guidelines_ctx,
+                    approved_facts=ruleset.approved_facts if ruleset and ruleset.approved_facts else (brand.approved_facts if brand else []),
+                    campaign=campaign.__dict__ if campaign else None,
+                    ruleset=ruleset.__dict__ if ruleset else None,
+                    campaign_event=campaign_event,
+                )
+                for f in semantic_res.get("findings", []):
+                    all_draft_findings.append(
+                        FindingDraft(
+                            category=f.get("category", "TONE"),
+                            severity=f.get("severity", "WARNING"),
+                            detector_source="SEMANTIC_LLM",
+                            flagged_excerpt=f.get("flagged_excerpt", ""),
+                            explanation=f.get("explanation", ""),
+                            guideline_citation="Brand Guidelines - Tone & Voice",
+                            suggested_correction=f.get("suggested_correction", ""),
+                        )
+                    )
+            except Exception as e:
+                logger.warning(f"Semantic copy audit failed: {e}")
+                if ai_status == "ok":
+                    ai_status = "partial"
+                    ai_error = f"Copy semantic analysis skipped: {e}"
+
+        # 6. Deduplication
+        seen_keys = set()
+        deduped_findings: List[FindingDraft] = []
+        for f in all_draft_findings:
+            key = (f.category, f.flagged_excerpt.strip().lower())
+            if key not in seen_keys:
+                seen_keys.add(key)
+                deduped_findings.append(f)
+
+        # 7. Verdict and Dimension Evaluation
+        score = cls.calculate_compliance_score(deduped_findings)
+        verdict, dimension_results = cls.evaluate_verdict_and_dimensions(
+            findings=deduped_findings,
+            ruleset=ruleset,
+            campaign=campaign,
+            palette_match_pct=image_result.get("palette_match_pct"),
+            ai_status=ai_status,
+        )
+
+        if not persist:
+            return {
+                "draft_findings": deduped_findings,
+                "compliance_score": score,
+                "verdict": verdict,
+                "dimension_results": dimension_results,
+                "palette_match_pct": image_result.get("palette_match_pct"),
+                "ai_status": ai_status,
+                "ai_error": ai_error,
+            }
+
+        # 8. Persist results
+        submission.content_format = "POST"
+        submission.platform = platform
+        submission.compliance_score = score
+        submission.verdict = verdict
+        submission.status = "NEEDS_REVIEW" if (ai_status == "failed" or verdict != "FAIL") else "CHANGES_REQUESTED"
+
+        revision.compliance_score = score
+        revision.content_body = full_copy
+        revision.alt_text = alt_text
+        revision.ai_governance_metadata = {
+            "platform": platform,
+            "caption": caption,
+            "hashtags": hashtags,
+            "alt_text": alt_text,
+            "image_metadata": image_meta,
+            "palette_match_pct": image_result.get("palette_match_pct"),
+            "visible_text": image_result.get("visible_text", []),
+            "dominant_colors": image_result.get("dominant_colors", []),
+            "ai_status": ai_status,
+            "ai_error": ai_error,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
+        }
+        if additional_metadata:
+            revision.ai_governance_metadata.update(additional_metadata)
+
+        await session.execute(delete(AuditFinding).where(AuditFinding.revision_id == revision.id))
+
+        created_finding_records: List[AuditFinding] = []
+        for draft in deduped_findings:
+            finding = AuditFinding(
+                submission_id=submission.id,
+                revision_id=revision.id,
+                cited_chunk_id=draft.cited_chunk_id,
+                category=draft.category,
+                severity=draft.severity,
+                detector_source=draft.detector_source,
+                flagged_excerpt=draft.flagged_excerpt,
+                explanation=draft.explanation,
+                guideline_citation=draft.guideline_citation,
+                suggested_correction=draft.suggested_correction,
+                resolution_state="OPEN",
+            )
+            session.add(finding)
+            created_finding_records.append(finding)
+
+        event = WorkflowEvent(
+            submission_id=submission.id,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            actor_role=actor_role,
+            event_type="AUDIT_COMPLETED",
+            from_status="AUDITING",
+            to_status=submission.status,
+            notes=f"Post audit completed with verdict {verdict} and compliance score {score}%. Generated {len(deduped_findings)} findings.",
+            metadata_json={
+                "revision_id": revision.id,
+                "version_number": revision.version_number,
+                "compliance_score": score,
+                "verdict": verdict,
+                "platform": platform,
+            },
+        )
+        session.add(event)
+        await session.commit()
+
+        for f in created_finding_records:
+            await session.refresh(f)
+
+        severity_counts = {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0}
+        for f in created_finding_records:
+            if f.severity in severity_counts:
+                severity_counts[f.severity] += 1
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": revision.id,
+            "version_number": revision.version_number,
+            "compliance_score": score,
+            "status": submission.status,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
+            "total_findings": len(created_finding_records),
+            "findings_by_severity": severity_counts,
+            "findings": created_finding_records,
+            "confidentiality_report": {},
+            "visible_text": image_result.get("visible_text"),
+            "dominant_colors": image_result.get("dominant_colors"),
+            "palette_match_pct": image_result.get("palette_match_pct"),
+            "ai_status": ai_status,
+            "ai_error": ai_error,
+        }
+
+    @classmethod
+    async def run_audio_audit(
+        cls,
+        session: AsyncSession,
+        submission: Submission,
+        revision: SubmissionRevision,
+        audio_bytes: bytes,
+        mime_type: str,
+        actor_id: str = "system_auditor",
+        actor_name: str = "Inkloom Governance Engine",
+        actor_role: str = "SYSTEM",
+        persist: bool = True,
+        additional_metadata: Optional[Dict[str, Any]] = None,
+        campaign_event: Optional[str] = None,
+        campaign_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Natively audits audio using Gemini multimodal analysis:
+        Voiceover tone, mandatory phrases, prohibited SFX, background music balance,
+        and timestamped findings, plus deterministic text checks on transcript.
+        """
+        brand_stmt = select(BrandProfile).where(BrandProfile.id == submission.brand_id)
+        brand_res = await session.execute(brand_stmt)
+        brand = brand_res.scalar_one_or_none()
+        brand_name = brand.name if brand else "Brand"
+
+        campaign, ruleset = await cls.get_active_ruleset_and_campaign(
+            session=session,
+            brand_id=submission.brand_id,
+            campaign_id=campaign_id or submission.campaign_id,
+            event_name=campaign_event,
+        )
+
+        campaign_dict = {
+            "name": campaign.name,
+            "goals": campaign.goals,
+            "prohibited_items": campaign.prohibited_items,
+            "required_cues": campaign.required_cues,
+        } if campaign else None
+
+        ruleset_dict = {
+            "banned_terms": ruleset.banned_terms if ruleset else [],
+            "required_phrases": ruleset.required_phrases if ruleset else [],
+            "exaggeration_terms": ruleset.exaggeration_terms if ruleset else [],
+            "per_media_rules": ruleset.per_media_rules if ruleset else {},
+        } if ruleset else None
+
+        all_draft_findings: List[FindingDraft] = []
+
+        # Run native audio analysis
+        audio_output = await gemini_service.audit_audio(
+            audio_bytes=audio_bytes,
+            mime_type=mime_type,
+            brand_name=brand_name,
+            campaign_info=campaign_dict,
+            rule_set=ruleset_dict,
+        )
+
+        ai_status = audio_output.get("ai_status", "ok")
+        ai_error = audio_output.get("ai_error")
+        transcript = audio_output.get("transcript", "")
+
+        if ai_status == "failed":
+            all_draft_findings.append(
+                FindingDraft(
+                    category="ACCESSIBILITY",
+                    severity="WARNING",
+                    detector_source="AI_AUDIO_ENGINE",
+                    flagged_excerpt="Audio Analysis Incomplete",
+                    explanation=f"AI analysis incomplete: {ai_error or 'Gemini audio service offline'}",
+                    guideline_citation="Media Governance Pipeline",
+                    suggested_correction="Check audio clarity and retry the upload once service is operational.",
+                )
+            )
+        else:
+            # 1. Timestamped findings from Gemini
+            for f in audio_output.get("findings", []):
+                t_start = f.get("timestamp_start_sec")
+                t_end = f.get("timestamp_end_sec")
+                time_str = f"[{t_start:.1f}s - {t_end:.1f}s] " if (t_start is not None and t_end is not None) else ""
+                all_draft_findings.append(
+                    FindingDraft(
+                        category=f.get("category", "TONE"),
+                        severity=f.get("severity", "WARNING"),
+                        detector_source="NATIVE_AUDIO_GEMINI",
+                        flagged_excerpt=f"{time_str}{f.get('flagged_excerpt', '')}",
+                        explanation=f.get("explanation", ""),
+                        guideline_citation=f"{brand_name} Brand Audio Guidelines",
+                        suggested_correction=f.get("suggested_correction", ""),
+                    )
+                )
+
+            # 2. Check prohibited sound effects
+            for sfx in audio_output.get("prohibited_sfx_found", []):
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="EVENT_FIT",
+                        severity="CRITICAL",
+                        detector_source="NATIVE_AUDIO_SFX_DETECTOR",
+                        flagged_excerpt=f"Prohibited SFX: {sfx}",
+                        explanation=f"Detected prohibited audio sound effect '{sfx}'. Policy strictly prohibits loud explosions, fireworks, sirens, or disruptive SFX.",
+                        guideline_citation=f"{brand_name} Brand Governance Policy - Audio Standards",
+                        suggested_correction="Remove or replace prohibited sound effects with approved background ambience.",
+                    )
+                )
+
+            # 3. Check mandatory brand phrases missing
+            for phrase in audio_output.get("required_phrases_missing", []):
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="VOICE_TERMINOLOGY",
+                        severity="CRITICAL",
+                        detector_source="NATIVE_AUDIO_PHRASE_DETECTOR",
+                        flagged_excerpt=f"Missing required phrase: '{phrase}'",
+                        explanation=f"Voiceover failed to include mandatory brand phrase '{phrase}' required by brand guidelines.",
+                        guideline_citation=f"{brand_name} Brand Guidelines - Mandatory Copy",
+                        suggested_correction=f"Include '{phrase}' clearly in the voiceover dialogue.",
+                    )
+                )
+
+            # 4. Check voiceover tone
+            if audio_output.get("voiceover_tone_acceptable") is False:
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="TONE",
+                        severity="WARNING",
+                        detector_source="NATIVE_AUDIO_TONE_DETECTOR",
+                        flagged_excerpt=f"Voiceover Tone: {audio_output.get('voiceover_tone', 'Disallowed')}",
+                        explanation=f"Voiceover delivery does not align with brand voice personality: {audio_output.get('voiceover_tone')}.",
+                        guideline_citation=f"{brand_name} Brand Guidelines - Tone of Voice",
+                        suggested_correction="Re-record voiceover using a warm, engaging, and friendly delivery pace.",
+                    )
+                )
+
+            # 5. Deterministic text checks on transcript
+            if transcript.strip():
+                text_findings = RuleEngine.run_all_deterministic_checks(
+                    text=transcript,
+                    banned_terms=ruleset.banned_terms if ruleset and ruleset.banned_terms else (brand.banned_terms if brand else []),
+                    preferred_terminology=ruleset.preferred_terminology if ruleset and ruleset.preferred_terminology else (brand.preferred_terminology if brand else {}),
+                    required_phrases=ruleset.required_phrases if ruleset else [],
+                    exaggeration_terms=ruleset.exaggeration_terms if ruleset else [],
+                )
+                all_draft_findings.extend(text_findings)
+
+        # Deduplication
+        seen_keys = set()
+        deduped_findings: List[FindingDraft] = []
+        for f in all_draft_findings:
+            key = (f.category, f.flagged_excerpt.strip().lower())
+            if key not in seen_keys:
+                seen_keys.add(key)
+                deduped_findings.append(f)
+
+        score = cls.calculate_compliance_score(deduped_findings)
+        verdict, dimension_results = cls.evaluate_verdict_and_dimensions(
+            findings=deduped_findings,
+            ruleset=ruleset,
+            campaign=campaign,
+            palette_match_pct=None,
+            ai_status=ai_status,
+        )
+
+        if not persist:
+            return {
+                "draft_findings": deduped_findings,
+                "transcript": transcript,
+                "compliance_score": score,
+                "verdict": verdict,
+                "dimension_results": dimension_results,
+                "ai_status": ai_status,
+                "ai_error": ai_error,
+            }
+
+        submission.content_format = "AUDIO"
+        submission.compliance_score = score
+        submission.verdict = verdict
+        submission.status = "NEEDS_REVIEW" if (ai_status == "failed" or verdict != "FAIL") else "CHANGES_REQUESTED"
+
+        revision.compliance_score = score
+        revision.content_body = transcript
+        revision.ai_governance_metadata = {
+            "transcript": transcript,
+            "voiceover_tone": audio_output.get("voiceover_tone"),
+            "detected_sound_effects": audio_output.get("detected_sound_effects", []),
+            "background_music_assessment": audio_output.get("background_music_assessment"),
+            "ai_status": ai_status,
+            "ai_error": ai_error,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
+        }
+        if additional_metadata:
+            revision.ai_governance_metadata.update(additional_metadata)
+
+        await session.execute(delete(AuditFinding).where(AuditFinding.revision_id == revision.id))
+
+        created_finding_records: List[AuditFinding] = []
+        for draft in deduped_findings:
+            finding = AuditFinding(
+                submission_id=submission.id,
+                revision_id=revision.id,
+                cited_chunk_id=draft.cited_chunk_id,
+                category=draft.category,
+                severity=draft.severity,
+                detector_source=draft.detector_source,
+                flagged_excerpt=draft.flagged_excerpt,
+                explanation=draft.explanation,
+                guideline_citation=draft.guideline_citation,
+                suggested_correction=draft.suggested_correction,
+                resolution_state="OPEN",
+            )
+            session.add(finding)
+            created_finding_records.append(finding)
+
+        event = WorkflowEvent(
+            submission_id=submission.id,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            actor_role=actor_role,
+            event_type="AUDIT_COMPLETED",
+            from_status="AUDITING",
+            to_status=submission.status,
+            notes=f"Native audio audit completed with verdict {verdict} and compliance score {score}%. Generated {len(deduped_findings)} findings.",
+            metadata_json={
+                "revision_id": revision.id,
+                "version_number": revision.version_number,
+                "compliance_score": score,
+                "verdict": verdict,
+            },
+        )
+        session.add(event)
+        await session.commit()
+
+        for f in created_finding_records:
+            await session.refresh(f)
+
+        severity_counts = {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0}
+        for f in created_finding_records:
+            if f.severity in severity_counts:
+                severity_counts[f.severity] += 1
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": revision.id,
+            "version_number": revision.version_number,
+            "compliance_score": score,
+            "status": submission.status,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
+            "total_findings": len(created_finding_records),
+            "findings_by_severity": severity_counts,
+            "findings": created_finding_records,
+            "confidentiality_report": {},
+            "transcript": transcript,
+            "ai_status": ai_status,
+            "ai_error": ai_error,
+        }
+
+    @classmethod
+    async def run_video_audit(
+        cls,
+        session: AsyncSession,
+        submission: Submission,
+        revision: SubmissionRevision,
+        video_bytes: bytes,
+        mime_type: str,
+        public_id: Optional[str] = None,
+        duration_seconds: Optional[float] = None,
+        actor_id: str = "system_auditor",
+        actor_name: str = "Inkloom Governance Engine",
+        actor_role: str = "SYSTEM",
+        persist: bool = True,
+        additional_metadata: Optional[Dict[str, Any]] = None,
+        campaign_event: Optional[str] = None,
+        campaign_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Audits video media pipeline:
+        1. Frame extraction per order in VERIFIED ENVIRONMENT FACTS:
+           Cloudinary frames first -> local ffmpeg if available -> empty list.
+           Never crashes if ffmpeg is missing.
+        2. Parallel audit of up to 8 extracted frames with concurrency limit (asyncio.Semaphore(4)).
+        3. End-card palette verification on final frame.
+        4. Audio/dialogue track transcription via Gemini.
+        5. Accessibility checks (burnt-in captions vs dialogue).
+        6. Combines findings and computes authoritative verdict.
+        """
+        all_draft_findings: List[FindingDraft] = []
+        ai_status = "ok"
+        ai_error = None
+
+        brand_stmt = select(BrandProfile).where(BrandProfile.id == submission.brand_id)
+        brand_res = await session.execute(brand_stmt)
+        brand = brand_res.scalar_one_or_none()
+
+        campaign, ruleset = await cls.get_active_ruleset_and_campaign(
+            session=session,
+            brand_id=submission.brand_id,
+            campaign_id=campaign_id or submission.campaign_id,
+            event_name=campaign_event,
+        )
+
+        # 1. Transcribe dialogue from video
+        transcript = ""
+        try:
+            transcript = await gemini_service.transcribe_video(video_bytes=video_bytes, mime_type=mime_type)
+        except Exception as e:
+            logger.warning(f"Video transcription failed: {e}")
+            ai_status = "partial"
+            ai_error = f"Dialogue transcription failed: {e}"
+
+        # 2. Extract frames (Cloudinary -> ffmpeg -> empty list)
+        frames = await cloudinary_service.extract_video_frames(
+            video_bytes=video_bytes,
+            public_id=public_id,
+            duration_seconds=duration_seconds,
+            max_frames=8,
+        )
+
+        frame_reports: List[Dict[str, Any]] = []
+        visible_texts: List[str] = []
+        dominant_colors: List[str] = []
+        palette_match_scores: List[float] = []
+
+        if not frames:
+            # Environment rule: if neither Cloudinary nor ffmpeg worked, ai_status=partial with visible finding
+            ai_status = "partial"
+            all_draft_findings.append(
+                FindingDraft(
+                    category="VISUAL",
+                    severity="WARNING",
+                    detector_source="MEDIA_FRAME_EXTRACTION",
+                    flagged_excerpt="video visuals not analysed",
+                    explanation=(
+                        "Video frame extraction unavailable: Cloudinary frames could not be retrieved "
+                        "and local ffmpeg is not installed. Visual governance checks could not be performed."
+                    ),
+                    guideline_citation="Media Governance Pipeline - Video Frame Extraction",
+                    suggested_correction="Configure Cloudinary credentials or install ffmpeg to enable visual frame analysis.",
+                )
+            )
+        else:
+            # Audit frames in parallel with concurrency limit 4
+            sem = asyncio.Semaphore(4)
+            from app.core.database import AsyncSessionLocal
+
+            async def _audit_single_frame(f_item: Dict[str, Any]):
+                async with sem:
+                    async with AsyncSessionLocal() as frame_sess:
+                        return await cls.run_image_audit(
+                            session=frame_sess,
+                            submission=submission,
+                            revision=revision,
+                            image_bytes=f_item["bytes"],
+                            mime_type="image/jpeg",
+                            actor_id=actor_id,
+                            actor_name=actor_name,
+                            actor_role=actor_role,
+                            persist=False,
+                            campaign_event=campaign_event,
+                            campaign_id=campaign_id,
+                        )
+
+            tasks = [_audit_single_frame(f) for f in frames]
+            frame_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for idx, f_item in enumerate(frames):
+                res = frame_results[idx]
+                if isinstance(res, Exception):
+                    logger.warning(f"Frame audit failed at {f_item['timestamp_seconds']}s: {res}")
+                    continue
+                # Add timestamp to frame findings for clear evidence
+                ts = f_item.get("timestamp_seconds", 0.0)
+                for fd in res.get("draft_findings", []):
+                    time_tagged_excerpt = f"[{ts:.1f}s] {fd.flagged_excerpt}"
+                    all_draft_findings.append(
+                        FindingDraft(
+                            category=fd.category,
+                            severity=fd.severity,
+                            detector_source=fd.detector_source,
+                            flagged_excerpt=time_tagged_excerpt,
+                            explanation=f"Frame at {ts:.1f}s: {fd.explanation}",
+                            guideline_citation=fd.guideline_citation,
+                            suggested_correction=fd.suggested_correction,
+                            cited_chunk_id=fd.cited_chunk_id,
+                        )
+                    )
+                visible_texts.extend(res.get("visible_text", []))
+                dominant_colors.extend(res.get("dominant_colors", []))
+                if res.get("palette_match_pct") is not None:
+                    palette_match_scores.append(float(res["palette_match_pct"]))
+
+                frame_reports.append(
+                    {
+                        "timestamp_seconds": ts,
+                        "url": f_item.get("url"),
+                        "findings_count": len(res.get("draft_findings", [])),
+                        "palette_match_pct": res.get("palette_match_pct"),
+                    }
+                )
+
+            # 3. Check End-card Palette Match
+            if frame_reports:
+                last_frame_rep = max(frame_reports, key=lambda fr: fr["timestamp_seconds"])
+                end_card_score = last_frame_rep.get("palette_match_pct")
+                if end_card_score is not None and end_card_score < 70.0:
+                    all_draft_findings.append(
+                        FindingDraft(
+                            category="VISUAL",
+                            severity="WARNING",
+                            detector_source="VIDEO_END_CARD_DETECTOR",
+                            flagged_excerpt=f"End card at {last_frame_rep['timestamp_seconds']:.1f}s (palette match {round(end_card_score, 1)}%)",
+                            explanation=(
+                                f"Video end-card does not adhere to approved brand palette ({round(end_card_score, 1)}% match). "
+                                "Commercials and promotional videos must end with brand-compliant identity."
+                            ),
+                            guideline_citation="Brand Visual Identity Standards - End Cards",
+                            suggested_correction="Ensure the concluding end-card lockup features approved brand colors.",
+                        )
+                    )
+
+            # 4. Check burnt-in captions
+            if transcript.strip() and len(transcript.strip()) > 30 and len(visible_texts) == 0:
+                all_draft_findings.append(
+                    FindingDraft(
+                        category="ACCESSIBILITY",
+                        severity="SUGGESTION",
+                        detector_source="BURNT_IN_CAPTIONS_DETECTOR",
+                        flagged_excerpt="Video lacks burnt-in captions",
+                        explanation="Spoken dialogue was detected in video audio, but no visible on-screen subtitles were found across frames.",
+                        guideline_citation="Media Governance Pipeline - Accessibility",
+                        suggested_correction="Burn in subtitles or captions for dialogue to support muted mobile feeds and hearing-impaired users.",
+                    )
+                )
+
+        # 5. Deterministic checks on transcript
+        if transcript.strip():
+            dialogue_findings = RuleEngine.run_all_deterministic_checks(
+                text=transcript,
+                banned_terms=ruleset.banned_terms if ruleset and ruleset.banned_terms else (brand.banned_terms if brand else []),
+                preferred_terminology=ruleset.preferred_terminology if ruleset and ruleset.preferred_terminology else (brand.preferred_terminology if brand else {}),
+                required_phrases=ruleset.required_phrases if ruleset else [],
+                exaggeration_terms=ruleset.exaggeration_terms if ruleset else [],
+            )
+            all_draft_findings.extend(dialogue_findings)
+
+        # Deduplication
+        seen_keys = set()
+        deduped_findings: List[FindingDraft] = []
+        for f in all_draft_findings:
+            key = (f.category, f.flagged_excerpt.strip().lower())
+            if key not in seen_keys:
+                seen_keys.add(key)
+                deduped_findings.append(f)
+
+        avg_palette = (sum(palette_match_scores) / len(palette_match_scores)) if palette_match_scores else None
+        score = cls.calculate_compliance_score(deduped_findings)
+        verdict, dimension_results = cls.evaluate_verdict_and_dimensions(
+            findings=deduped_findings,
+            ruleset=ruleset,
+            campaign=campaign,
+            palette_match_pct=avg_palette,
+            ai_status=ai_status,
+        )
+
+        if not persist:
+            return {
+                "draft_findings": deduped_findings,
+                "transcript": transcript,
+                "frames": frame_reports,
+                "compliance_score": score,
+                "verdict": verdict,
+                "dimension_results": dimension_results,
+                "palette_match_pct": avg_palette,
+                "ai_status": ai_status,
+                "ai_error": ai_error,
+            }
+
+        submission.content_format = "VIDEO"
+        submission.compliance_score = score
+        submission.verdict = verdict
+        submission.status = "NEEDS_REVIEW" if (ai_status == "failed" or verdict != "FAIL") else "CHANGES_REQUESTED"
+
+        revision.compliance_score = score
+        revision.content_body = transcript
+        revision.ai_governance_metadata = {
+            "transcript": transcript,
+            "visual_frame_count": len(frames),
+            "visual_frames": frame_reports,
+            "visual_visible_text": sorted(set(visible_texts)),
+            "visual_dominant_colors": sorted(set(dominant_colors)),
+            "palette_match_pct": avg_palette,
+            "ai_status": ai_status,
+            "ai_error": ai_error,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
+        }
+        if additional_metadata:
+            revision.ai_governance_metadata.update(additional_metadata)
+
+        await session.execute(delete(AuditFinding).where(AuditFinding.revision_id == revision.id))
+
+        created_finding_records: List[AuditFinding] = []
+        for draft in deduped_findings:
+            finding = AuditFinding(
+                submission_id=submission.id,
+                revision_id=revision.id,
+                cited_chunk_id=draft.cited_chunk_id,
+                category=draft.category,
+                severity=draft.severity,
+                detector_source=draft.detector_source,
+                flagged_excerpt=draft.flagged_excerpt,
+                explanation=draft.explanation,
+                guideline_citation=draft.guideline_citation,
+                suggested_correction=draft.suggested_correction,
+                resolution_state="OPEN",
+            )
+            session.add(finding)
+            created_finding_records.append(finding)
+
+        event = WorkflowEvent(
+            submission_id=submission.id,
+            actor_id=actor_id,
+            actor_name=actor_name,
+            actor_role=actor_role,
+            event_type="AUDIT_COMPLETED",
+            from_status="AUDITING",
+            to_status=submission.status,
+            notes=f"Video multi-modal audit completed with verdict {verdict} and compliance score {score}%. Generated {len(deduped_findings)} findings.",
+            metadata_json={
+                "revision_id": revision.id,
+                "version_number": revision.version_number,
+                "compliance_score": score,
+                "verdict": verdict,
+                "visual_frame_count": len(frames),
+            },
+        )
+        session.add(event)
+        await session.commit()
+
+        for f in created_finding_records:
+            await session.refresh(f)
+
+        severity_counts = {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0}
+        for f in created_finding_records:
+            if f.severity in severity_counts:
+                severity_counts[f.severity] += 1
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": revision.id,
+            "version_number": revision.version_number,
+            "compliance_score": score,
+            "status": submission.status,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
+            "total_findings": len(created_finding_records),
+            "findings_by_severity": severity_counts,
+            "findings": created_finding_records,
+            "confidentiality_report": {},
+            "transcript": transcript,
+            "visible_text": sorted(set(visible_texts)),
+            "dominant_colors": sorted(set(dominant_colors)),
+            "palette_match_pct": avg_palette,
+            "ai_status": ai_status,
+            "ai_error": ai_error,
+        }
+
 
 

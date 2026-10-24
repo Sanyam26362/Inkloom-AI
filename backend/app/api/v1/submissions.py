@@ -1,10 +1,10 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import get_db, AsyncSessionLocal
 from app.core.security import CurrentUser, get_current_user
 from app.models.submission import Submission, SubmissionRevision
 from app.models.finding import AuditFinding
@@ -15,6 +15,7 @@ from app.schemas.submission import (
     SubmissionRevisionCreate,
     SubmissionRevisionResponse,
     AuditExecutionResponse,
+    AuditStatusResponse,
 )
 from app.schemas.finding import (
     AuditFindingResponse,
@@ -37,6 +38,12 @@ from app.services.cloudinary_service import (
     cloudinary_service,
 )
 from app.services.rule_engine import FindingDraft
+from app.services.audit_job_manager import audit_job_manager
+from app.core.media_validation import (
+    validate_image_bytes,
+    validate_audio_bytes,
+    validate_video_bytes,
+)
 
 router = APIRouter(prefix="/submissions", tags=["Content Submissions & Governance Workflow"])
 
@@ -183,21 +190,80 @@ async def execute_audit(
     return audit_result
 
 
-@router.post("/{submission_id}/upload-image", response_model=AuditExecutionResponse)
-async def upload_image_and_audit(
+@router.get("/{submission_id}/audit-status", response_model=AuditStatusResponse)
+async def get_audit_status(
     submission_id: int,
-    file: UploadFile = File(...),
-    campaign_id: Optional[int] = None,
-    event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     """
-    Uploads an image (PNG, JPG, WEBP, max 10MB) to the configured media provider:
-    - Uses Cloudinary when configured, otherwise backend/uploads for local development
-    - Persists only a playable URL and safe asset metadata in PostgreSQL
-    - Audits visual palette compliance, text contrast (WCAG AA 4.5:1), visible copy against banned terms, and factual claims
-    - Persists visual audit findings and returns AuditExecutionResponse
+    Returns the real-time polling state of an active or completed governance audit:
+    - Status: queued | running | done | failed
+    - Progress: 0.0 to 1.0
+    - Current step description
+    - Authoritative verdict, compliance score, and findings breakdown when completed
+    """
+    job = audit_job_manager.get_status(submission_id)
+    if job:
+        return job
+
+    # Fallback to database for existing submissions
+    stmt = (
+        select(Submission)
+        .options(selectinload(Submission.revisions), selectinload(Submission.findings))
+        .where(Submission.id == submission_id)
+    )
+    res = await session.execute(stmt)
+    sub = res.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
+
+    latest_rev = max(sub.revisions, key=lambda r: r.version_number) if sub.revisions else None
+    gov_meta = (latest_rev.ai_governance_metadata or {}) if latest_rev else {}
+
+    is_auditing = sub.status == "AUDITING"
+    st = "running" if is_auditing else ("queued" if sub.status == "DRAFT" else "done")
+    prog = 0.5 if is_auditing else (0.0 if sub.status == "DRAFT" else 1.0)
+    step = "Audit in progress..." if is_auditing else ("Draft submission" if sub.status == "DRAFT" else "Audit completed")
+
+    return {
+        "submission_id": sub.id,
+        "revision_id": latest_rev.id if latest_rev else None,
+        "version_number": latest_rev.version_number if latest_rev else None,
+        "status": st,
+        "progress": prog,
+        "current_step": step,
+        "verdict": sub.verdict,
+        "compliance_score": sub.compliance_score,
+        "ai_status": gov_meta.get("ai_status", "ok"),
+        "ai_error": gov_meta.get("ai_error"),
+        "total_findings": len(sub.findings) if sub.findings else 0,
+        "findings": sub.findings or [],
+        "dimension_results": gov_meta.get("dimension_results", {}),
+    }
+
+
+@router.post("/{submission_id}/upload-post", response_model=AuditExecutionResponse)
+async def upload_post_and_audit(
+    submission_id: int,
+    file: UploadFile = File(...),
+    caption: str = Form(...),
+    hashtags: Optional[str] = Form(None),
+    alt_text: Optional[str] = Form(None),
+    platform: str = Form("instagram"),
+    campaign_id: Optional[int] = Form(None),
+    event: Optional[str] = Form(None),
+    background: bool = Query(False, description="Run audit in background and return immediately"),
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """
+    Uploads a post creative (image + caption + hashtags + alt_text) and audits it:
+    - Enforces platform specifications (aspect ratios: 1:1, 4:5, 9:16; caption max length 2,200; hashtag limits)
+    - Validates image magic bytes (PNG, JPEG, WEBP) and 10MB size limit
+    - Uploads image to Cloudinary/local storage with explicit provider tracking
+    - Evaluates visual identity, copy governance, accessibility, and campaign fit together
+    - If background=True, returns immediately and allows polling via GET /submissions/{id}/audit-status
     """
     stmt = (
         select(Submission)
@@ -209,32 +275,8 @@ async def upload_image_and_audit(
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
-    # Validate image MIME
-    content_type = file.content_type or ""
-    allowed_mimes = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
-    if content_type.lower() not in allowed_mimes:
-        ext = (file.filename or "").split(".")[-1].lower()
-        if ext in ["png", "jpg", "jpeg", "webp"]:
-            content_type = f"image/{'jpeg' if ext in ['jpg', 'jpeg'] else ext}"
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported image format '{content_type}'. Supported formats: PNG, JPG, WEBP.",
-            )
-
-    # Read bytes and check size (max 10MB)
     image_bytes = await file.read()
-    max_size = 10 * 1024 * 1024
-    if len(image_bytes) > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Image file exceeds maximum allowable size of 10MB (file size: {round(len(image_bytes)/(1024*1024), 2)}MB).",
-        )
-
-    try:
-        DocumentService.analyze_image(image_bytes)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    content_type, _, _ = validate_image_bytes(image_bytes, file.filename or "")
 
     try:
         cloudinary_asset = await cloudinary_service.upload(
@@ -251,12 +293,150 @@ async def upload_image_and_audit(
 
     file_ref = cloudinary_asset.get("secure_url")
     if not file_ref:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a secure media URL.")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Media provider did not return a secure URL.")
 
-    # Store the upload as a new revision instead of overwriting a prior text,
-    # audio, or video revision. This keeps the audit trail and displayed content
-    # aligned with the newly uploaded image.
+    submission.content_format = "POST"
+    submission.platform = platform
+    submission.status = "AUDITING"
+    new_version = (submission.current_version or 0) + 1
+    submission.current_version = new_version
+
+    full_body = f"{caption}\n\n{hashtags}".strip() if hashtags else caption
+    current_rev = SubmissionRevision(
+        submission_id=submission.id,
+        version_number=new_version,
+        content_body=full_body,
+        media_urls=[file_ref],
+        alt_text=alt_text,
+        change_summary=f"Uploaded {platform} post creative for brand audit",
+        created_by=user.user_name,
+        ai_governance_metadata={"storage": cloudinary_asset, "campaign_event": event},
+    )
+    session.add(current_rev)
+    await session.commit()
+    await session.refresh(current_rev)
+
+    if background:
+        audit_job_manager.start_job(
+            submission_id=submission.id,
+            revision_id=current_rev.id,
+            version_number=new_version,
+            step_desc="Queued for post audit",
+        )
+
+        async def _bg_worker():
+            async with AsyncSessionLocal() as bg_sess:
+                sub_res = await bg_sess.execute(
+                    select(Submission).options(selectinload(Submission.revisions)).where(Submission.id == submission_id)
+                )
+                sub_obj = sub_res.scalar_one()
+                rev_obj = max(sub_obj.revisions, key=lambda r: r.version_number)
+                return await AuditService.run_post_audit(
+                    session=bg_sess,
+                    submission=sub_obj,
+                    revision=rev_obj,
+                    image_bytes=image_bytes,
+                    mime_type=content_type,
+                    caption=caption,
+                    hashtags=hashtags,
+                    alt_text=alt_text,
+                    platform=platform,
+                    actor_id=user.user_id,
+                    actor_name=user.user_name,
+                    actor_role=user.role.value,
+                    additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+                    campaign_event=event,
+                    campaign_id=campaign_id,
+                )
+
+        audit_job_manager.spawn_background_audit(submission.id, _bg_worker)
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": current_rev.id,
+            "version_number": new_version,
+            "status": "queued",
+            "progress": 0.05,
+            "current_step": "Queued for post audit",
+            "compliance_score": 0.0,
+            "verdict": "NEEDS_REVIEW",
+            "total_findings": 0,
+            "findings_by_severity": {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0},
+            "findings": [],
+            "ai_status": "ok",
+        }
+
+    # Synchronous execution
+    audit_result = await AuditService.run_post_audit(
+        session=session,
+        submission=submission,
+        revision=current_rev,
+        image_bytes=image_bytes,
+        mime_type=content_type,
+        caption=caption,
+        hashtags=hashtags,
+        alt_text=alt_text,
+        platform=platform,
+        actor_id=user.user_id,
+        actor_name=user.user_name,
+        actor_role=user.role.value,
+        additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+        campaign_event=event,
+        campaign_id=campaign_id,
+    )
+    audit_job_manager.set_done(submission.id, audit_result)
+    return audit_result
+
+
+@router.post("/{submission_id}/upload-image", response_model=AuditExecutionResponse)
+async def upload_image_and_audit(
+    submission_id: int,
+    file: UploadFile = File(...),
+    campaign_id: Optional[int] = None,
+    event: Optional[str] = None,
+    background: bool = Query(False, description="Run audit in background and return immediately"),
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """
+    Uploads an image (PNG, JPG, WEBP, max 10MB) to the configured media provider:
+    - Uses Cloudinary when configured, otherwise local storage with provider and fallback_reason logged
+    - Validates image magic byte signatures (PNG, JPEG, WEBP)
+    - Audits visual palette compliance, text contrast (WCAG AA 4.5:1), visible copy against banned terms
+    - Supports background execution with live status polling via GET /submissions/{id}/audit-status
+    """
+    stmt = (
+        select(Submission)
+        .options(selectinload(Submission.revisions))
+        .where(Submission.id == submission_id)
+    )
+    res = await session.execute(stmt)
+    submission = res.scalar_one_or_none()
+    if not submission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
+
+    image_bytes = await file.read()
+    content_type, _, _ = validate_image_bytes(image_bytes, file.filename or "")
+
+    try:
+        cloudinary_asset = await cloudinary_service.upload(
+            data=image_bytes,
+            filename=file.filename or "upload.png",
+            mime_type=content_type,
+            resource_type="image",
+            submission_id=submission_id,
+        )
+    except CloudinaryConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except CloudinaryUploadError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    file_ref = cloudinary_asset.get("secure_url")
+    if not file_ref:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Media provider did not return a secure media URL.")
+
     submission.content_format = "IMAGE"
+    submission.status = "AUDITING"
     new_version = (submission.current_version or 0) + 1
     submission.current_version = new_version
     current_rev = SubmissionRevision(
@@ -266,10 +446,59 @@ async def upload_image_and_audit(
         media_urls=[file_ref],
         change_summary="Uploaded image for visual audit",
         created_by=user.user_name,
+        ai_governance_metadata={"storage": cloudinary_asset, "campaign_event": event},
     )
     session.add(current_rev)
-    await session.flush()
+    await session.commit()
+    await session.refresh(current_rev)
 
+    if background:
+        audit_job_manager.start_job(
+            submission_id=submission.id,
+            revision_id=current_rev.id,
+            version_number=new_version,
+            step_desc="Queued for image audit",
+        )
+
+        async def _bg_worker():
+            async with AsyncSessionLocal() as bg_sess:
+                sub_res = await bg_sess.execute(
+                    select(Submission).options(selectinload(Submission.revisions)).where(Submission.id == submission_id)
+                )
+                sub_obj = sub_res.scalar_one()
+                rev_obj = max(sub_obj.revisions, key=lambda r: r.version_number)
+                return await AuditService.run_image_audit(
+                    session=bg_sess,
+                    submission=sub_obj,
+                    revision=rev_obj,
+                    image_bytes=image_bytes,
+                    mime_type=content_type,
+                    actor_id=user.user_id,
+                    actor_name=user.user_name,
+                    actor_role=user.role.value,
+                    additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+                    campaign_event=event,
+                    campaign_id=campaign_id,
+                )
+
+        audit_job_manager.spawn_background_audit(submission.id, _bg_worker)
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": current_rev.id,
+            "version_number": new_version,
+            "status": "queued",
+            "progress": 0.05,
+            "current_step": "Queued for image audit",
+            "compliance_score": 0.0,
+            "verdict": "NEEDS_REVIEW",
+            "total_findings": 0,
+            "findings_by_severity": {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0},
+            "findings": [],
+            "ai_status": "ok",
+        }
+
+    # Synchronous
     audit_result = await AuditService.run_image_audit(
         session=session,
         submission=submission,
@@ -283,6 +512,7 @@ async def upload_image_and_audit(
         campaign_event=event,
         campaign_id=campaign_id,
     )
+    audit_job_manager.set_done(submission.id, audit_result)
     return audit_result
 
 
@@ -290,18 +520,19 @@ async def upload_image_and_audit(
 async def upload_audio_and_audit(
     submission_id: int,
     file: UploadFile = File(...),
+    campaign_id: Optional[int] = None,
     event: Optional[str] = None,
+    background: bool = Query(False, description="Run audit in background and return immediately"),
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     """
     Uploads an audio file (MP3, WAV, M4A, max 25MB) to the configured media provider:
-    - Stores the original audio remotely when Cloudinary is configured, otherwise locally
-    - Persists only its URL/metadata in PostgreSQL
-    - Transcribes speech using Gemini multimodal audio model
-    - Stores transcript as content_body of a new SubmissionRevision
-    - Runs complete text governance audit pipeline on transcript
-    - Returns AuditExecutionResponse including transcript and findings
+    - Stores the media with explicit provider and fallback_reason tracking
+    - Validates audio magic byte signatures (MP3, WAV, OGG, FLAC, M4A)
+    - Performs native Gemini audio governance analysis (voiceover tone, prohibited SFX, mandatory phrases, music balance)
+    - Generates timestamped findings and full speech transcript
+    - Supports background execution and live status polling
     """
     stmt = (
         select(Submission)
@@ -313,27 +544,8 @@ async def upload_audio_and_audit(
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
-    # Validate audio MIME or extension
-    content_type = file.content_type or ""
-    ext = (file.filename or "").split(".")[-1].lower() if file.filename else ""
-    valid_exts = ["mp3", "wav", "m4a", "ogg", "aac", "flac"]
-    if not (content_type.startswith("audio/") or ext in valid_exts):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported audio format '{content_type}'. Supported formats: MP3, WAV, M4A, OGG, AAC, FLAC.",
-        )
-
-    if not content_type or content_type == "application/octet-stream":
-        content_type = f"audio/{ext if ext != 'mp3' else 'mpeg'}"
-
-    # Read audio bytes & validate size (max 25MB)
     audio_bytes = await file.read()
-    max_size = 25 * 1024 * 1024
-    if len(audio_bytes) > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Audio file exceeds maximum allowable size of 25MB (file size: {round(len(audio_bytes)/(1024*1024), 2)}MB).",
-        )
+    content_type = validate_audio_bytes(audio_bytes, file.filename or "")
 
     try:
         cloudinary_asset = await cloudinary_service.upload(
@@ -350,118 +562,87 @@ async def upload_audio_and_audit(
 
     audio_url = cloudinary_asset.get("secure_url")
     if not audio_url:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a secure audio URL.")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Media provider did not return a secure audio URL.")
 
-    # Transcribe via Gemini
-    try:
-        transcript = await gemini_service.transcribe_audio(audio_bytes=audio_bytes, mime_type=content_type)
-        transcribe_error = None
-    except Exception as exc:
-        transcript = None
-        transcribe_error = str(exc)
+    submission.content_format = "AUDIO"
+    submission.status = "AUDITING"
+    new_version = (submission.current_version or 0) + 1
+    submission.current_version = new_version
 
-    if not transcript:
-        # Fail closed: Do NOT audit fake placeholder string!
-        new_version = (submission.current_version or 0) + 1
-        submission.current_version = new_version
-        submission.content_format = "AUDIO"
-        submission.status = "NEEDS_REVIEW"
-        submission.compliance_score = 0.0
+    current_rev = SubmissionRevision(
+        submission_id=submission.id,
+        version_number=new_version,
+        content_body="Audio voiceover draft",
+        media_urls=[audio_url],
+        change_summary="Uploaded audio for native brand audit",
+        created_by=user.user_name,
+        ai_governance_metadata={"storage": cloudinary_asset, "campaign_event": event},
+    )
+    session.add(current_rev)
+    await session.commit()
+    await session.refresh(current_rev)
 
-        ai_error_msg = f"Audio transcription failed: {transcribe_error or 'No speech detected or provider error'}"
-        revision = SubmissionRevision(
+    if background:
+        audit_job_manager.start_job(
             submission_id=submission.id,
+            revision_id=current_rev.id,
             version_number=new_version,
-            content_body="",
-            media_urls=[audio_url],
-            change_summary="Audio transcription failed",
-            created_by=user.user_name,
-            compliance_score=0.0,
-            ai_governance_metadata={
-                "storage": cloudinary_asset,
-                "ai_status": "failed",
-                "ai_error": ai_error_msg,
-                "campaign_event": event,
-            },
+            step_desc="Queued for audio audit",
         )
-        session.add(revision)
-        await session.flush()
 
-        warning_finding = AuditFinding(
-            submission_id=submission.id,
-            revision_id=revision.id,
-            category="ACCESSIBILITY",
-            severity="WARNING",
-            detector_source="AI_TRANSCRIPTION_ENGINE",
-            flagged_excerpt="Audio Transcription Incomplete",
-            explanation=f"AI analysis incomplete: {ai_error_msg}",
-            guideline_citation="Media Governance Pipeline",
-            suggested_correction="Check audio clarity and format, and retry the upload once service is operational.",
-            resolution_state="OPEN",
-        )
-        session.add(warning_finding)
+        async def _bg_worker():
+            async with AsyncSessionLocal() as bg_sess:
+                sub_res = await bg_sess.execute(
+                    select(Submission).options(selectinload(Submission.revisions)).where(Submission.id == submission_id)
+                )
+                sub_obj = sub_res.scalar_one()
+                rev_obj = max(sub_obj.revisions, key=lambda r: r.version_number)
+                return await AuditService.run_audio_audit(
+                    session=bg_sess,
+                    submission=sub_obj,
+                    revision=rev_obj,
+                    audio_bytes=audio_bytes,
+                    mime_type=content_type,
+                    actor_id=user.user_id,
+                    actor_name=user.user_name,
+                    actor_role=user.role.value,
+                    additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+                    campaign_event=event,
+                    campaign_id=campaign_id,
+                )
 
-        event_log = WorkflowEvent(
-            submission_id=submission.id,
-            actor_id=user.user_id,
-            actor_name=user.user_name,
-            actor_role=user.role.value,
-            event_type="AUDIT_COMPLETED",
-            from_status="AUDITING",
-            to_status="NEEDS_REVIEW",
-            notes=f"Audit failed closed: {ai_error_msg}",
-            metadata_json={"ai_status": "failed", "ai_error": ai_error_msg},
-        )
-        session.add(event_log)
-        await session.commit()
-        await session.refresh(warning_finding)
+        audit_job_manager.spawn_background_audit(submission.id, _bg_worker)
 
         return {
             "submission_id": submission.id,
-            "revision_id": revision.id,
+            "revision_id": current_rev.id,
             "version_number": new_version,
+            "status": "queued",
+            "progress": 0.05,
+            "current_step": "Queued for audio audit",
             "compliance_score": 0.0,
-            "status": "NEEDS_REVIEW",
-            "total_findings": 1,
-            "findings_by_severity": {"CRITICAL": 0, "WARNING": 1, "SUGGESTION": 0},
-            "findings": [warning_finding],
-            "confidentiality_report": {},
-            "transcript": "",
-            "ai_status": "failed",
-            "ai_error": ai_error_msg,
+            "verdict": "NEEDS_REVIEW",
+            "total_findings": 0,
+            "findings_by_severity": {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0},
+            "findings": [],
+            "ai_status": "ok",
         }
 
-    # Create new revision with transcript
-    new_version = (submission.current_version or 0) + 1
-    submission.current_version = new_version
-    submission.content_format = "AUDIO"
-
-    revision = SubmissionRevision(
-        submission_id=submission.id,
-        version_number=new_version,
-        content_body=transcript,
-        media_urls=[audio_url],
-        change_summary="Audio transcribed and ingested for brand audit",
-        created_by=user.user_name,
-    )
-    session.add(revision)
-    await session.flush()
-
-    # Run standard text audit on the transcript
-    audit_result = await AuditService.run_audit(
+    # Synchronous
+    audit_result = await AuditService.run_audio_audit(
         session=session,
         submission=submission,
-        revision=revision,
+        revision=current_rev,
+        audio_bytes=audio_bytes,
+        mime_type=content_type,
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
-        additional_metadata={
-            "storage": cloudinary_asset,
-            "media_pipeline": f"{cloudinary_asset.get('provider', 'media_storage')}->transcript->text_audit",
-            "campaign_event": event,
-        },
+        additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+        campaign_event=event,
+        campaign_id=campaign_id,
     )
-    audit_result["transcript"] = transcript
+    audit_job_manager.set_done(submission.id, audit_result)
     return audit_result
 
 
@@ -469,18 +650,21 @@ async def upload_audio_and_audit(
 async def upload_video_and_audit(
     submission_id: int,
     file: UploadFile = File(...),
+    campaign_id: Optional[int] = None,
     event: Optional[str] = None,
+    background: bool = Query(False, description="Run audit in background and return immediately"),
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     """
-    Uploads a video (MP4, MOV, WEBM, M4V, max 100MB) to the configured media provider, extracts
-    dialogue and representative visual frames, then combines text and visual audits.
-
-    Keeping the extracted transcript in a normal revision means reviewers can edit
-    the copy, apply safe fixes, comment, and approve it using the existing workflow.
-    The original media is retained by the selected provider and only its URL/metadata
-    is stored on that revision for playback in the UI.
+    Uploads a video (MP4, MOV, WEBM, max 100MB) to the configured media provider:
+    - Validates video magic byte signatures (MP4, MOV, WEBM, MKV, AVI)
+    - Stores media with provider and fallback_reason tracking
+    - Extracts up to ~8 frames per verified order: Cloudinary transformations first -> ffmpeg if available -> empty
+    - Audits visual frames in parallel with concurrency limit (4)
+    - Verifies end-card brand palette compliance on final frame
+    - Transcribes audio track via Gemini and checks dialogue for banned terms and burnt-in captions
+    - Supports background execution and live status polling
     """
     stmt = (
         select(Submission)
@@ -492,36 +676,8 @@ async def upload_video_and_audit(
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
-    content_type = file.content_type or ""
-    ext = (file.filename or "").split(".")[-1].lower() if file.filename else ""
-    valid_exts = ["mp4", "mov", "webm", "m4v", "mkv", "avi"]
-    if not (content_type.startswith("video/") or ext in valid_exts):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported video format '{content_type}'. Supported formats: MP4, MOV, WEBM, M4V.",
-        )
-
-    if not content_type or content_type == "application/octet-stream":
-        mime_by_ext = {
-            "mp4": "video/mp4",
-            "mov": "video/quicktime",
-            "webm": "video/webm",
-            "m4v": "video/x-m4v",
-            "mkv": "video/x-matroska",
-            "avi": "video/x-msvideo",
-        }
-        content_type = mime_by_ext.get(ext, "video/mp4")
-
     video_bytes = await file.read()
-    max_size = 100 * 1024 * 1024
-    if len(video_bytes) > max_size:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Video file exceeds maximum allowable size of 100MB "
-                f"(file size: {round(len(video_bytes) / (1024 * 1024), 2)}MB)."
-            ),
-        )
+    content_type = validate_video_bytes(video_bytes, file.filename or "")
 
     try:
         cloudinary_asset = await cloudinary_service.upload(
@@ -538,173 +694,94 @@ async def upload_video_and_audit(
 
     video_url = cloudinary_asset.get("secure_url")
     public_id = cloudinary_asset.get("public_id")
+    duration = cloudinary_asset.get("duration")
+
     if not video_url:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a playable video URL.")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Media provider did not return a playable video URL.")
 
-    try:
-        transcript = await gemini_service.transcribe_video(video_bytes=video_bytes, mime_type=content_type)
-        transcribe_error = None
-    except Exception as exc:
-        transcript = None
-        transcribe_error = str(exc)
+    submission.content_format = "VIDEO"
+    submission.status = "AUDITING"
+    new_version = (submission.current_version or 0) + 1
+    submission.current_version = new_version
 
-    if not transcript:
-        # Fail closed: Do NOT audit fake placeholder string!
-        new_version = (submission.current_version or 0) + 1
-        submission.current_version = new_version
-        submission.content_format = "VIDEO"
-        submission.status = "NEEDS_REVIEW"
-        submission.compliance_score = 0.0
+    current_rev = SubmissionRevision(
+        submission_id=submission.id,
+        version_number=new_version,
+        content_body="Video content uploaded",
+        media_urls=[video_url],
+        change_summary="Uploaded video for multi-modal audit",
+        created_by=user.user_name,
+        ai_governance_metadata={"storage": cloudinary_asset, "campaign_event": event},
+    )
+    session.add(current_rev)
+    await session.commit()
+    await session.refresh(current_rev)
 
-        ai_error_msg = f"Video transcription failed: {transcribe_error or 'No dialogue/text detected or provider error'}"
-        revision = SubmissionRevision(
+    if background:
+        audit_job_manager.start_job(
             submission_id=submission.id,
+            revision_id=current_rev.id,
             version_number=new_version,
-            content_body="",
-            media_urls=[video_url],
-            change_summary="Video transcription failed",
-            created_by=user.user_name,
-            compliance_score=0.0,
-            ai_governance_metadata={
-                "storage": cloudinary_asset,
-                "ai_status": "failed",
-                "ai_error": ai_error_msg,
-                "campaign_event": event,
-            },
+            step_desc="Queued for video audit",
         )
-        session.add(revision)
-        await session.flush()
 
-        warning_finding = AuditFinding(
-            submission_id=submission.id,
-            revision_id=revision.id,
-            category="VISUAL",
-            severity="WARNING",
-            detector_source="AI_TRANSCRIPTION_ENGINE",
-            flagged_excerpt="Video Transcription Incomplete",
-            explanation=f"AI analysis incomplete: {ai_error_msg}",
-            guideline_citation="Media Governance Pipeline",
-            suggested_correction="Check video format and quality, and retry the upload once service is operational.",
-            resolution_state="OPEN",
-        )
-        session.add(warning_finding)
+        async def _bg_worker():
+            async with AsyncSessionLocal() as bg_sess:
+                sub_res = await bg_sess.execute(
+                    select(Submission).options(selectinload(Submission.revisions)).where(Submission.id == submission_id)
+                )
+                sub_obj = sub_res.scalar_one()
+                rev_obj = max(sub_obj.revisions, key=lambda r: r.version_number)
+                return await AuditService.run_video_audit(
+                    session=bg_sess,
+                    submission=sub_obj,
+                    revision=rev_obj,
+                    video_bytes=video_bytes,
+                    mime_type=content_type,
+                    public_id=public_id,
+                    duration_seconds=duration,
+                    actor_id=user.user_id,
+                    actor_name=user.user_name,
+                    actor_role=user.role.value,
+                    additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+                    campaign_event=event,
+                    campaign_id=campaign_id,
+                )
 
-        event_log = WorkflowEvent(
-            submission_id=submission.id,
-            actor_id=user.user_id,
-            actor_name=user.user_name,
-            actor_role=user.role.value,
-            event_type="AUDIT_COMPLETED",
-            from_status="AUDITING",
-            to_status="NEEDS_REVIEW",
-            notes=f"Audit failed closed: {ai_error_msg}",
-            metadata_json={"ai_status": "failed", "ai_error": ai_error_msg},
-        )
-        session.add(event_log)
-        await session.commit()
-        await session.refresh(warning_finding)
+        audit_job_manager.spawn_background_audit(submission.id, _bg_worker)
 
         return {
             "submission_id": submission.id,
-            "revision_id": revision.id,
+            "revision_id": current_rev.id,
             "version_number": new_version,
+            "status": "queued",
+            "progress": 0.05,
+            "current_step": "Queued for video audit",
             "compliance_score": 0.0,
-            "status": "NEEDS_REVIEW",
-            "total_findings": 1,
-            "findings_by_severity": {"CRITICAL": 0, "WARNING": 1, "SUGGESTION": 0},
-            "findings": [warning_finding],
-            "confidentiality_report": {},
-            "transcript": "",
-            "ai_status": "failed",
-            "ai_error": ai_error_msg,
+            "verdict": "NEEDS_REVIEW",
+            "total_findings": 0,
+            "findings_by_severity": {"CRITICAL": 0, "WARNING": 0, "SUGGESTION": 0},
+            "findings": [],
+            "ai_status": "ok",
         }
 
-    new_version = (submission.current_version or 0) + 1
-    submission.current_version = new_version
-    submission.content_format = "VIDEO"
-
-    revision = SubmissionRevision(
-        submission_id=submission.id,
-        version_number=new_version,
-        content_body=transcript,
-        media_urls=[video_url],
-        change_summary="Video transcript and on-screen copy ingested for brand audit",
-        created_by=user.user_name,
-    )
-    session.add(revision)
-    await session.flush()
-
-    visual_findings: List[FindingDraft] = []
-    frame_reports: List[dict] = []
-    visible_text: List[str] = []
-    dominant_colors: List[str] = []
-    palette_matches: List[float] = []
-
-    frames = await cloudinary_service.fetch_video_frames(
-        public_id=public_id,
-        duration_seconds=cloudinary_asset.get("duration"),
-    )
-    for frame in frames:
-        frame_result = await AuditService.run_image_audit(
-            session=session,
-            submission=submission,
-            revision=revision,
-            image_bytes=frame["bytes"],
-            mime_type="image/jpeg",
-            actor_id=user.user_id,
-            actor_name=user.user_name,
-            actor_role=user.role.value,
-            persist=False,
-            campaign_event=event,
-        )
-        visual_findings.extend(frame_result.get("draft_findings", []))
-        visible_text.extend(frame_result.get("visible_text", []))
-        dominant_colors.extend(frame_result.get("dominant_colors", []))
-        if frame_result.get("palette_match_pct") is not None:
-            palette_matches.append(float(frame_result["palette_match_pct"]))
-        frame_reports.append(
-            {
-                "timestamp_seconds": frame["timestamp_seconds"],
-                "frame_url": frame["url"],
-                "findings_count": len(frame_result.get("draft_findings", [])),
-            }
-        )
-
-    if not frames:
-        visual_findings.append(
-            FindingDraft(
-                category="VISUAL",
-                severity="WARNING",
-                detector_source="MEDIA_FRAME_EXTRACTION",
-                flagged_excerpt="No representative video frame was audited",
-                explanation="The video was uploaded, but no representative frame could be extracted for visual governance.",
-                guideline_citation="Media Governance Pipeline",
-                suggested_correction="Retry the upload or provide a playable video so visual policy checks can complete.",
-            )
-        )
-
-    audit_result = await AuditService.run_audit(
+    # Synchronous
+    audit_result = await AuditService.run_video_audit(
         session=session,
         submission=submission,
-        revision=revision,
+        revision=current_rev,
+        video_bytes=video_bytes,
+        mime_type=content_type,
+        public_id=public_id,
+        duration_seconds=duration,
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
-        additional_findings=visual_findings,
-        additional_metadata={
-            "storage": cloudinary_asset,
-            "media_pipeline": f"{cloudinary_asset.get('provider', 'media_storage')}->transcript+frames->text_and_visual_audit",
-            "visual_frame_count": len(frames),
-            "visual_frames": frame_reports,
-            "visual_visible_text": sorted(set(visible_text)),
-            "visual_dominant_colors": sorted(set(dominant_colors)),
-            "visual_palette_match_pct": min(palette_matches) if palette_matches else None,
-            "campaign_event": event,
-        },
+        additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+        campaign_event=event,
+        campaign_id=campaign_id,
     )
-    submission.content_format = "VIDEO"
-    await session.commit()
-    audit_result["transcript"] = transcript
+    audit_job_manager.set_done(submission.id, audit_result)
     return audit_result
 
 

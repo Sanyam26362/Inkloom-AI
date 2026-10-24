@@ -68,6 +68,27 @@ class GeminiImageAuditOutput(BaseModel):
     findings: List[GeminiAuditFindingItem] = Field(description="List of detected brand visual, accessibility, copy, and event violations")
 
 
+class TimestampedAudioFinding(BaseModel):
+    category: str = Field(description="One of: TONE, TERMINOLOGY, AUDIO_SFX, CAMPAIGN_FIT, ACCESSIBILITY, FACTUAL_CLAIM")
+    severity: str = Field(description="One of: CRITICAL, WARNING, SUGGESTION")
+    flagged_excerpt: str = Field(description="The timestamped spoken phrase, sound effect description, or music element")
+    timestamp_start_sec: Optional[float] = Field(None, description="Start timestamp in seconds e.g. 1.5")
+    timestamp_end_sec: Optional[float] = Field(None, description="End timestamp in seconds e.g. 3.8")
+    explanation: str = Field(description="Why this violates brand guidelines or audio specifications")
+    suggested_correction: str = Field(description="Actionable suggestion or approved audio correction")
+
+
+class GeminiAudioAuditOutput(BaseModel):
+    transcript: str = Field(description="Complete transcript of all spoken dialogue in the audio")
+    voiceover_tone: str = Field(description="Brief assessment of the voiceover tone, pace, and energy")
+    voiceover_tone_acceptable: bool = Field(description="True if tone aligns with friendly, respectful brand personality")
+    detected_sound_effects: List[str] = Field(default_factory=list, description="All sound effects identified in the audio")
+    prohibited_sfx_found: List[str] = Field(default_factory=list, description="Prohibited sound effects found (e.g. sirens, explosions, firecrackers)")
+    background_music_assessment: str = Field(description="Assessment of background music volume balance, genre, and brand fit")
+    required_phrases_found: List[str] = Field(default_factory=list, description="Mandatory brand phrases detected in the speech")
+    required_phrases_missing: List[str] = Field(default_factory=list, description="Mandatory brand phrases that were expected but missing")
+    findings: List[TimestampedAudioFinding] = Field(default_factory=list, description="List of detected audio, voice, tone, and policy violations")
+
 
 class ExtractedFactItem(BaseModel):
     claim: str = Field(description="Specific factual claim or assertion")
@@ -542,6 +563,100 @@ AUDIT OBJECTIVES:
                 "visible_text": [],
                 "dominant_colors": [],
                 "palette_match_pct": None,
+                "findings": [],
+                "ai_status": "failed",
+                "ai_error": str(e),
+            }
+
+    async def audit_audio(
+        self,
+        audio_bytes: bytes,
+        mime_type: str,
+        brand_name: str = "",
+        campaign_info: Optional[Dict[str, Any]] = None,
+        rule_set: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Natively analyzes audio using Gemini multimodal audio capabilities.
+        Evaluates voiceover tone, mandatory phrases, prohibited SFX, background music balance,
+        and generates timestamped findings plus full dialogue transcript.
+        """
+        if not self._client or not audio_bytes:
+            return {
+                "transcript": "",
+                "voiceover_tone": "Unavailable",
+                "voiceover_tone_acceptable": False,
+                "detected_sound_effects": [],
+                "prohibited_sfx_found": [],
+                "background_music_assessment": "Unanalyzed",
+                "required_phrases_found": [],
+                "required_phrases_missing": [],
+                "findings": [],
+                "ai_status": "failed",
+                "ai_error": "Gemini client offline or audio content missing",
+            }
+
+        prompt = f"""You are Inkloom AI Audio Governance Moderator.
+Evaluate this audio recording natively against the brand guidelines and campaign policies for '{brand_name}'.
+
+BRAND: {brand_name}
+CAMPAIGN / EVENT CONTEXT:
+{json.dumps(campaign_info, indent=2) if campaign_info else "No specific campaign."}
+
+ACTIVE RULESET:
+{json.dumps(rule_set, indent=2) if rule_set else "Standard brand guidelines."}
+
+INSTRUCTIONS:
+1. Listen natively to all spoken voiceover, background music, and sound effects across the audio.
+2. Transcribe spoken dialogue completely and accurately into `transcript`.
+3. Assess the voiceover tone into `voiceover_tone` and `voiceover_tone_acceptable` (is it warm, engaging, and respectful vs aggressive, rushed, or dull?).
+4. Detect all sound effects (SFX). Strictly flag prohibited sounds (e.g. firecrackers, loud explosions, sirens, excessive car horns) into `prohibited_sfx_found` with CRITICAL severity.
+5. Check if mandatory brand phrases (e.g. '{brand_name} app') were spoken. List detected in `required_phrases_found` and missing in `required_phrases_missing`.
+6. Evaluate background music volume balance and brand fit into `background_music_assessment` (music must not overpower speech).
+7. Return timestamped findings (with `timestamp_start_sec` and `timestamp_end_sec`) for any violations.
+"""
+        try:
+            audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+            config = types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=GeminiAudioAuditOutput,
+                temperature=0.1,
+                http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_MEDIA * 1000),
+            )
+            response = await self._generate_with_retry(
+                model=settings.PRIMARY_LLM_MODEL,
+                contents=[audio_part, prompt],
+                config=config,
+            )
+            if not response.text:
+                return {
+                    "transcript": "",
+                    "voiceover_tone": "Unknown",
+                    "voiceover_tone_acceptable": True,
+                    "detected_sound_effects": [],
+                    "prohibited_sfx_found": [],
+                    "background_music_assessment": "None",
+                    "required_phrases_found": [],
+                    "required_phrases_missing": [],
+                    "findings": [],
+                    "ai_status": "ok",
+                    "ai_error": None,
+                }
+            parsed = json.loads(response.text)
+            parsed["ai_status"] = "ok"
+            parsed["ai_error"] = None
+            return parsed
+        except Exception as e:
+            logger.error(f"Audio native audit failed via Gemini API: {e}")
+            return {
+                "transcript": "",
+                "voiceover_tone": "Error",
+                "voiceover_tone_acceptable": False,
+                "detected_sound_effects": [],
+                "prohibited_sfx_found": [],
+                "background_music_assessment": "Error",
+                "required_phrases_found": [],
+                "required_phrases_missing": [],
                 "findings": [],
                 "ai_status": "failed",
                 "ai_error": str(e),

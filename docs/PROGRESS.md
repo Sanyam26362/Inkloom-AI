@@ -14,8 +14,8 @@
 | **Phase 1** | Reliable AI calls (timeouts, retries, native async, fail-closed, single model) | ✅ Completed | `phase 1: reliable AI calls` (5626e74) |
 | **Phase 2** | Data-driven rules, no client hardcoding (Campaign & RuleSet tables, extraction, no festival branches) | ✅ Completed | `phase 2: data-driven rules` (e150ef4) |
 | **Phase 3** | Guideline ingestion & retrieval (PyMuPDF block chunker, markdown chunker, premade packs, deduplication) | ✅ Completed | `phase 3: ingestion and retrieval` (3248029) |
-| **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | ✅ Completed | `phase 4: verdicts and detectors` |
-| **Phase 5** | Media pipelines (post upload, video frames + audio track, native audio, async polling) | ⏳ Pending | - |
+| **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | ✅ Completed | `phase 4: verdicts and detectors` (0afa0c3) |
+| **Phase 5** | Media pipelines (post upload, video frames + audio track, native audio, async polling) | ✅ Completed | `phase 5: media pipelines` |
 | **Phase 6** | Auth, roles, approval workflow (JWT, deadlock resolution, status matrix, admin queue) | ⏳ Pending | - |
 | **Phase 7** | Frontend flow (onboarding replacing marketing page, judge canvas, creator studio, admin queue) | ⏳ Pending | - |
 | **Phase 8** | Tests, docs, wrap-up (e2e integration tests, README, deployment docs, demo script) | ⏳ Pending | - |

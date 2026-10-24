@@ -73,12 +73,12 @@ class AuditExecutionResponse(BaseModel):
     submission_id: int
     revision_id: int
     version_number: int
-    compliance_score: float
-    status: str
+    compliance_score: float = 0.0
+    status: str = "AUDITING"
     verdict: Optional[str] = Field("NEEDS_REVIEW", description="PASS | NEEDS_REVIEW | FAIL")
-    total_findings: int
-    findings_by_severity: Dict[str, int]
-    findings: List[AuditFindingResponse]
+    total_findings: int = 0
+    findings_by_severity: Dict[str, int] = Field(default_factory=dict)
+    findings: List[AuditFindingResponse] = Field(default_factory=list)
     dimension_results: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Per-dimension scoring breakdown")
     confidentiality_report: Dict[str, Any] = Field(default_factory=dict)
     visible_text: Optional[List[str]] = None
@@ -88,3 +88,24 @@ class AuditExecutionResponse(BaseModel):
     duration_seconds: Optional[float] = None
     ai_status: str = Field("ok", description="ok | partial | failed | skipped")
     ai_error: Optional[str] = None
+    progress: Optional[float] = None
+    current_step: Optional[str] = None
+
+
+class AuditStatusResponse(BaseModel):
+    submission_id: int
+    revision_id: Optional[int] = None
+    version_number: Optional[int] = None
+    status: str = Field("queued", description="queued | running | done | failed")
+    progress: float = Field(0.0, description="0.0 to 1.0 progress completion")
+    current_step: str = Field("Queued for audit", description="Current step description")
+    verdict: Optional[str] = None
+    compliance_score: Optional[float] = None
+    ai_status: Optional[str] = "ok"
+    ai_error: Optional[str] = None
+    error: Optional[str] = None
+    total_findings: Optional[int] = 0
+    findings: Optional[List[AuditFindingResponse]] = Field(default_factory=list)
+    dimension_results: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    result: Optional[AuditExecutionResponse] = None
+
