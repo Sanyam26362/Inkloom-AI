@@ -155,6 +155,45 @@ class WorkflowService:
         if not submission:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
+        if target_status == "APPROVED":
+            if submission.compliance_score is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Content must be audited before it can be approved.",
+                )
+            if submission.compliance_score < 90:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"Approval requires a compliance score of at least 90. "
+                        f"Current score: {submission.compliance_score}."
+                    ),
+                )
+
+            latest_revision_stmt = (
+                select(SubmissionRevision.id)
+                .where(SubmissionRevision.submission_id == submission.id)
+                .where(SubmissionRevision.version_number == submission.current_version)
+            )
+            latest_revision_id = (await session.execute(latest_revision_stmt)).scalar_one_or_none()
+            if latest_revision_id is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The current revision must be audited before it can be approved.",
+                )
+            open_findings_stmt = (
+                select(AuditFinding.id)
+                .where(AuditFinding.submission_id == submission.id)
+                .where(AuditFinding.revision_id == latest_revision_id)
+                .where(AuditFinding.resolution_state == "OPEN")
+            )
+            open_findings = list((await session.execute(open_findings_stmt)).scalars().all())
+            if open_findings:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Resolve all open findings before approval. Open findings: {len(open_findings)}.",
+                )
+
         old_status = submission.status
         submission.status = target_status
 
