@@ -202,6 +202,18 @@ async def seed_blinkit() -> None:
                     "approved charcoal or white caption plate and the final frame must include a clear CTA."
                 ),
             },
+            {
+                "source_document": "Blinkit Diwali Campaign Brief 2026.pdf",
+                "page_number": 1,
+                "section_reference": "Section 8: Diwali Event Visual Safety",
+                "rule_category": "EVENT_FIT",
+                "content_text": (
+                    "Diwali campaign visuals must clearly relate to Diwali or festive shopping through safe cues "
+                    "such as diyas, rangoli, sweets, gifts, decorations, warm lights, or family celebration. "
+                    "Do not use fireworks, firecrackers, explosives, smoke, weapons, or unrelated stock imagery. "
+                    "A generic or unrelated visual is not event-compliant even when its colors match the Blinkit palette."
+                ),
+            },
         ]
 
         for g in mock_guidelines:
