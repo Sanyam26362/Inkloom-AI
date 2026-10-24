@@ -17,20 +17,40 @@ import {
 
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { GovernanceAnalytics, Submission } from "@/lib/types";
+import { GovernanceAnalytics, Submission, SubmissionStatus } from "@/lib/types";
 
 export default function GovernanceDashboardPage() {
   const { activeBrandId, currentRole, brands, theme, refreshKey } = useApp();
   const isDark = theme === "dark";
+  const activeBrandReady = activeBrandId > 0 && brands.some((brand) => brand.id === activeBrandId);
 
   const [analytics, setAnalytics] = useState<GovernanceAnalytics | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [activeMetric, setActiveMetric] = useState<"compliance" | "violations">("compliance");
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  const handleQuickStatusUpdate = async (subId: number, targetStatus: SubmissionStatus) => {
+    setUpdatingId(subId);
+    try {
+      await api.updateStatus(subId, targetStatus, undefined, { userRole: currentRole });
+      setSubmissions((prev) =>
+        prev.map((s) => (s.id === subId ? { ...s, status: targetStatus } : s))
+      );
+      if (activeBrandReady) {
+        const analyticsData = await api.getAnalytics(activeBrandId, { userRole: currentRole });
+        setAnalytics(analyticsData);
+      }
+    } catch (e) {
+      console.error("Failed to update status", e);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const loadDashboardData = useCallback(async () => {
-    if (!activeBrandId) return;
+    if (!activeBrandReady) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -46,12 +66,19 @@ export default function GovernanceDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeBrandId, currentRole]);
+  }, [activeBrandId, activeBrandReady, currentRole]);
 
   useEffect(() => {
     let ignore = false;
     async function fetchData() {
-      if (!activeBrandId) return;
+      // Wait until AppContext has resolved the database-generated brand ID.
+      // This prevents an initial request such as /analytics/1 from producing a
+      // misleading "Backend Communication Warning" after a fresh seed.
+      if (!activeBrandReady) {
+        setError(null);
+        setIsLoading(brands.length === 0);
+        return;
+      }
       setIsLoading(true);
       setError(null);
       try {
@@ -78,7 +105,7 @@ export default function GovernanceDashboardPage() {
     return () => {
       ignore = true;
     };
-  }, [activeBrandId, currentRole, refreshKey]);
+  }, [activeBrandId, activeBrandReady, brands.length, currentRole, refreshKey]);
 
   // Derived metrics from real data
   const totalSubmissions = analytics?.total_submissions ?? submissions.length;
@@ -891,16 +918,40 @@ export default function GovernanceDashboardPage() {
                           </td>
 
                           <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                            <Link
-                              href={`/audit?id=${sub.id}`}
-                              className={`px-2.5 py-1 rounded-md font-sans text-[11px] font-semibold transition-all inline-block cursor-pointer whitespace-nowrap shadow-2xs ${
-                                isDark
-                                  ? "bg-[#7c3aed]/20 text-[#d2bbff] hover:bg-[#7c3aed] hover:text-white"
-                                  : "bg-[#ebf6ff] text-primary hover:bg-primary hover:text-white"
-                              }`}
-                            >
-                              Audit Workspace
-                            </Link>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {sub.status !== "APPROVED" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
+                                  disabled={updatingId === sub.id}
+                                  className="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title="Admin Quick Approve"
+                                >
+                                  ✓ Approve
+                                </button>
+                              )}
+                              {sub.status !== "CHANGES_REQUESTED" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickStatusUpdate(sub.id, "CHANGES_REQUESTED")}
+                                  disabled={updatingId === sub.id}
+                                  className="px-2 py-1 rounded-md text-[10px] font-bold bg-red-500/15 text-red-600 hover:bg-red-600 hover:text-white border border-red-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title="Admin Request Changes / Reject"
+                                >
+                                  ✕ Reject
+                                </button>
+                              )}
+                              <Link
+                                href={`/audit?id=${sub.id}`}
+                                className={`px-2.5 py-1 rounded-md font-sans text-[11px] font-semibold transition-all inline-block cursor-pointer whitespace-nowrap shadow-2xs ${
+                                  isDark
+                                    ? "bg-[#7c3aed]/20 text-[#d2bbff] hover:bg-[#7c3aed] hover:text-white"
+                                    : "bg-[#ebf6ff] text-primary hover:bg-primary hover:text-white"
+                                }`}
+                              >
+                                Audit Workspace
+                              </Link>
+                            </div>
                           </td>
                         </tr>
                       );
