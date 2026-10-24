@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.models.brand import BrandProfile
 from app.models.campaign import Campaign
 from app.models.ruleset import RuleSet
+from app.models.guideline_chunk import GuidelineChunk
 from app.models.submission import Submission, SubmissionRevision
 from app.services.audit_service import AuditService
 from app.services.gemini_service import gemini_service
@@ -73,6 +74,18 @@ async def test_acme_tea_holi_no_blinkit_or_diwali_leakage(db_session):
         is_active=True,
     )
     db_session.add(ruleset)
+    await db_session.flush()
+
+    acme_chunk = GuidelineChunk(
+        brand_id=acme.id,
+        source_document="Acme Tea Brand Guidelines 2026.pdf",
+        section_reference="Section 1",
+        rule_category="GENERAL",
+        content_text="Acme Tea brand identity and Holi guidelines.",
+        embedding=[0.05] * 768,
+        embedding_status="completed",
+    )
+    db_session.add(acme_chunk)
     await db_session.flush()
 
     # 4. Create Submission
@@ -190,6 +203,18 @@ async def test_model_negation_in_explanation_does_not_trigger_critical(db_sessio
     db_session.add(ruleset)
     await db_session.flush()
 
+    chunk = GuidelineChunk(
+        brand_id=brand.id,
+        source_document="brand_guidelines.txt",
+        section_reference="Visual Standards",
+        rule_category="GENERAL",
+        content_text="No cartoon or superhero characters allowed.",
+        embedding=[0.05] * 768,
+        embedding_status="completed",
+    )
+    db_session.add(chunk)
+    await db_session.flush()
+
     submission = Submission(
         brand_id=brand.id,
         title="Compliant Summer Product Shot",
@@ -261,6 +286,17 @@ async def test_persist_false_does_not_mutate_submission(db_session):
     db_session.add(brand)
     await db_session.flush()
 
+    chunk = GuidelineChunk(
+        brand_id=brand.id,
+        source_document="stateless_rules.txt",
+        section_reference="General",
+        rule_category="GENERAL",
+        content_text="Ensure visual guidelines are respected.",
+        embedding=[0.05] * 768,
+        embedding_status="completed",
+    )
+    db_session.add(chunk)
+    await db_session.flush()
 
     sub = Submission(
         brand_id=brand.id,

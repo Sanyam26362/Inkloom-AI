@@ -12,9 +12,9 @@
 | Phase | Description | Status | Commit / Notes |
 |---|---|---|---|
 | **Phase 1** | Reliable AI calls (timeouts, retries, native async, fail-closed, single model) | ✅ Completed | `phase 1: reliable AI calls` (5626e74) |
-| **Phase 2** | Data-driven rules, no client hardcoding (Campaign & RuleSet tables, extraction, no festival branches) | ✅ Completed | `phase 2: data-driven rules` |
-| **Phase 3** | Guideline ingestion & retrieval (PyMuPDF block chunker, markdown chunker, premade packs, deduplication) | 🔄 In Progress | - |
-| **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | ⏳ Pending | - |
+| **Phase 2** | Data-driven rules, no client hardcoding (Campaign & RuleSet tables, extraction, no festival branches) | ✅ Completed | `phase 2: data-driven rules` (e150ef4) |
+| **Phase 3** | Guideline ingestion & retrieval (PyMuPDF block chunker, markdown chunker, premade packs, deduplication) | ✅ Completed | `phase 3: ingestion and retrieval` |
+| **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | 🔄 In Progress | - |
 | **Phase 5** | Media pipelines (post upload, video frames + audio track, native audio, async polling) | ⏳ Pending | - |
 | **Phase 6** | Auth, roles, approval workflow (JWT, deadlock resolution, status matrix, admin queue) | ⏳ Pending | - |
 | **Phase 7** | Frontend flow (onboarding replacing marketing page, judge canvas, creator studio, admin queue) | ⏳ Pending | - |
@@ -52,9 +52,25 @@
   - Pure in-memory execution for `persist=False` without mutating submission/revision.
   - Resolved approval deadlock by recalculating compliance score when findings are overridden or resolved.
   - Second fictional client ("Acme Tea", Holi campaign) test asserts zero "Blinkit", "Diwali", "Spider-Man", or Blinkit hex string leakage.
+### Phase 3: Guideline Ingestion and Retrieval
+- **Completed**:
+  - Rewrote PDF chunker in `DocumentService` using PyMuPDF blocks and text spans: detects font sizes and weights, extracts meaningful section references (zero occurrences of "Page N Section"), groups tables atomically without splitting rows, keeps bullet points intact, and guarantees all chunks <= 250 words across all 14 pages of `blinkit_guidelines.pdf` (producing 33 structured chunks).
+  - Implemented heading-aware markdown chunker splitting on `##` and `###` headers, tracking heading hierarchies (`section_reference`) without blind character slicing.
+  - Created premade pack infrastructure in `backend/packs/blinkit/` with `manifest.json`, `campaign.json`, `blinkit_guidelines.pdf`, `blinkit_diwali_2026_brand_guidelines.md`, and `blinkit_diwali_2026_design_system.md`.
+  - Added `PackService` and `packs` router with `GET /api/v1/packs` and `POST /api/v1/packs/{name}/load`: indexes all pack documents without caps, creates/updates active `Campaign`, idempotently replaces old chunks, triggers RuleSet extraction, and syncs deterministic fields to `BrandProfile`.
+  - Added additive Alembic migration `16f638f2fae9_add_guideline_chunk_hygiene_fields.py` adding `source_kind`, `document_id`, `content_hash`, `document_type`, and `embedding_status` columns and indexes to `guideline_chunks`.
+  - Added multi-format upload endpoint `POST /api/v1/guidelines/upload` (.pdf, .md, .txt with `document_type`), `DELETE /api/v1/guidelines/{id}`, `DELETE /api/v1/guidelines/document/{doc_id}`, and `POST /api/v1/guidelines/reindex` with `asyncio.Semaphore(5)` batched concurrency limit.
+  - Upgraded `AuditService.retrieve_relevant_guidelines`:
+    - Checks for 0 retrievable chunks and raises a clear error at audit time.
+    - Always includes hard-rule chunks (`PROHIBITED`, `EVENT`, `DECISION`) in every audit.
+    - Adds top-k=8 semantic matches via query `content summary + media type + campaign`.
+    - Implemented deterministic fallback ordering by `id ASC` when embeddings are unavailable.
+    - Increments `times_triggered` governance counter once per audit.
+  - Updated `main.py` auto-seed to load the Blinkit pack dynamically from `manifest.json`.
 - **Test Results**:
-  - Acceptance suite `test_phase2_data_driven_rules.py`: 4/4 passed.
-  - Full backend test suite: 61/61 passed (100%).
+  - Acceptance suite `test_phase3_ingestion_retrieval.py`: 6/6 passed.
+  - Full backend test suite: 67/67 passed (100%).
   - Frontend typecheck (`tsc --noEmit`): 0 errors.
   - Frontend lint (`npm run lint`): 0 errors.
+
 

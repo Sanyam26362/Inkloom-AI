@@ -50,6 +50,20 @@ async def _create_test_brand_and_submission(client: AsyncClient, text: str = "Ou
         headers=CREATOR_HEADERS,
     )
     sub_id = sub_res.json()["id"]
+
+    # Seed guideline chunk so brand has retrievable guidelines for audit
+    await client.post(
+        "/api/v1/guidelines",
+        json={
+            "brand_id": brand_id,
+            "source_document": "reliability_guidelines.txt",
+            "section_reference": "General",
+            "rule_category": "GENERAL",
+            "content_text": "Announcements must be verifiable and adhere to brand voice.",
+        },
+        headers=CREATOR_HEADERS,
+    )
+
     return brand_id, sub_id
 
 

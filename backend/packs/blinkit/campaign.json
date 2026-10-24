@@ -1,0 +1,43 @@
+{
+  "name": "Diwali 2026",
+  "description": "Blinkit Diwali 2026 festive quick-commerce campaign celebration.",
+  "start_date": "2026-10-01T00:00:00Z",
+  "end_date": "2026-11-15T23:59:59Z",
+  "goals": "Drive awareness and quick-commerce orders for Diwali festive essentials, sweets, diyas, and gifts with warm festive visual storytelling.",
+  "platforms": ["instagram", "facebook", "youtube", "print"],
+  "content_types": ["image", "video", "audio", "poster"],
+  "required_cues": ["diya", "diyas", "rangoli", "marigold", "sweets", "mithai", "gift box", "festive lights", "lantern", "toran"],
+  "min_required_cues": 2,
+  "prohibited_items": [
+    "firecrackers",
+    "crackers",
+    "fireworks",
+    "sparklers",
+    "rockets",
+    "anar",
+    "chakri",
+    "weapons",
+    "firearms",
+    "violence",
+    "smoke",
+    "spider-man",
+    "spiderman",
+    "marvel",
+    "disney",
+    "superheroes",
+    "cartoon characters",
+    "political messaging",
+    "elections",
+    "gambling"
+  ],
+  "extra_rules": {
+    "approved_terminology": {
+      "app": "Blinkit app",
+      "delivery": "10-minute delivery",
+      "store": "Blinkit dark store"
+    },
+    "banned_terms": ["100%", "instant", "guaranteed", "always", "cheapest", "fastest in India"],
+    "required_phrases": ["Blinkit app"],
+    "palette": ["#F8C200", "#1C1C1E", "#FFFFFF", "#00A36C", "#FF6B35"]
+  }
+}

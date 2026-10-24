@@ -28,6 +28,12 @@ class GuidelineChunk(Base):
         Vector(settings.EMBEDDING_DIMENSIONS), nullable=True
     )
 
+    source_kind: Mapped[str] = mapped_column(String(50), default="custom", index=True)  # premade | custom
+    document_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+    content_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    document_type: Mapped[str] = mapped_column(String(50), default="guidelines", index=True)  # guidelines | design | event | other
+    embedding_status: Mapped[str] = mapped_column(String(50), default="completed", index=True)  # pending | completed | failed
+
     # Governance Insights Counters (for Unclear/Ambiguous Guideline Detection)
     times_triggered: Mapped[int] = mapped_column(Integer, default=0)
     times_overridden: Mapped[int] = mapped_column(Integer, default=0)

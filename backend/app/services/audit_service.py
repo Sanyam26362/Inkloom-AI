@@ -1,7 +1,7 @@
 import re
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.brand import BrandProfile
@@ -74,35 +74,84 @@ class AuditService:
 
     @classmethod
     async def retrieve_relevant_guidelines(
-        cls, session: AsyncSession, brand_id: int, query_text: str, limit: int = 5
+        cls,
+        session: AsyncSession,
+        brand_id: int,
+        query_text: str,
+        limit: int = 8,
+        media_type: str = "text",
+        campaign_name: str = "",
     ) -> List[GuidelineChunk]:
-        """Retrieves top-k relevant guideline chunks using pgvector cosine distance."""
-        embedding = await gemini_service.generate_embedding(query_text, task_type="RETRIEVAL_QUERY")
+        """
+        Retrieves relevant guidelines:
+        1. Raises ValueError if brand has 0 retrievable chunks.
+        2. Always includes hard-rule chunks (PROHIBITED, EVENT, DECISION).
+        3. Retrieves top-k semantic matches using query = content summary + media type + campaign.
+        4. Provides deterministic fallback ordering when embeddings are unavailable.
+        5. Increments times_triggered once per audit for each retrieved chunk.
+        """
+        count_res = await session.execute(
+            select(func.count(GuidelineChunk.id)).where(GuidelineChunk.brand_id == brand_id)
+        )
+        total_chunks = count_res.scalar() or 0
+        if total_chunks == 0:
+            raise ValueError("No guideline chunks indexed for this brand. Please upload brand guidelines or load a premade pack before auditing.")
+
+        # Always include hard-rule chunks (prohibited items, campaign event rules, decision criteria)
+        hard_rule_categories = ["PROHIBITED", "EVENT", "DECISION"]
+        hard_stmt = (
+            select(GuidelineChunk)
+            .where(
+                GuidelineChunk.brand_id == brand_id,
+                GuidelineChunk.rule_category.in_(hard_rule_categories),
+            )
+            .order_by(GuidelineChunk.id.asc())
+            .limit(15)
+        )
+        hard_res = await session.execute(hard_stmt)
+        hard_chunks = list(hard_res.scalars().all())
+        selected_ids = {c.id for c in hard_chunks}
+
+        # Semantic query = content summary + media type + campaign
+        full_query = f"{query_text} {media_type} {campaign_name}".strip()
+        embedding = await gemini_service.generate_embedding(full_query, task_type="RETRIEVAL_QUERY")
+
+        semantic_chunks: List[GuidelineChunk] = []
         if embedding:
             stmt = (
                 select(GuidelineChunk)
                 .where(GuidelineChunk.brand_id == brand_id)
                 .where(GuidelineChunk.embedding.isnot(None))
-                .order_by(GuidelineChunk.embedding.cosine_distance(embedding))
-                .limit(limit)
             )
-            result = await session.execute(stmt)
-            chunks = list(result.scalars().all())
-            if chunks:
-                # Increment times_triggered counter for governance analytics
-                for chunk in chunks:
-                    chunk.times_triggered += 1
-                await session.flush()
-                return chunks
+            if selected_ids:
+                stmt = stmt.where(GuidelineChunk.id.not_in(selected_ids))
+            stmt = stmt.order_by(GuidelineChunk.embedding.cosine_distance(embedding)).limit(limit)
+            res = await session.execute(stmt)
+            semantic_chunks = list(res.scalars().all())
 
-        # Fallback to recent guidelines if embedding is unavailable
-        fallback_stmt = (
-            select(GuidelineChunk)
-            .where(GuidelineChunk.brand_id == brand_id)
-            .limit(limit)
-        )
-        res = await session.execute(fallback_stmt)
-        return list(res.scalars().all())
+        if not semantic_chunks:
+            # Deterministic fallback ordering when embeddings are down or returned empty
+            fallback_stmt = (
+                select(GuidelineChunk)
+                .where(GuidelineChunk.brand_id == brand_id)
+            )
+            if selected_ids:
+                fallback_stmt = fallback_stmt.where(GuidelineChunk.id.not_in(selected_ids))
+            fallback_stmt = fallback_stmt.order_by(GuidelineChunk.id.asc()).limit(limit)
+            fallback_res = await session.execute(fallback_stmt)
+            semantic_chunks = list(fallback_res.scalars().all())
+
+        combined_chunks = hard_chunks + semantic_chunks
+
+        # Increment times_triggered once per audit
+        seen_ids = set()
+        for chunk in combined_chunks:
+            if chunk.id not in seen_ids:
+                chunk.times_triggered += 1
+                seen_ids.add(chunk.id)
+        await session.flush()
+
+        return combined_chunks
 
     @classmethod
     def calculate_compliance_score(cls, findings: List[FindingDraft]) -> float:
@@ -269,7 +318,9 @@ class AuditService:
             session=session,
             brand_id=brand.id,
             query_text=content[:500] if content else "general guidelines",
-            limit=5,
+            limit=8,
+            media_type="text",
+            campaign_name=campaign.name if campaign else (event or ""),
         )
 
         guidelines_context = [
@@ -544,7 +595,9 @@ class AuditService:
                 "visual brand identity colors accessibility contrast typography logo imagery "
                 f"{effective_event or ''} event fit safety"
             ),
-            limit=5,
+            limit=8,
+            media_type="image",
+            campaign_name=campaign.name if campaign else (effective_event or ""),
         )
 
         guidelines_context = [

@@ -17,37 +17,34 @@ logger = logging.getLogger("inkloom_api")
 
 
 async def auto_seed_default_brand() -> None:
-    """Seeds the initial Blinkit demo brand profile on a fresh database."""
+    """Seeds the initial Blinkit demo brand profile and loads the Blinkit pack from manifest on a fresh database."""
     from app.core.database import AsyncSessionLocal
     from app.models.brand import BrandProfile
+    from app.services.pack_service import PackService
     from sqlalchemy import select, func
 
     try:
         async with AsyncSessionLocal() as session:
             count_res = await session.execute(select(func.count(BrandProfile.id)))
             if (count_res.scalar() or 0) == 0:
-                logger.info("Fresh database detected. Auto-seeding default Blinkit brand profile...")
+                logger.info("Fresh database detected. Auto-seeding Blinkit brand profile from premade pack manifest...")
                 blinkit = BrandProfile(
                     name="Blinkit",
                     industry="Quick Commerce",
                     tone_persona="Energetic, witty, helpful, culturally relevant, reliable quick commerce voice.",
-                    approved_hex_palette=["#F8C200", "#1C1C1E", "#FFFFFF", "#0C831F", "#FF6B35"],
-                    banned_terms=["guaranteed", "instant", "always", "100%"],
-                    preferred_terminology={
-                        "10 mins": "10-minute delivery",
-                        "delivery boy": "delivery partner",
-                        "cheap": "pocket-friendly",
-                    },
-                    approved_facts=[
-                        {"claim": "Blinkit delivers in 10 minutes across major Indian metros", "source": "Blinkit Brand Guidelines", "verified": True},
-                        {"claim": "Zero minimum order value on select festive deliveries", "source": "Blinkit Brand Guidelines", "verified": True},
-                    ],
-                    visual_guidelines_summary="High-contrast Blinkit Yellow (#F8C200) and Dark Charcoal (#1C1C1E). Prominent 10-minute delivery badge. Clean typography.",
+                    approved_hex_palette=[],
+                    banned_terms=[],
+                    preferred_terminology={},
+                    approved_facts=[],
+                    visual_guidelines_summary="Official quick-commerce brand governance guidelines and design system.",
                     min_wcag_contrast=4.5,
                 )
                 session.add(blinkit)
                 await session.commit()
-                logger.info("Blinkit profile seeded successfully.")
+                await session.refresh(blinkit)
+
+                await PackService.load_pack("blinkit", brand_id=blinkit.id, session=session)
+                logger.info("Blinkit profile and premade pack seeded successfully from manifest.")
     except Exception as seed_err:
         logger.warning(f"Auto-seed completed or skipped: {seed_err}")
 

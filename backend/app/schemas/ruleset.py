@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -33,7 +33,7 @@ class RuleSetBase(BaseModel):
     prohibited_visual_subjects: List[str] = Field(default_factory=list, description="Prohibited visual subjects (e.g. characters, competitors)")
     per_media_rules: Dict[str, Any] = Field(default_factory=dict, description="Specific rules per media format (image, video, audio, text)")
     decision_rules: Dict[str, Any] = Field(default_factory=dict, description="Decision logic for PASS, NEEDS_REVIEW, FAIL")
-    rubric: List[Dict[str, Any]] = Field(default_factory=list, description="Multi-dimensional governance evaluation rubric")
+    rubric: List[Union[RubricDimensionSchema, Dict[str, Any]]] = Field(default_factory=list, description="Multi-dimensional governance evaluation rubric")
     is_active: bool = Field(True, description="Whether this RuleSet is currently authoritative")
 
 

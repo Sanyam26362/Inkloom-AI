@@ -315,6 +315,18 @@ async def test_endpoint_submissions_full_workflow(client: AsyncClient):
     )
     brand_id = b_res.json()["id"]
 
+    await client.post(
+        "/api/v1/guidelines",
+        json={
+            "brand_id": brand_id,
+            "source_document": "workflow_rules.txt",
+            "section_reference": "General",
+            "rule_category": "GENERAL",
+            "content_text": "Verify all claims and avoid absolute superlatives in product launch announcements.",
+        },
+        headers=CREATOR_HEADERS,
+    )
+
     # 2. POST /api/v1/submissions -> Create draft
     sub_payload = {
         "brand_id": brand_id,

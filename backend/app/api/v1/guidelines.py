@@ -1,8 +1,10 @@
 import logging
+import uuid
+import asyncio
 from pathlib import Path
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
-from sqlalchemy import select
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Body
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -16,9 +18,12 @@ from app.schemas.guideline import (
     GuidelineChunkResponse,
     GuidelineSearchQuery,
     GuidelineSearchResult,
+    GuidelineReindexResponse,
+    GuidelineDeleteResponse,
 )
 from app.services.gemini_service import gemini_service
 from app.services.document_service import DocumentService
+from app.services.pack_service import PackService
 
 router = APIRouter(prefix="/guidelines", tags=["Guideline Ingestion & RAG"])
 
@@ -60,17 +65,100 @@ async def create_guideline_chunk(
 
     chunk = GuidelineChunk(
         brand_id=payload.brand_id,
+        source_kind=payload.source_kind or "custom",
+        document_id=payload.document_id,
+        content_hash=payload.content_hash,
+        document_type=payload.document_type or "guidelines",
         source_document=payload.source_document,
         page_number=payload.page_number,
         section_reference=payload.section_reference,
         rule_category=payload.rule_category,
         content_text=payload.content_text,
         embedding=embedding,
+        embedding_status="completed",
     )
     session.add(chunk)
     await session.commit()
     await session.refresh(chunk)
     return chunk
+
+
+@router.post("/upload", response_model=List[GuidelineChunkResponse], status_code=status.HTTP_201_CREATED)
+async def upload_guideline(
+    brand_id: int = Form(...),
+    document_type: str = Form("guidelines"),  # guidelines | design | event | other
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> List[GuidelineChunk]:
+    """
+    Safely extracts chunks from an uploaded document (.pdf, .md, .txt), splits into semantic chunks
+    with section headers, generates 768-dim embeddings with concurrency control,
+    and indexes them idempotently in PostgreSQL pgvector.
+    """
+    brand_stmt = select(BrandProfile).where(BrandProfile.id == brand_id)
+    brand_res = await session.execute(brand_stmt)
+    if not brand_res.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand profile not found")
+
+    filename = file.filename or "uploaded_guidelines"
+    file_bytes = await file.read()
+
+    try:
+        raw_chunks = DocumentService.extract_chunks(
+            file_bytes=file_bytes, filename=filename, document_type=document_type
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    doc_id = f"doc_{uuid.uuid4().hex[:10]}"
+
+    # Deduplication: Remove any previous chunks from the same document name for this brand
+    await session.execute(
+        delete(GuidelineChunk).where(
+            GuidelineChunk.brand_id == brand_id,
+            GuidelineChunk.source_document == filename,
+        )
+    )
+    await session.flush()
+
+    sem = asyncio.Semaphore(5)
+
+    async def embed_and_build(rc: dict) -> GuidelineChunk:
+        async with sem:
+            emb = await gemini_service.generate_embedding(rc["content_text"], task_type="RETRIEVAL_DOCUMENT")
+            return GuidelineChunk(
+                brand_id=brand_id,
+                source_kind="custom",
+                document_id=doc_id,
+                content_hash=rc.get("content_hash"),
+                document_type=document_type,
+                source_document=filename,
+                page_number=rc.get("page_number", 1),
+                section_reference=rc.get("section_reference", "General"),
+                rule_category=rc.get("rule_category", "GENERAL"),
+                content_text=rc["content_text"],
+                embedding=emb,
+                embedding_status="completed" if emb else "failed",
+            )
+
+    saved_chunks: List[GuidelineChunk] = await asyncio.gather(*(embed_and_build(rc) for rc in raw_chunks))
+
+    failed_count = sum(1 for sc in saved_chunks if sc.embedding_status == "failed")
+    if failed_count == len(saved_chunks) and len(saved_chunks) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to generate embeddings for all {len(saved_chunks)} chunks: {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
+        )
+
+    for sc in saved_chunks:
+        session.add(sc)
+
+    await session.commit()
+    for sc in saved_chunks:
+        await session.refresh(sc)
+
+    return saved_chunks
 
 
 @router.post("/upload-pdf", response_model=List[GuidelineChunkResponse], status_code=status.HTTP_201_CREATED)
@@ -80,54 +168,19 @@ async def upload_guideline_pdf(
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> List[GuidelineChunk]:
-    """
-    Safely extracts guidelines from an uploaded PDF document, splits into semantic chunks
-    with page numbers, generates 768-dim embeddings, and indexes them in PostgreSQL pgvector.
-    """
-    brand_stmt = select(BrandProfile).where(BrandProfile.id == brand_id)
-    brand_res = await session.execute(brand_stmt)
-    if not brand_res.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand profile not found")
-
-    if not file.filename.lower().endswith(".pdf"):
+    """Backward-compatible PDF upload endpoint."""
+    if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF documents are supported for guideline ingestion.",
         )
-
-    file_bytes = await file.read()
-    try:
-        raw_chunks = DocumentService.extract_chunks_from_pdf(
-            pdf_bytes=file_bytes, filename=file.filename
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-    saved_chunks: List[GuidelineChunk] = []
-    for rc in raw_chunks:
-        embedding = await gemini_service.generate_embedding(rc["content_text"], task_type="RETRIEVAL_DOCUMENT")
-        if not embedding:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Failed to generate embedding for guideline chunk '{rc.get('section_reference', '')}': {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
-            )
-        chunk = GuidelineChunk(
-            brand_id=brand_id,
-            source_document=rc["source_document"],
-            page_number=rc["page_number"],
-            section_reference=rc["section_reference"],
-            rule_category=rc["rule_category"],
-            content_text=rc["content_text"],
-            embedding=embedding,
-        )
-        session.add(chunk)
-        saved_chunks.append(chunk)
-
-    await session.commit()
-    for sc in saved_chunks:
-        await session.refresh(sc)
-
-    return saved_chunks
+    return await upload_guideline(
+        brand_id=brand_id,
+        document_type="guidelines",
+        file=file,
+        session=session,
+        user=user,
+    )
 
 
 @router.post("/load-premade", response_model=List[GuidelineChunkResponse], status_code=status.HTTP_201_CREATED)
@@ -137,115 +190,109 @@ async def load_premade_guidelines(
     user: CurrentUser = Depends(get_current_user),
 ) -> List[GuidelineChunk]:
     """
-    Loads pre-built Blinkit Diwali 2026 Guidelines (PDF) and Design System (MD)
-    from the backend directory, parses them into semantic chunks, generates embeddings,
-    and indexes them in PostgreSQL pgvector.
+    Loads premade Blinkit Diwali 2026 pack (PDF + MD specifications) via PackService.
+    Indexes all documents without truncation or artificial caps.
     """
-    brand_stmt = select(BrandProfile).where(BrandProfile.id == brand_id)
-    brand_res = await session.execute(brand_stmt)
-    brand = brand_res.scalar_one_or_none()
-    if not brand:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand profile not found")
+    try:
+        await PackService.load_pack("blinkit", brand_id=brand_id, session=session)
+    except Exception as e:
+        logger.error(f"Error loading premade pack: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-    # If brand already has pre-loaded guidelines, return them immediately
-    existing_stmt = select(GuidelineChunk).where(GuidelineChunk.brand_id == brand_id)
-    existing_res = await session.execute(existing_stmt)
-    existing_chunks = list(existing_res.scalars().all())
-    if len(existing_chunks) >= 6:
-        logger.info(f"Brand #{brand_id} already has {len(existing_chunks)} guidelines indexed. Returning immediately.")
-        return existing_chunks
-
-    saved_chunks: List[GuidelineChunk] = []
-
-    # 1. Parse and index backend/blinkit_guidelines.pdf (key policy sections)
-    pdf_path = Path("blinkit_guidelines.pdf")
-    if pdf_path.exists():
-        pdf_bytes = pdf_path.read_bytes()
-        try:
-            raw_chunks = DocumentService.extract_chunks_from_pdf(
-                pdf_bytes=pdf_bytes, filename="blinkit_guidelines.pdf"
-            )
-            # Take key semantic chunks (max 8)
-            for rc in raw_chunks[:8]:
-                embedding = await gemini_service.generate_embedding(rc["content_text"], task_type="RETRIEVAL_DOCUMENT")
-                if not embedding:
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail=f"Failed to generate embedding for premade guideline chunk '{rc.get('section_reference', '')}': {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
-                    )
-                chunk = GuidelineChunk(
-                    brand_id=brand_id,
-                    source_document=rc["source_document"],
-                    page_number=rc["page_number"],
-                    section_reference=rc["section_reference"],
-                    rule_category=rc["rule_category"],
-                    content_text=rc["content_text"],
-                    embedding=embedding,
-                )
-                session.add(chunk)
-                saved_chunks.append(chunk)
-        except Exception as e:
-            logger.error(f"Error extracting premade PDF guidelines: {e}")
-
-    # 2. Parse and index backend/blinkit_diwali_2026_design_system.md (key design sections)
-    ds_path = Path("blinkit_diwali_2026_design_system.md")
-    if ds_path.exists():
-        text = ds_path.read_text(encoding="utf-8")
-        sections = [s.strip() for s in text.split("\n## ") if s.strip()]
-        for sec in sections[:5]:
-            sec_text = "## " + sec if not sec.startswith("#") else sec
-            lines = sec_text.split("\n")
-            title = lines[0].replace("#", "").strip() or "Design System"
-            body = "\n".join(lines[1:15]).strip()
-            chunk_content = f"{title}\n{body}"
-            embedding = await gemini_service.generate_embedding(chunk_content, task_type="RETRIEVAL_DOCUMENT")
-            if not embedding:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"Failed to generate embedding for design system chunk '{title}': {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
-                )
-            chunk = GuidelineChunk(
-                brand_id=brand_id,
-                source_document="blinkit_diwali_2026_design_system.md",
-                page_number=1,
-                section_reference=title,
-                rule_category="DESIGN",
-                content_text=chunk_content,
-                embedding=embedding,
-            )
-            session.add(chunk)
-            saved_chunks.append(chunk)
-
-    # 3. Add upcoming campaign event chunk
-    event_text = (
-        "Upcoming Campaign Event: Diwali 2026. "
-        "Every Diwali campaign visual must include at least two clear festive cues (diyas, rangoli, "
-        "marigold flowers, festive lights, lanterns, sweets, gift boxes, or festive headline). "
-        "Strictly prohibited: firecrackers, fireworks, weapons, and copyrighted characters (Spider-Man, etc.)."
+    # Return the newly indexed chunks
+    stmt = (
+        select(GuidelineChunk)
+        .where(GuidelineChunk.brand_id == brand_id)
+        .order_by(GuidelineChunk.id.asc())
     )
-    embedding = await gemini_service.generate_embedding(event_text, task_type="RETRIEVAL_DOCUMENT")
-    if not embedding:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to generate embedding for campaign event: {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
-        )
-    chunk = GuidelineChunk(
-        brand_id=brand_id,
-        source_document="Campaign Brief - Diwali 2026",
-        page_number=1,
-        section_reference="Upcoming Campaign Event",
-        rule_category="EVENT",
-        content_text=event_text,
-        embedding=embedding,
-    )
-    session.add(chunk)
-    saved_chunks.append(chunk)
+    res = await session.execute(stmt)
+    return list(res.scalars().all())
 
+
+@router.delete("/{chunk_id}", response_model=GuidelineDeleteResponse)
+async def delete_guideline_chunk(
+    chunk_id: int,
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> GuidelineDeleteResponse:
+    """Deletes a specific guideline chunk by its ID."""
+    chunk_stmt = select(GuidelineChunk).where(GuidelineChunk.id == chunk_id)
+    chunk_res = await session.execute(chunk_stmt)
+    chunk = chunk_res.scalar_one_or_none()
+    if not chunk:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Guideline chunk not found")
+
+    await session.delete(chunk)
     await session.commit()
-    for sc in saved_chunks:
-        await session.refresh(sc)
+    return GuidelineDeleteResponse(deleted_count=1, message="Guideline chunk deleted successfully")
 
-    return saved_chunks
+
+@router.delete("/document/{doc_id}", response_model=GuidelineDeleteResponse)
+async def delete_guideline_document(
+    doc_id: str,
+    brand_id: int,
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> GuidelineDeleteResponse:
+    """Deletes all guideline chunks belonging to a document (by document_id or source_document name)."""
+    stmt = (
+        delete(GuidelineChunk)
+        .where(GuidelineChunk.brand_id == brand_id)
+        .where((GuidelineChunk.document_id == doc_id) | (GuidelineChunk.source_document == doc_id))
+    )
+    res = await session.execute(stmt)
+    await session.commit()
+    return GuidelineDeleteResponse(
+        deleted_count=res.rowcount or 0,
+        message=f"Deleted {res.rowcount or 0} chunks for document '{doc_id}'",
+    )
+
+
+@router.post("/reindex", response_model=GuidelineReindexResponse)
+async def reindex_guidelines(
+    brand_id: int = Body(..., embed=True),
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> GuidelineReindexResponse:
+    """
+    Batched re-embedding of guideline chunks with concurrency limit.
+    Re-generates vector embeddings for any chunks missing them or in failed state.
+    """
+    stmt = (
+        select(GuidelineChunk)
+        .where(GuidelineChunk.brand_id == brand_id)
+        .where((GuidelineChunk.embedding.is_(None)) | (GuidelineChunk.embedding_status != "completed"))
+    )
+    res = await session.execute(stmt)
+    chunks_to_reindex = list(res.scalars().all())
+
+    if not chunks_to_reindex:
+        return GuidelineReindexResponse(total_chunks=0, reindexed=0, failed=0)
+
+    sem = asyncio.Semaphore(5)
+    reindexed = 0
+    failed = 0
+
+    async def process_reindex(chunk: GuidelineChunk):
+        nonlocal reindexed, failed
+        async with sem:
+            emb = await gemini_service.generate_embedding(
+                chunk.content_text, task_type="RETRIEVAL_DOCUMENT"
+            )
+            if emb:
+                chunk.embedding = emb
+                chunk.embedding_status = "completed"
+                reindexed += 1
+            else:
+                chunk.embedding_status = "failed"
+                failed += 1
+
+    await asyncio.gather(*(process_reindex(c) for c in chunks_to_reindex))
+    await session.commit()
+
+    return GuidelineReindexResponse(
+        total_chunks=len(chunks_to_reindex), reindexed=reindexed, failed=failed
+    )
 
 
 @router.post("/search", response_model=List[GuidelineSearchResult])
@@ -262,6 +309,7 @@ async def search_guidelines(
             select(GuidelineChunk)
             .where(GuidelineChunk.brand_id == payload.brand_id)
             .where(GuidelineChunk.content_text.ilike(f"%{payload.query}%"))
+            .order_by(GuidelineChunk.id.asc())
             .limit(payload.limit)
         )
         res = await session.execute(text_stmt)
@@ -274,8 +322,7 @@ async def search_guidelines(
             for c in chunks
         ]
 
-    # pgvector cosine distance: distance = 1 - cosine_similarity
-    # cosine_distance ranges 0 (identical) to 2 (opposite)
+    # pgvector cosine distance
     distance_expr = GuidelineChunk.embedding.cosine_distance(embedding)
     stmt = (
         select(GuidelineChunk, distance_expr.label("distance"))
