@@ -1,32 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Domine, Lato } from "next/font/google";
 import "./globals.css";
 import { AppContextProvider } from "@/context/AppContext";
 import { AppShell } from "@/components/shell/AppShell";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const domine = Domine({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-domine",
-  display: "swap",
-});
-
-const lato = Lato({
-  subsets: ["latin"],
-  weight: ["300", "400", "700", "900"],
-  variable: "--font-lato",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Inkloom AI — Enterprise Brand Governance & Multi-Modal Content Auditing",
@@ -46,7 +21,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${lato.variable} ${domine.variable} h-full antialiased scroll-smooth`}
+      className="h-full antialiased scroll-smooth"
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />

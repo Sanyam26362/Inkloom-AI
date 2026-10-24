@@ -61,11 +61,13 @@
   --spacing-margin-desktop: 2rem;
   --spacing-margin-mobile: 1rem;
   
-  --font-geist: var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: var(--font-geist-mono), "JetBrains Mono", monospace;
-  --font-sans: var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-serif: var(--font-domine), "Domine", Georgia, serif;
-  --font-lato: var(--font-lato), "Lato", sans-serif;
+  --font-geist-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-geist-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --font-geist: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-lato: var(--font-geist-sans);
 
   /* =====================================================================
      Landing Page Tokens (from DesignLens filestage.io)
