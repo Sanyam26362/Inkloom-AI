@@ -16,6 +16,43 @@ logging.basicConfig(
 logger = logging.getLogger("inkloom_api")
 
 
+async def auto_seed_default_brand() -> None:
+    """Seeds the initial Blinkit demo brand profile on a fresh database."""
+    from app.core.database import AsyncSessionLocal
+    from app.models.brand import BrandProfile
+    from sqlalchemy import select, func
+
+    try:
+        async with AsyncSessionLocal() as session:
+            count_res = await session.execute(select(func.count(BrandProfile.id)))
+            if (count_res.scalar() or 0) == 0:
+                logger.info("Fresh database detected. Auto-seeding default Blinkit brand profile...")
+                blinkit = BrandProfile(
+                    name="Blinkit",
+                    industry="Quick Commerce",
+                    tone_persona="Energetic, witty, helpful, culturally relevant, reliable quick commerce voice.",
+                    approved_hex_palette=["#F8CB46", "#0C831F", "#000000", "#FFFFFF"],
+                    banned_terms=["guaranteed fastest", "instant death", "unlimited free groceries", "100% cheapest"],
+                    preferred_terminology={
+                        "10 mins": "10-minute delivery",
+                        "delivery boy": "delivery partner",
+                        "cheap": "pocket-friendly",
+                    },
+                    approved_facts=[
+                        {"fact": "Blinkit delivers in 10 minutes across major Indian metros"},
+                        {"fact": "Diwali 2026 Dhamaka features traditional sweets, diyas, pooja thalis, and festive decor"},
+                        {"fact": "Zero minimum order value on select festive deliveries"},
+                    ],
+                    visual_guidelines_summary="High-contrast Blinkit Yellow (#F8CB46) & Forest Green (#0C831F). Prominent 10-minute delivery badge. Clean typography with no cluttered comic/superhero imagery unrelated to brand.",
+                    min_wcag_contrast=4.5,
+                )
+                session.add(blinkit)
+                await session.commit()
+                logger.info("Blinkit profile seeded successfully.")
+    except Exception as seed_err:
+        logger.warning(f"Auto-seed completed or skipped: {seed_err}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manages application startup and graceful shutdown."""
@@ -23,22 +60,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         await init_db()
         logger.info("Database and pgvector initialized successfully.")
+        await auto_seed_default_brand()
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
 
-    try:
-        await redis_client.ping()
-        logger.info("Redis cache client connected successfully.")
-    except Exception as e:
-        logger.warning(f"Redis cache connection unavailable: {e}")
+    if redis_client:
+        try:
+            await redis_client.ping()
+            logger.info("Redis cache client connected successfully.")
+        except Exception as e:
+            logger.warning(f"Redis cache connection unavailable: {e}")
+    else:
+        logger.info("Redis cache not configured (running in direct DB mode).")
 
     yield
 
     logger.info("Shutting down Inkloom AI services...")
-    try:
-        await redis_client.aclose()
-    except Exception as e:
-        logger.warning(f"Error closing Redis client: {e}")
+    if redis_client:
+        try:
+            await redis_client.aclose()
+        except Exception as e:
+            logger.warning(f"Error closing Redis client: {e}")
 
     try:
         await engine.dispose()
@@ -57,10 +99,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration
+# CORS configuration allowing cross-origin requests from any frontend deployment
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
