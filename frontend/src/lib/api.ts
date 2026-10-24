@@ -16,7 +16,7 @@ import {
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:8000/api/v1";
+  "http://127.0.0.1:8000/api/v1";
 
 export interface RequestOptions extends RequestInit {
   userRole?: UserRole;
@@ -174,6 +174,16 @@ export const api = {
     });
   },
 
+  async loadPremadeGuidelines(brandId: number, options?: RequestOptions): Promise<GuidelineChunk[]> {
+    const formData = new FormData();
+    formData.append("brand_id", brandId.toString());
+    return fetchJson<GuidelineChunk[]>("/guidelines/load-premade", {
+      ...options,
+      method: "POST",
+      body: formData,
+    });
+  },
+
   async searchGuidelines(
     brandId: number,
     query: string,
@@ -217,21 +227,40 @@ export const api = {
     });
   },
 
-  async auditSubmission(submissionId: number, options?: RequestOptions): Promise<AuditExecutionResponse> {
-    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/audit`, {
+  async auditSubmission(submissionId: number, options?: RequestOptions, event?: string): Promise<AuditExecutionResponse> {
+    const query = event ? `?event=${encodeURIComponent(event)}` : "";
+    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/audit${query}`, {
       ...options,
       method: "POST",
+    });
+  },
+
+  async uploadImage(
+    submissionId: number,
+    file: File,
+    options?: RequestOptions,
+    event?: string
+  ): Promise<AuditExecutionResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const query = event ? `?event=${encodeURIComponent(event)}` : "";
+    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/upload-image${query}`, {
+      ...options,
+      method: "POST",
+      body: formData,
     });
   },
 
   async uploadAudio(
     submissionId: number,
     file: File,
-    options?: RequestOptions
+    options?: RequestOptions,
+    event?: string
   ): Promise<AuditExecutionResponse> {
     const formData = new FormData();
     formData.append("file", file);
-    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/upload-audio`, {
+    const query = event ? `?event=${encodeURIComponent(event)}` : "";
+    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/upload-audio${query}`, {
       ...options,
       method: "POST",
       body: formData,
@@ -241,11 +270,13 @@ export const api = {
   async uploadVideo(
     submissionId: number,
     file: File,
-    options?: RequestOptions
+    options?: RequestOptions,
+    event?: string
   ): Promise<AuditExecutionResponse> {
     const formData = new FormData();
     formData.append("file", file);
-    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/upload-video`, {
+    const query = event ? `?event=${encodeURIComponent(event)}` : "";
+    return fetchJson<AuditExecutionResponse>(`/submissions/${submissionId}/upload-video${query}`, {
       ...options,
       method: "POST",
       body: formData,
