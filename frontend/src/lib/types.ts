@@ -74,6 +74,7 @@ export interface SubmissionRevision {
   media_urls?: string[] | null;
   alt_text?: string | null;
   change_summary?: string | null;
+  ai_governance_metadata?: Record<string, unknown>;
   created_by?: string | null;
   created_at: string;
 }
@@ -111,6 +112,10 @@ export interface AuditExecutionResponse {
     categories_redacted: Record<string, number>;
     confidentiality_guard_active: boolean;
   };
+  visible_text?: string[];
+  dominant_colors?: string[];
+  palette_match_pct?: number;
+  transcript?: string;
   findings: AuditFinding[];
 }
 
