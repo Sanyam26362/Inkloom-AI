@@ -25,11 +25,13 @@ async def auto_seed_default_brand() -> None:
 
     try:
         async with AsyncSessionLocal() as session:
-            count_res = await session.execute(select(func.count(BrandProfile.id)))
-            if (count_res.scalar() or 0) == 0:
-                logger.info("Fresh database detected. Auto-seeding Blinkit brand profile from premade pack manifest...")
+            stmt = select(BrandProfile).where(BrandProfile.name == "Blinkit")
+            blinkit = (await session.execute(stmt)).scalar_one_or_none()
+            if not blinkit:
+                logger.info("Auto-seeding default Blinkit brand profile from premade pack manifest...")
                 blinkit = BrandProfile(
                     name="Blinkit",
+                    tenant_id="tenant_default",
                     industry="Quick Commerce",
                     tone_persona="Energetic, witty, helpful, culturally relevant, reliable quick commerce voice.",
                     approved_hex_palette=[],

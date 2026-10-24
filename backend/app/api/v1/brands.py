@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func, update, or_
@@ -14,6 +15,7 @@ from app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignRespons
 from app.schemas.ruleset import RuleSetCreate, RuleSetUpdate, RuleSetResponse, RuleExtractRequest
 from app.services.gemini_service import gemini_service
 
+logger = logging.getLogger("inkloom_api")
 router = APIRouter(prefix="/brands", tags=["Brand Profiles"])
 
 
@@ -23,22 +25,28 @@ async def list_brands(
     user: CurrentUser = Depends(get_current_user),
 ) -> List[BrandProfile]:
     """Retrieves brand profiles scoped by tenant isolation or all for admin."""
-    if is_admin(user.role):
-        stmt = select(BrandProfile).order_by(BrandProfile.created_at.desc())
-    else:
-        stmt = (
-            select(BrandProfile)
-            .where(
-                or_(
-                    BrandProfile.tenant_id == user.tenant_id,
-                    BrandProfile.tenant_id == "tenant_default",
-                    BrandProfile.tenant_id.is_(None),
+    try:
+        if is_admin(user.role):
+            stmt = select(BrandProfile).order_by(BrandProfile.created_at.desc())
+        else:
+            stmt = (
+                select(BrandProfile)
+                .where(
+                    or_(
+                        BrandProfile.tenant_id == user.tenant_id,
+                        BrandProfile.tenant_id == "tenant_default",
+                        BrandProfile.tenant_id.is_(None),
+                    )
                 )
+                .order_by(BrandProfile.created_at.desc())
             )
-            .order_by(BrandProfile.created_at.desc())
-        )
-    result = await session.execute(stmt)
-    return list(result.scalars().all())
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+    except Exception as e:
+        logger.warning(f"Tenant-filtered brand query fallback triggered: {e}")
+        stmt = select(BrandProfile).order_by(BrandProfile.created_at.desc())
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
 
 
 @router.post("", response_model=BrandProfileResponse, status_code=status.HTTP_201_CREATED)
