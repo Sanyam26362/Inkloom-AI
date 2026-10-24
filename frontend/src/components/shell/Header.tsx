@@ -304,7 +304,7 @@ export function Header() {
         <Link
           href="/audit"
           className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg font-sans text-xs font-semibold shadow-xs transition-all cursor-pointer shrink-0 ${
-            isDark ? "bg-[#7c3aed] hover:bg-[#6d28d9] text-white" : "bg-primary hover:bg-[#004578] text-white"
+            isDark ? "bg-[#7c3aed] hover:bg-[#6d28d9] text-white" : "bg-[#005797] hover:bg-[#004578] text-white"
           }`}
         >
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

@@ -99,6 +99,60 @@
 }
 
 @layer base {
+  :root {
+    --color-surface: #ffffff;
+    --color-surface-dim: #f8fafc;
+    --color-surface-bright: #ffffff;
+    --color-surface-container-lowest: #ffffff;
+    --color-surface-container-low: #ffffff;
+    --color-surface-container: #f8fafc;
+    --color-surface-container-high: #f1f5f9;
+    --color-surface-container-highest: #e2e8f0;
+    
+    --color-on-surface: #111827;
+    --color-on-surface-variant: #4b5563;
+    --color-outline: #9ca3af;
+    --color-outline-variant: #cbd5e1;
+    
+    --color-primary: #005797;
+    --color-primary-container: #005797;
+    --color-on-primary: #ffffff;
+    --color-on-primary-container: #ffffff;
+    --color-primary-fixed: #ebf6ff;
+    --color-primary-fixed-dim: #005797;
+    
+    --color-secondary: #00A36C;
+    --color-secondary-container: #f0faf3;
+    --color-on-secondary: #ffffff;
+    --color-on-secondary-container: #00A36C;
+    --color-secondary-fixed: #f0faf3;
+    --color-secondary-fixed-dim: #00A36C;
+    
+    --color-tertiary: #00A36C;
+    --color-tertiary-container: #f0faf3;
+    --color-on-tertiary: #ffffff;
+    --color-on-tertiary-container: #00A36C;
+    --color-tertiary-fixed: #f0faf3;
+    --color-tertiary-fixed-dim: #00A36C;
+    
+    --color-error: #dc2626;
+    --color-error-container: #fef2f2;
+    --color-on-error: #ffffff;
+    --color-on-error-container: #991b1b;
+
+    --color-warning: #d97706;
+    --color-warning-container: #fffbeb;
+    --color-on-warning: #ffffff;
+    --color-on-warning-container: #b45309;
+
+    --color-background: #ffffff;
+    --color-text-primary: #374151;
+    --color-text-muted: #4b5563;
+    --color-accent: #ffe29f;
+    --color-border: #cbd5e1;
+    --color-equally-action-color: #111827;
+  }
+
   html, body {
     margin: 0;
     padding: 0;
@@ -152,7 +206,7 @@ html.dark {
   --color-on-surface: #e3e2e6;
   --color-on-surface-variant: #ccc3d8;
   --color-outline: #958da1;
-  --color-outline-variant: #4a4455;
+  --color-outline-variant: #3b3c44;
 
   --color-primary: #7c3aed;
   --color-primary-container: #7c3aed;
