@@ -307,8 +307,8 @@ export const TechText = ({
       const textDescent = Number(m.actualBoundingBoxDescent) || s.fontSize * 0.22;
       const textHeight = Math.max(1, textAscent + textDescent);
 
-      const availW = Math.max(100, width * 0.96);
-      const availH = Math.max(80, height * 0.88);
+      const availW = Math.max(100, width * 0.98);
+      const availH = Math.max(80, height * 0.92);
       const fitW = availW / textWidth;
       const fitH = availH / textHeight;
       const rawFit = Math.min(1, fitW, fitH);
@@ -324,11 +324,11 @@ export const TechText = ({
       const inkHeight = Math.max(1, actualAscent + actualDescent);
 
       // Comfortable gap from left sidebar
-      const margin = Math.max(8, width * 0.015);
+      const margin = Math.max(14, width * 0.02);
       const start =
         s.align === 'left' ? margin : s.align === 'right' ? Math.max(margin, width - margin - inkWidth) : Math.max(margin, (width - inkWidth) / 2);
       const x = start;
-      const baseline = Math.round(actualAscent + Math.max(12, (height - inkHeight) * 0.22));
+      const baseline = Math.round(actualAscent + Math.max(16, (height - inkHeight) * 0.40));
 
       const mX = probe.measureText('x');
       const mH = probe.measureText('H');

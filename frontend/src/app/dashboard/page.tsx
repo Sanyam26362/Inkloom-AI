@@ -211,7 +211,7 @@ export default function GovernanceDashboardPage() {
       )}
 
             {/* 1. Dynamic Hero Section: Inkloom AI (Top-Left) layered with DriftWall (Right / Behind) */}
-      <section className="mb-6 relative w-full h-[280px] sm:h-[320px] lg:h-[350px] overflow-hidden rounded-3xl select-none">
+      <section className="mb-6 relative w-full h-[290px] sm:h-[330px] lg:h-[360px] overflow-hidden rounded-3xl select-none">
         {/* DriftWall: Positioned on the right side, extending partially underneath the text */}
         <div className="absolute top-0 bottom-0 right-0 w-[62%] sm:w-[68%] lg:w-[72%] z-0 overflow-hidden pointer-events-auto">
           <DriftWall
@@ -243,12 +243,12 @@ export default function GovernanceDashboardPage() {
         </div>
 
         {/* TechText: Positioned at the top-left (z-10), with its right letters slightly overlapping the DriftWall */}
-        <div className="absolute top-0 left-0 w-full sm:w-[70%] md:w-[60%] lg:w-[55%] h-full z-10 pointer-events-auto">
+        <div className="absolute top-0 left-0 w-full sm:w-[76%] md:w-[68%] lg:w-[62%] h-full z-10 pointer-events-auto">
           <TechText
             text="Inkloom AI"
             align="left"
             fontWeight={600}
-            fontSize={140}
+            fontSize={162}
             reveal="letter"
             dashLength={4}
             dashGap={2}
