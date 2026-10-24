@@ -14,9 +14,19 @@ import {
   AuditFinding,
 } from "./types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://127.0.0.1:8000/api/v1";
+function getApiBaseUrl(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "");
+  if (!envUrl) {
+    return "http://127.0.0.1:8000/api/v1";
+  }
+  // Auto-append /api/v1 if the user provided the base domain without it
+  if (!envUrl.endsWith("/api/v1")) {
+    return `${envUrl}/api/v1`;
+  }
+  return envUrl;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface RequestOptions extends RequestInit {
   userRole?: UserRole;

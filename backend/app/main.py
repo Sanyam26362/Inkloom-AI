@@ -130,6 +130,8 @@ app.mount("/uploads", StaticFiles(directory=settings.upload_path), name="uploads
 
 # Mount API V1 routes
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+# Mount without prefix as well so direct calls to /brands, /submissions, /health work transparently
+app.include_router(api_v1_router)
 
 
 @app.get("/", tags=["Root"])
