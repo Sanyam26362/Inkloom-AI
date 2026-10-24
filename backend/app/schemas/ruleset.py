@@ -20,7 +20,7 @@ class RubricDimensionSchema(BaseModel):
 
 
 class RuleSetBase(BaseModel):
-    brand_id: int = Field(..., description="Target brand profile ID")
+    brand_id: Optional[int] = Field(None, description="Target brand profile ID")
     campaign_id: Optional[int] = Field(None, description="Optional associated campaign ID")
     version: int = Field(1, description="RuleSet iteration/version number")
     source_documents: List[str] = Field(default_factory=list, description="Documents extracted from")

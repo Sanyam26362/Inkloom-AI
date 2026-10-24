@@ -72,6 +72,27 @@ async function fetchJson<T>(endpoint: string, options: RequestOptions = {}): Pro
   let token = explicitToken;
   if (!token && typeof window !== "undefined") {
     token = localStorage.getItem("inkloom_token") || undefined;
+    if (!token && !endpoint.includes("/auth/login") && !endpoint.includes("/health")) {
+      try {
+        const loginRes = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: userRole }),
+        });
+        if (loginRes.ok) {
+          const authData = await loginRes.json();
+          if (authData?.access_token) {
+            token = authData.access_token;
+            localStorage.setItem("inkloom_token", authData.access_token);
+            if (authData.user) {
+              localStorage.setItem("inkloom_user", JSON.stringify(authData.user));
+            }
+          }
+        }
+      } catch {
+        // Fallback silently if login endpoint unreachable
+      }
+    }
   }
 
   const defaultHeaders: Record<string, string> = {
@@ -178,10 +199,11 @@ export const api = {
   },
 
   async loadPack(packName = "blinkit", brandId?: number, options?: RequestOptions): Promise<PackLoadResponse> {
-    const query = brandId ? `?brand_id=${brandId}` : "";
-    return fetchJson<PackLoadResponse>(`/packs/${packName}/load${query}`, {
+    const body = brandId ? JSON.stringify({ brand_id: brandId }) : undefined;
+    return fetchJson<PackLoadResponse>(`/packs/${packName}/load`, {
       ...options,
       method: "POST",
+      body,
     });
   },
 
@@ -233,6 +255,7 @@ export const api = {
   async createRuleset(
     brandId: number,
     payload: {
+      brand_id?: number;
       decision_rules: Record<string, unknown>;
       dimension_weights?: Record<string, number>;
       campaign_id?: number | null;
@@ -240,10 +263,14 @@ export const api = {
     },
     options?: RequestOptions
   ): Promise<RuleSet> {
+    const fullPayload = {
+      brand_id: brandId,
+      ...payload,
+    };
     return fetchJson<RuleSet>(`/brands/${brandId}/rules`, {
       ...options,
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(fullPayload),
     });
   },
 

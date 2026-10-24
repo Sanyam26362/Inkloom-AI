@@ -212,10 +212,18 @@ class PackService:
         if campaign:
             campaign_context = f"Campaign: {campaign.name}. Prohibited: {', '.join(campaign.prohibited_items)}. Required cues: {', '.join(campaign.required_cues)}."
 
-        ruleset_draft = await gemini_service.extract_rules(
-            guidelines_text=guideline_sample,
-            campaign_context=campaign_context,
-        )
+        ruleset_draft = None
+        try:
+            ruleset_draft = await asyncio.wait_for(
+                gemini_service.extract_rules(
+                    guidelines_text=guideline_sample,
+                    campaign_context=campaign_context,
+                ),
+                timeout=12.0,
+            )
+        except Exception as e:
+            logger.warning(f"Fast rule extraction fallback using campaign extra_rules: {e}")
+            ruleset_draft = None
 
         # Overlay campaign extra_rules to guarantee determinism
         extra = campaign.extra_rules if campaign else {}
@@ -270,5 +278,7 @@ class PackService:
             campaign_id=campaign.id if campaign else None,
             ruleset_id=ruleset.id,
             indexed_chunks_count=len(saved_chunks),
+            documents_indexed=len(manifest.get("documents", [])),
+            chunks_created=len(saved_chunks),
             message=f"Premade pack '{pack_name}' successfully loaded with {len(saved_chunks)} chunks indexed, Campaign active, and RuleSet v{ruleset.version} confirmed.",
         )

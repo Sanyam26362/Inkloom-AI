@@ -101,12 +101,17 @@ export default function ContentSetupPage() {
     [selectedAssetId]
   );
 
+  const targetBrandId = activeBrandId || brands.find((b) => b.name.toLowerCase() === "blinkit")?.id || brands[0]?.id;
+
   useEffect(() => {
-    if (!activeBrandId) return;
+    if (!targetBrandId) return;
+    if (!activeBrandId && targetBrandId) {
+      setActiveBrandId(targetBrandId);
+    }
     let cancelled = false;
     Promise.all([
-      api.listGuidelines(activeBrandId, { userRole: currentRole }).catch(() => []),
-      api.listSubmissions(activeBrandId, undefined, { userRole: currentRole }).catch(() => []),
+      api.listGuidelines(targetBrandId, { userRole: currentRole }).catch(() => []),
+      api.listSubmissions(targetBrandId, undefined, { userRole: currentRole }).catch(() => []),
     ]).then(([guidelines, currentSubmissions]) => {
       if (cancelled) return;
       setGuidelineCount(guidelines.length);
@@ -115,7 +120,7 @@ export default function ContentSetupPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeBrandId, currentRole]);
+  }, [targetBrandId, activeBrandId, currentRole, setActiveBrandId]);
 
   const notify = (type: "success" | "error", text: string) => {
     setMessage({ type, text });
@@ -123,10 +128,11 @@ export default function ContentSetupPage() {
   };
 
   const handleGuidelineUpload = async () => {
-    if (!guidelineFile || !activeBrandId) return;
+    const brandId = targetBrandId;
+    if (!guidelineFile || !brandId) return;
     setIsUploadingGuidelines(true);
     try {
-      const chunks = await api.uploadGuidelinePdf(activeBrandId, guidelineFile, { userRole: currentRole });
+      const chunks = await api.uploadGuidelinePdf(brandId, guidelineFile, { userRole: currentRole });
       setGuidelineCount((count) => (count ?? 0) + chunks.length);
       notify("success", `${guidelineFile.name} indexed as Blinkit governance context.`);
     } catch (error) {
@@ -137,10 +143,11 @@ export default function ContentSetupPage() {
   };
 
   const handleDesignUpload = async () => {
-    if (!designFile || !activeBrandId) return;
+    const brandId = targetBrandId;
+    if (!designFile || !brandId) return;
     setIsUploadingDesign(true);
     try {
-      const chunks = await api.uploadGuidelinePdf(activeBrandId, designFile, { userRole: currentRole });
+      const chunks = await api.uploadGuidelinePdf(brandId, designFile, { userRole: currentRole });
       setGuidelineCount((count) => (count ?? 0) + chunks.length);
       notify("success", `${designFile.name} indexed as design reference for the prototype.`);
     } catch (error) {
@@ -155,12 +162,29 @@ export default function ContentSetupPage() {
   };
 
   const createCreatorSubmission = async (asset: CanvasAsset, file?: File) => {
-    if (!activeBrandId) {
-      notify("error", "Blinkit is still loading. Start the backend and retry.");
-      return;
-    }
     setIsCreating(true);
     try {
+      let brandId = targetBrandId;
+      if (!brandId) {
+        let blinkit = brands.find((b) => b.name.toLowerCase() === "blinkit");
+        if (!blinkit) {
+          blinkit = await api.createBrand({
+            name: "Blinkit",
+            industry: "Quick Commerce",
+            tone_persona: "Energetic, fast, friendly, culturally connected, reliable",
+            approved_hex_palette: ["#F8C200", "#00A36C", "#1C1C1E", "#FFFFFF"],
+            banned_terms: ["10-minute guarantee", "instant delivery guaranteed", "cheapest prices"],
+            preferred_terminology: { "delivery boy": "delivery partner" },
+            min_wcag_contrast: 4.5,
+          });
+          await api.listBrands().then((all) => {
+            if (all.length > 0) setActiveBrandId(all[0].id);
+          });
+        }
+        brandId = blinkit.id;
+        setActiveBrandId(blinkit.id);
+      }
+
       const kind = file ? fileKind(file) : asset.kind;
       if (file && !kind) {
         notify("error", "Choose an image, audio, or video file.");
@@ -168,7 +192,7 @@ export default function ContentSetupPage() {
       }
       const submission = await api.createSubmission(
         {
-          brand_id: activeBrandId,
+          brand_id: brandId,
           title: file?.name ?? asset.title,
           content_format: kind ?? "TEXT",
           initial_content: file

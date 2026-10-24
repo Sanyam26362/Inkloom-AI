@@ -49,7 +49,11 @@ export interface RuleSet {
   brand_id: number;
   campaign_id?: number | null;
   rule_version: number;
+  palette?: string[];
+  banned_terms?: string[];
+  preferred_terminology?: Record<string, string>;
   decision_rules: {
+    palette?: string[];
     palette_threshold?: number;
     required_cues_minimum?: number;
     require_contrast_check?: boolean;
@@ -72,13 +76,15 @@ export interface PackSummary {
 }
 
 export interface PackLoadResponse {
-  status: string;
+  status?: string;
   message: string;
   brand_id: number;
   campaign_id?: number | null;
+  ruleset_id?: number | null;
   documents_indexed: number;
   chunks_created: number;
-  ruleset_extracted: boolean;
+  ruleset_extracted?: boolean;
+  indexed_chunks_count?: number;
 }
 
 export interface GuidelineChunk {

@@ -26,12 +26,13 @@ function AuditWorkspaceContent() {
   const searchParams = useSearchParams();
   const queryId = searchParams?.get("id");
 
-  const { activeBrand, activeBrandId, currentRole } = useApp();
+  const { brands, activeBrand, activeBrandId, setActiveBrandId, currentRole } = useApp();
+  const targetBrandId = activeBrandId || brands.find((b) => b.name.toLowerCase() === "blinkit")?.id || brands[0]?.id;
   const requestedEvent = searchParams?.get("event");
   // Blinkit is the prototype client, so direct visits to /audit still use the
   // selected Diwali campaign unless another event is explicitly supplied.
   const isDiwaliEvent = requestedEvent === "diwali" || (
-    !requestedEvent && activeBrand?.name?.toLowerCase() === "blinkit"
+    !requestedEvent && (activeBrand?.name?.toLowerCase() === "blinkit" || !activeBrand)
   );
 
   // State
@@ -90,10 +91,13 @@ function AuditWorkspaceContent() {
   useEffect(() => {
     let ignore = false;
     async function fetchSubs() {
-      if (!activeBrandId) return;
+      if (!targetBrandId) return;
+      if (!activeBrandId && targetBrandId) {
+        setActiveBrandId(targetBrandId);
+      }
       setPageError(null);
       try {
-        const data = await api.listSubmissions(activeBrandId, undefined, { userRole: currentRole });
+        const data = await api.listSubmissions(targetBrandId, undefined, { userRole: currentRole });
         if (!ignore) {
           setSubmissions(data);
 
@@ -126,7 +130,7 @@ function AuditWorkspaceContent() {
     return () => {
       ignore = true;
     };
-  }, [activeBrandId, currentRole, queryId, selectedSubmissionId]);
+  }, [targetBrandId, activeBrandId, currentRole, queryId, selectedSubmissionId, setActiveBrandId]);
 
   // 2. Fetch Selected Submission Details
   const loadSubmissionDetails = useCallback(

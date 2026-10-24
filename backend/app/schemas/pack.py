@@ -27,4 +27,6 @@ class PackLoadResponse(BaseModel):
     campaign_id: Optional[int] = None
     ruleset_id: Optional[int] = None
     indexed_chunks_count: int
+    documents_indexed: int = 0
+    chunks_created: int = 0
     message: str

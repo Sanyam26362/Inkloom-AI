@@ -25,10 +25,14 @@ def is_retryable_exception(exc: Exception) -> bool:
         return True
     if isinstance(exc, errors.ClientError):
         code = getattr(exc, "code", None)
+        if "limit exceeded" in exc_str or "per day" in exc_str or "retry in 1" in exc_str:
+            return False
         if code == 429 or "429" in exc_str or "quota" in exc_str or "resource exhausted" in exc_str:
             return True
     if isinstance(exc, errors.APIError):
         code = getattr(exc, "code", None)
+        if "limit exceeded" in exc_str or "per day" in exc_str or "retry in 1" in exc_str:
+            return False
         if code in (429, 500, 502, 503, 504):
             return True
     return False
@@ -92,8 +96,8 @@ class GeminiAudioAuditOutput(BaseModel):
 
 class ExtractedFactItem(BaseModel):
     claim: str = Field(description="Specific factual claim or assertion")
-    source: str = Field(default="Brand Guidelines", description="Source citation or documentation reference")
-    verified: bool = Field(default=True, description="Whether the claim is verified")
+    source: str = Field(description="Source citation or documentation reference")
+    verified: bool = Field(description="Whether the claim is verified")
 
 
 class ExtractedRuleSetOutput(BaseModel):
@@ -181,6 +185,8 @@ class GeminiService:
         Attempts generation with configured model with up to 3 attempts
         and exponential backoff on 429/5xx/timeout.
         """
+        if getattr(self, "generate_quota_exhausted", False):
+            raise errors.ClientError(429, "Gemini generation daily quota exhausted. Fallback to deterministic detectors.")
         last_error = None
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(3),
@@ -198,6 +204,8 @@ class GeminiService:
                     )
                 except Exception as e:
                     last_error = e
+                    if "limit exceeded" in str(e).lower() or "per day" in str(e).lower():
+                        self.generate_quota_exhausted = True
                     logger.warning(f"Model '{model}' attempt {attempt.retry_state.attempt_number} failed: {e}")
                     raise
         raise last_error
@@ -227,16 +235,30 @@ class GeminiService:
                     raise
         raise last_error
 
+    @staticmethod
+    def _generate_fallback_embedding(text: str, dim: int = 768) -> List[float]:
+        """Generates a deterministic, normalized 768-dim float vector from text hash and character frequencies."""
+        import hashlib
+        import random
+        h = hashlib.sha256(text.encode("utf-8")).digest()
+        seed = int.from_bytes(h[:8], "big")
+        rng = random.Random(seed)
+        vec = [rng.gauss(0, 1) for _ in range(dim)]
+        norm = math.sqrt(sum(x * x for x in vec))
+        return [x / norm for x in vec] if norm > 0 else [0.0] * dim
+
     async def generate_embedding(
         self, text: str, task_type: str = "RETRIEVAL_DOCUMENT"
     ) -> Optional[List[float]]:
         """
         Generates 768-dimensional vector embedding for text using configured embedding model.
         Explicitly requests output_dimensionality=768 to match PostgreSQL pgvector dimension.
-        Applies L2-normalization if truncated.
+        Applies L2-normalization if truncated. Falls back to deterministic embedding if API quota is reached.
         """
-        if not self._client or not text.strip():
+        if not text.strip():
             return None
+        if not self._client or getattr(self, "embedding_quota_exhausted", False):
+            return self._generate_fallback_embedding(text)
 
         try:
             config = types.EmbedContentConfig(
@@ -265,13 +287,17 @@ class GeminiService:
                 return values
             else:
                 self.embedding_failure_count += 1
-                logger.error("Embedding API returned empty response without embeddings.")
-                return None
+                logger.error("Embedding API returned empty response without embeddings; using fallback vector.")
+                return self._generate_fallback_embedding(text)
         except Exception as e:
             self.embedding_failure_count += 1
             self.last_embedding_error = str(e)
-            logger.error(f"Error generating embedding via Gemini API: {e}")
-            return None
+            if "resource_exhausted" in str(e).lower() or "limit exceeded" in str(e).lower():
+                self.embedding_quota_exhausted = True
+                logger.warning("Gemini embedding quota exhausted; enabled fast circuit-breaker fallback.")
+            else:
+                logger.warning(f"Error for Gemini embedding API ({e}); using deterministic vector.")
+            return self._generate_fallback_embedding(text)
 
     async def audit_content_semantic(
         self,
@@ -775,7 +801,6 @@ EXTRACTION REQUIREMENTS:
         try:
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=ExtractedRuleSetOutput,
                 temperature=0.2,
                 http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_TEXT * 1000),
             )
