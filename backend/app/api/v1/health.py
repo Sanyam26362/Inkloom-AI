@@ -26,13 +26,14 @@ async def health_check(session: AsyncSession = Depends(get_db)) -> Dict[str, Any
     except Exception as e:
         db_status = f"unhealthy: {str(e)}"
 
-    redis_status = "error"
-    try:
-        pong = await redis_client.ping()
-        if pong:
-            redis_status = "healthy"
-    except Exception as e:
-        redis_status = f"unhealthy: {str(e)}"
+    redis_status = "not configured (optional)"
+    if redis_client:
+        try:
+            pong = await redis_client.ping()
+            if pong:
+                redis_status = "healthy"
+        except Exception as e:
+            redis_status = f"unhealthy: {str(e)}"
 
     ai_status = {
         "provider": "Google Gemini",
@@ -43,7 +44,7 @@ async def health_check(session: AsyncSession = Depends(get_db)) -> Dict[str, Any
         "client_ready": gemini_service.is_available,
     }
 
-    overall_healthy = db_status == "healthy" and redis_status == "healthy"
+    overall_healthy = db_status == "healthy"
 
     return {
         "status": "healthy" if overall_healthy else "degraded",
