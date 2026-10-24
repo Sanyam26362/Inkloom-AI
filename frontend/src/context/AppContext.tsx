@@ -66,14 +66,14 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem("inkloom_theme") as ThemeMode | null;
-      if (savedTheme === "dark" || savedTheme === "light") {
+      if (savedTheme === "dark") {
         /* eslint-disable-next-line react-hooks/set-state-in-effect */
-        setThemeState(savedTheme);
-        if (savedTheme === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
+        setThemeState("dark");
+        document.documentElement.classList.add("dark");
+      } else {
+        /* eslint-disable-next-line react-hooks/set-state-in-effect */
+        setThemeState("light");
+        document.documentElement.classList.remove("dark");
       }
 
       const savedUserStr = localStorage.getItem("inkloom_user");
