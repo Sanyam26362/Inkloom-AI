@@ -50,8 +50,9 @@ export function Header() {
             className="p-2 rounded-full border border-palette-1 hover:bg-palette-7/60 text-equally-action-color transition-colors flex items-center justify-center cursor-pointer shadow-2xs"
             title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
             aria-label="Toggle theme mode"
+            suppressHydrationWarning
           >
-            <span className="material-symbols-outlined text-[18px]">
+            <span className="material-symbols-outlined text-[18px]" suppressHydrationWarning>
               {theme === "dark" ? "light_mode" : "dark_mode"}
             </span>
           </button>

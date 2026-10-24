@@ -20,6 +20,7 @@ export function Header() {
     setIsMobileMenuOpen,
     theme,
     toggleTheme,
+    isSidebarCollapsed,
   } = useApp();
 
   const isDark = theme === "dark";
@@ -40,7 +41,9 @@ export function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 lg:left-72 right-0 h-16 backdrop-blur-md border-b shadow-2xs z-40 flex items-center justify-between px-3 sm:px-5 lg:px-6 font-sans transition-colors ${
+      className={`fixed top-0 left-0 right-0 h-16 backdrop-blur-md border-b shadow-2xs z-40 flex items-center justify-between px-3 sm:px-5 lg:px-6 font-sans transition-all duration-300 ${
+        isSidebarCollapsed ? "lg:left-20" : "lg:left-64"
+      } ${
         isDark ? "bg-[#1b1b1f]/95 border-[#3b3c44] text-[#e3e2e6]" : "bg-white/95 border-[#cbd5e1] text-[#111827]"
       }`}
     >
@@ -201,6 +204,7 @@ export function Header() {
         <button
           type="button"
           onClick={toggleTheme}
+          suppressHydrationWarning
           className={`h-9 w-9 rounded-lg border shadow-2xs transition-all cursor-pointer flex items-center justify-center shrink-0 ${
             isDark
               ? "bg-[#1f1f23] border-[#3b3c44] text-amber-400 hover:bg-[#292a2d] hover:border-amber-400/50"

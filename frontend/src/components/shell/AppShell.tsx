@@ -8,16 +8,14 @@ import { Header } from "@/components/shell/Header";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { theme } = useApp();
+  const { theme, isSidebarCollapsed } = useApp();
   const isLandingPage = pathname === "/";
   const isDark = theme === "dark";
 
   if (isLandingPage) {
     return (
       <div
-        className={`landing-scope min-h-screen w-full overflow-x-hidden selection:bg-accent selection:text-equally-action-color transition-colors duration-200 ${
-          isDark ? "bg-[#121316] text-[#e3e2e6]" : "bg-background text-text-primary"
-        }`}
+        className="landing-scope min-h-screen w-full overflow-x-hidden selection:bg-accent selection:text-equally-action-color transition-colors duration-200 bg-background text-text-primary"
       >
         {children}
       </div>
@@ -32,9 +30,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     >
       <Sidebar />
       <div
-        className={`pl-0 lg:pl-72 flex flex-col flex-1 min-w-0 transition-colors duration-200 ${
-          isDark ? "bg-[#121316]" : "bg-[#f8fafc]"
-        }`}
+        className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${
+          isSidebarCollapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-64"
+        } ${isDark ? "bg-[#121316]" : "bg-[#f8fafc]"}`}
       >
         <Header />
         <main

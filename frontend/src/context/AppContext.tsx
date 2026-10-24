@@ -25,6 +25,9 @@ interface AppContextType {
   refreshHealth: () => Promise<void>;
   refreshKey: number;
   triggerRefresh: () => void;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: (collapsed: boolean) => void;
+  toggleSidebar: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -38,33 +41,30 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [brandsError, setBrandsError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed((prev) => !prev);
+  }, []);
 
   const triggerRefresh = useCallback(() => {
     setRefreshKey((k) => k + 1);
   }, []);
 
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("inkloom_theme") as ThemeMode | null;
-        if (saved === "dark" || saved === "light") {
-          return saved;
-        }
-      } catch {
-        // localStorage not available
-      }
-    }
-    return "light";
-  });
+  const [theme, setThemeState] = useState<ThemeMode>("light");
 
-  // Synchronize document theme class on mount
+  // Synchronize document theme class and state on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("inkloom_theme") as ThemeMode | null;
-      if (saved === "dark") {
-        document.documentElement.classList.add("dark");
-      } else if (saved === "light") {
-        document.documentElement.classList.remove("dark");
+      if (saved === "dark" || saved === "light") {
+        /* eslint-disable-next-line react-hooks/set-state-in-effect */
+        setThemeState(saved);
+        if (saved === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
       }
     } catch {
       // localStorage may fail in restricted browser envs
@@ -181,6 +181,9 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         refreshHealth: fetchHealth,
         refreshKey,
         triggerRefresh,
+        isSidebarCollapsed,
+        setIsSidebarCollapsed,
+        toggleSidebar,
       }}
     >
       {children}

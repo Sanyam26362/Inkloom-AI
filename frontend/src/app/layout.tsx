@@ -45,6 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${lato.variable} ${domine.variable} h-full antialiased scroll-smooth`}
     >
       <head>
@@ -54,8 +55,13 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('inkloom_theme');if(t==='dark'){document.documentElement.classList.add('dark')}else if(t==='light'){document.documentElement.classList.remove('dark')}}catch(e){}})();`,
+          }}
+        />
       </head>
-      <body className="min-h-full antialiased font-sans bg-surface text-on-surface">
+      <body className="min-h-full antialiased font-sans bg-surface text-on-surface" suppressHydrationWarning>
         <AppContextProvider>
           <AppShell>{children}</AppShell>
         </AppContextProvider>
