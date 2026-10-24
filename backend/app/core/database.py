@@ -74,14 +74,41 @@ async def init_db() -> None:
 
         # Schema self-healing: ensure newly added columns exist on existing production tables
         schema_patches = [
+            # brand_profiles
             "ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(100) DEFAULT 'tenant_default';",
             "ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS owner_id VARCHAR(100);",
-            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(100) DEFAULT 'tenant_default';",
-            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS campaign_id INTEGER;",
+            # guideline_chunks
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS source_kind VARCHAR(50) DEFAULT 'custom';",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS document_id VARCHAR(100);",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'guidelines';",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS embedding_status VARCHAR(50) DEFAULT 'completed';",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS times_triggered INTEGER DEFAULT 0;",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS times_overridden INTEGER DEFAULT 0;",
             "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(100) DEFAULT 'tenant_default';",
             "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS category VARCHAR(50);",
             "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS confidence_score FLOAT DEFAULT 1.0;",
             "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS source_page INTEGER;",
+            # submissions
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS campaign_id INTEGER;",
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(100) DEFAULT 'tenant_default';",
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS verdict VARCHAR(50);",
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS platform VARCHAR(50);",
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS compliance_score FLOAT;",
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS creator_id VARCHAR(100) DEFAULT 'user_creator_01';",
+            "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS creator_name VARCHAR(150) DEFAULT 'Alex Rivera';",
+            # submission_revisions
+            "ALTER TABLE submission_revisions ADD COLUMN IF NOT EXISTS alt_text TEXT;",
+            "ALTER TABLE submission_revisions ADD COLUMN IF NOT EXISTS compliance_score FLOAT;",
+            "ALTER TABLE submission_revisions ADD COLUMN IF NOT EXISTS ai_governance_metadata JSONB DEFAULT '{}'::jsonb;",
+            "ALTER TABLE submission_revisions ADD COLUMN IF NOT EXISTS change_summary VARCHAR(255) DEFAULT 'Initial draft created';",
+            "ALTER TABLE submission_revisions ADD COLUMN IF NOT EXISTS created_by VARCHAR(100) DEFAULT 'user_creator_01';",
+            # audit_findings
+            "ALTER TABLE audit_findings ADD COLUMN IF NOT EXISTS override_reason TEXT;",
+            "ALTER TABLE audit_findings ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(100);",
+            "ALTER TABLE audit_findings ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITH TIME ZONE;",
+            # workflow_events
+            "ALTER TABLE workflow_events ADD COLUMN IF NOT EXISTS metadata_json JSONB DEFAULT '{}'::jsonb;",
         ]
         for patch in schema_patches:
             try:

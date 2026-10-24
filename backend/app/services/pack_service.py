@@ -3,7 +3,7 @@ import logging
 import asyncio
 from pathlib import Path
 from typing import List, Optional
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.brand import BrandProfile
@@ -148,7 +148,19 @@ class PackService:
                 campaign.is_active = True
                 await session.flush()
 
-        # 2. Idempotent: Delete previous premade chunks for this brand
+        # 2. Defensive schema verification & idempotent chunk replacement
+        for patch in [
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS source_kind VARCHAR(50) DEFAULT 'custom';",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS document_id VARCHAR(100);",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS document_type VARCHAR(50) DEFAULT 'guidelines';",
+            "ALTER TABLE guideline_chunks ADD COLUMN IF NOT EXISTS embedding_status VARCHAR(50) DEFAULT 'completed';",
+        ]:
+            try:
+                await session.execute(text(patch))
+            except Exception:
+                pass
+
         await session.execute(
             delete(GuidelineChunk).where(
                 GuidelineChunk.brand_id == brand_id,
