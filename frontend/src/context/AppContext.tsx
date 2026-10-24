@@ -34,7 +34,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppContextProvider({ children }: { children: React.ReactNode }) {
   const [brands, setBrands] = useState<BrandProfile[]>([]);
-  const [activeBrandId, setActiveBrandId] = useState<number>(1);
+  // Do not guess a brand id before the API has returned the seeded profiles.
+  // IDs are database-generated, so the demo Blinkit brand is not guaranteed to be 1.
+  const [activeBrandId, setActiveBrandId] = useState<number>(0);
   const [currentRole, setCurrentRole] = useState<UserRole>("REVIEWER");
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [isLoadingBrands, setIsLoadingBrands] = useState<boolean>(true);
@@ -104,10 +106,11 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       const data = await api.listBrands({ userRole: currentRole });
       setBrands(data);
       if (data.length > 0) {
-        // If current activeBrandId is not in list, pick the first
+        // Keep Blinkit as the demo client when the seed contains multiple profiles.
         const found = data.find((b) => b.id === activeBrandId);
         if (!found) {
-          setActiveBrandId(data[0].id);
+          const blinkit = data.find((b) => b.name.toLowerCase() === "blinkit");
+          setActiveBrandId(blinkit?.id ?? data[0].id);
         }
       }
     } catch (err: unknown) {
@@ -137,7 +140,8 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
           if (data.length > 0) {
             const found = data.find((b) => b.id === activeBrandId);
             if (!found) {
-              setActiveBrandId(data[0].id);
+              const blinkit = data.find((b) => b.name.toLowerCase() === "blinkit");
+              setActiveBrandId(blinkit?.id ?? data[0].id);
             }
           }
         }
