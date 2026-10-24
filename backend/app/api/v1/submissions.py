@@ -1,13 +1,9 @@
-import base64
-import logging
-import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import CurrentUser, get_current_user
 from app.models.submission import Submission, SubmissionRevision
@@ -32,10 +28,15 @@ from app.schemas.workflow import (
     StatusChangeRequest,
 )
 from app.services.audit_service import AuditService
+from app.services.document_service import DocumentService
 from app.services.workflow_service import WorkflowService
 from app.services.gemini_service import gemini_service
-
-logger = logging.getLogger(__name__)
+from app.services.cloudinary_service import (
+    CloudinaryConfigurationError,
+    CloudinaryUploadError,
+    cloudinary_service,
+)
+from app.services.rule_engine import FindingDraft
 
 router = APIRouter(prefix="/submissions", tags=["Content Submissions & Governance Workflow"])
 
@@ -139,6 +140,7 @@ async def get_submission(
 @router.post("/{submission_id}/audit", response_model=AuditExecutionResponse)
 async def execute_audit(
     submission_id: int,
+    event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
@@ -163,6 +165,7 @@ async def execute_audit(
     # Get latest revision
     latest_rev = max(submission.revisions, key=lambda r: r.version_number)
 
+    audit_metadata = {"campaign_event": event} if event else None
     audit_result = await AuditService.run_audit(
         session=session,
         submission=submission,
@@ -170,6 +173,7 @@ async def execute_audit(
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
+        additional_metadata=audit_metadata,
     )
     return audit_result
 
@@ -178,12 +182,14 @@ async def execute_audit(
 async def upload_image_and_audit(
     submission_id: int,
     file: UploadFile = File(...),
+    event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     """
-    Uploads an image (PNG, JPG, WEBP, max 10MB) for multimodal brand visual governance audit:
-    - Encodes image to base64 and saves to uploads
+    Uploads an image (PNG, JPG, WEBP, max 10MB) to the configured media provider:
+    - Uses Cloudinary when configured, otherwise backend/uploads for local development
+    - Persists only a playable URL and safe asset metadata in PostgreSQL
     - Audits visual palette compliance, text contrast (WCAG AA 4.5:1), visible copy against banned terms, and factual claims
     - Persists visual audit findings and returns AuditExecutionResponse
     """
@@ -219,39 +225,44 @@ async def upload_image_and_audit(
             detail=f"Image file exceeds maximum allowable size of 10MB (file size: {round(len(image_bytes)/(1024*1024), 2)}MB).",
         )
 
-    # Base64 data URI
-    b64_data = base64.b64encode(image_bytes).decode("utf-8")
-    data_uri = f"data:{content_type};base64,{b64_data}"
-
-    # Also persist to uploads directory
     try:
-        ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "png"
-        saved_filename = f"sub_{submission_id}_{uuid.uuid4().hex[:8]}.{ext}"
-        save_path = settings.upload_path / saved_filename
-        with open(save_path, "wb") as f_out:
-            f_out.write(image_bytes)
-        file_ref = data_uri
-    except Exception as e:
-        logger.warning(f"Could not write file to upload_path: {e}")
-        file_ref = data_uri
+        DocumentService.analyze_image(image_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    # Update or create revision
-    submission.content_format = "IMAGE"
-    if submission.revisions:
-        latest_rev = max(submission.revisions, key=lambda r: r.version_number)
-        latest_rev.media_urls = [file_ref]
-        current_rev = latest_rev
-    else:
-        current_rev = SubmissionRevision(
-            submission_id=submission.id,
-            version_number=1,
-            content_body="Visual Image Asset",
-            media_urls=[file_ref],
-            change_summary="Uploaded image for visual audit",
-            created_by=user.user_name,
+    try:
+        cloudinary_asset = await cloudinary_service.upload(
+            data=image_bytes,
+            filename=file.filename or "upload.png",
+            mime_type=content_type,
+            resource_type="image",
+            submission_id=submission_id,
         )
-        session.add(current_rev)
-        await session.flush()
+    except CloudinaryConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except CloudinaryUploadError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    file_ref = cloudinary_asset.get("secure_url")
+    if not file_ref:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a secure media URL.")
+
+    # Store the upload as a new revision instead of overwriting a prior text,
+    # audio, or video revision. This keeps the audit trail and displayed content
+    # aligned with the newly uploaded image.
+    submission.content_format = "IMAGE"
+    new_version = (submission.current_version or 0) + 1
+    submission.current_version = new_version
+    current_rev = SubmissionRevision(
+        submission_id=submission.id,
+        version_number=new_version,
+        content_body="Visual Image Asset",
+        media_urls=[file_ref],
+        change_summary="Uploaded image for visual audit",
+        created_by=user.user_name,
+    )
+    session.add(current_rev)
+    await session.flush()
 
     audit_result = await AuditService.run_image_audit(
         session=session,
@@ -262,6 +273,8 @@ async def upload_image_and_audit(
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
+        additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+        campaign_event=event,
     )
     return audit_result
 
@@ -270,11 +283,14 @@ async def upload_image_and_audit(
 async def upload_audio_and_audit(
     submission_id: int,
     file: UploadFile = File(...),
+    event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     """
-    Uploads an audio file (MP3, WAV, M4A, max 25MB) for transcription and brand governance audit:
+    Uploads an audio file (MP3, WAV, M4A, max 25MB) to the configured media provider:
+    - Stores the original audio remotely when Cloudinary is configured, otherwise locally
+    - Persists only its URL/metadata in PostgreSQL
     - Transcribes speech using Gemini multimodal audio model
     - Stores transcript as content_body of a new SubmissionRevision
     - Runs complete text governance audit pipeline on transcript
@@ -312,18 +328,22 @@ async def upload_audio_and_audit(
             detail=f"Audio file exceeds maximum allowable size of 25MB (file size: {round(len(audio_bytes)/(1024*1024), 2)}MB).",
         )
 
-    # Base64 data URI for playback
-    b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-    audio_data_uri = f"data:{content_type};base64,{b64_audio}"
-
-    # Save to uploads
     try:
-        saved_filename = f"audio_{submission_id}_{uuid.uuid4().hex[:8]}.{ext or 'mp3'}"
-        save_path = settings.upload_path / saved_filename
-        with open(save_path, "wb") as f_out:
-            f_out.write(audio_bytes)
-    except Exception as e:
-        logger.warning(f"Could not write audio to upload_path: {e}")
+        cloudinary_asset = await cloudinary_service.upload(
+            data=audio_bytes,
+            filename=file.filename or "upload.mp3",
+            mime_type=content_type,
+            resource_type="video",
+            submission_id=submission_id,
+        )
+    except CloudinaryConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except CloudinaryUploadError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    audio_url = cloudinary_asset.get("secure_url")
+    if not audio_url:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a secure audio URL.")
 
     # Transcribe via Gemini
     transcript = gemini_service.transcribe_audio(audio_bytes=audio_bytes, mime_type=content_type)
@@ -339,7 +359,7 @@ async def upload_audio_and_audit(
         submission_id=submission.id,
         version_number=new_version,
         content_body=transcript,
-        media_urls=[audio_data_uri],
+        media_urls=[audio_url],
         change_summary="Audio transcribed and ingested for brand audit",
         created_by=user.user_name,
     )
@@ -354,6 +374,11 @@ async def upload_audio_and_audit(
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
+        additional_metadata={
+            "storage": cloudinary_asset,
+            "media_pipeline": f"{cloudinary_asset.get('provider', 'media_storage')}->transcript->text_audit",
+            "campaign_event": event,
+        },
     )
     audit_result["transcript"] = transcript
     return audit_result
@@ -363,16 +388,18 @@ async def upload_audio_and_audit(
 async def upload_video_and_audit(
     submission_id: int,
     file: UploadFile = File(...),
+    event: Optional[str] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
     """
-    Uploads a video (MP4, MOV, WEBM, M4V, max 100MB), extracts dialogue and
-    meaningful on-screen text, and audits the resulting transcript as governed copy.
+    Uploads a video (MP4, MOV, WEBM, M4V, max 100MB) to the configured media provider, extracts
+    dialogue and representative visual frames, then combines text and visual audits.
 
     Keeping the extracted transcript in a normal revision means reviewers can edit
     the copy, apply safe fixes, comment, and approve it using the existing workflow.
-    The original media is retained on that same revision for playback in the UI.
+    The original media is retained by the selected provider and only its URL/metadata
+    is stored on that revision for playback in the UI.
     """
     stmt = (
         select(Submission)
@@ -415,16 +442,23 @@ async def upload_video_and_audit(
             ),
         )
 
-    b64_video = base64.b64encode(video_bytes).decode("utf-8")
-    video_data_uri = f"data:{content_type};base64,{b64_video}"
-
     try:
-        saved_filename = f"video_{submission_id}_{uuid.uuid4().hex[:8]}.{ext or 'mp4'}"
-        save_path = settings.upload_path / saved_filename
-        with open(save_path, "wb") as f_out:
-            f_out.write(video_bytes)
-    except Exception as e:
-        logger.warning(f"Could not write video to upload_path: {e}")
+        cloudinary_asset = await cloudinary_service.upload(
+            data=video_bytes,
+            filename=file.filename or "upload.mp4",
+            mime_type=content_type,
+            resource_type="video",
+            submission_id=submission_id,
+        )
+    except CloudinaryConfigurationError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+    except CloudinaryUploadError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+
+    video_url = cloudinary_asset.get("secure_url")
+    public_id = cloudinary_asset.get("public_id")
+    if not video_url:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a playable video URL.")
 
     transcript = gemini_service.transcribe_video(video_bytes=video_bytes, mime_type=content_type)
     if not transcript:
@@ -438,12 +472,61 @@ async def upload_video_and_audit(
         submission_id=submission.id,
         version_number=new_version,
         content_body=transcript,
-        media_urls=[video_data_uri],
+        media_urls=[video_url],
         change_summary="Video transcript and on-screen copy ingested for brand audit",
         created_by=user.user_name,
     )
     session.add(revision)
     await session.flush()
+
+    visual_findings: List[FindingDraft] = []
+    frame_reports: List[dict] = []
+    visible_text: List[str] = []
+    dominant_colors: List[str] = []
+    palette_matches: List[float] = []
+
+    frames = await cloudinary_service.fetch_video_frames(
+        public_id=public_id,
+        duration_seconds=cloudinary_asset.get("duration"),
+    )
+    for frame in frames:
+        frame_result = await AuditService.run_image_audit(
+            session=session,
+            submission=submission,
+            revision=revision,
+            image_bytes=frame["bytes"],
+            mime_type="image/jpeg",
+            actor_id=user.user_id,
+            actor_name=user.user_name,
+            actor_role=user.role.value,
+            persist=False,
+            campaign_event=event,
+        )
+        visual_findings.extend(frame_result.get("draft_findings", []))
+        visible_text.extend(frame_result.get("visible_text", []))
+        dominant_colors.extend(frame_result.get("dominant_colors", []))
+        if frame_result.get("palette_match_pct") is not None:
+            palette_matches.append(float(frame_result["palette_match_pct"]))
+        frame_reports.append(
+            {
+                "timestamp_seconds": frame["timestamp_seconds"],
+                "frame_url": frame["url"],
+                "findings_count": len(frame_result.get("draft_findings", [])),
+            }
+        )
+
+    if not frames:
+        visual_findings.append(
+            FindingDraft(
+                category="VISUAL",
+                severity="WARNING",
+                detector_source="MEDIA_FRAME_EXTRACTION",
+                flagged_excerpt="No representative video frame was audited",
+                explanation="The video was uploaded, but no representative frame could be extracted for visual governance.",
+                guideline_citation="Media Governance Pipeline",
+                suggested_correction="Retry the upload or provide a playable video so visual policy checks can complete.",
+            )
+        )
 
     audit_result = await AuditService.run_audit(
         session=session,
@@ -452,7 +535,20 @@ async def upload_video_and_audit(
         actor_id=user.user_id,
         actor_name=user.user_name,
         actor_role=user.role.value,
+        additional_findings=visual_findings,
+        additional_metadata={
+            "storage": cloudinary_asset,
+            "media_pipeline": f"{cloudinary_asset.get('provider', 'media_storage')}->transcript+frames->text_and_visual_audit",
+            "visual_frame_count": len(frames),
+            "visual_frames": frame_reports,
+            "visual_visible_text": sorted(set(visible_text)),
+            "visual_dominant_colors": sorted(set(dominant_colors)),
+            "visual_palette_match_pct": min(palette_matches) if palette_matches else None,
+            "campaign_event": event,
+        },
     )
+    submission.content_format = "VIDEO"
+    await session.commit()
     audit_result["transcript"] = transcript
     return audit_result
 
