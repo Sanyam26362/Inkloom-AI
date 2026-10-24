@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,7 +42,11 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     AUTH_DEMO_MODE: bool = True
-    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000"
+    CORS_ORIGINS: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,http://127.0.0.1:8000,"
+        "https://inkloom-ai-two.vercel.app"
+    )
+    CORS_ORIGIN_REGEX: str = r"^https?://.*"
 
     # Governance Constants
     DEFAULT_MIN_WCAG_CONTRAST: float = 4.5
