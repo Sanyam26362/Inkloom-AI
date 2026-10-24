@@ -9,6 +9,7 @@ import {
   FileCheck2,
   BookOpen,
   Globe,
+  UploadCloud,
   PanelLeftClose,
   PanelLeftOpen,
 } from "@/components/ui/icons";
@@ -34,10 +35,28 @@ export function Sidebar() {
       badge: null,
     },
     {
-      label: "Content Audit",
+      label: "Brand Setup",
+      path: "/setup",
+      icon: Globe,
+      badge: "Start Here",
+    },
+    {
+      label: "Creator Studio",
+      path: "/content",
+      icon: UploadCloud,
+      badge: null,
+    },
+    {
+      label: "Judge Canvas",
+      path: "/judge",
+      icon: FileCheck2,
+      badge: "Evaluate",
+    },
+    {
+      label: "Audit Queue",
       path: "/audit",
       icon: FileCheck2,
-      badge: "Primary",
+      badge: null,
     },
     {
       label: "Brand Guidelines",
@@ -45,13 +64,8 @@ export function Sidebar() {
       icon: BookOpen,
       badge: null,
     },
-    {
-      label: "Landing Page",
-      path: "/",
-      icon: Globe,
-      badge: "Live",
-    },
   ];
+
 
   return (
     <>

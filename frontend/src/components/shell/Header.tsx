@@ -31,6 +31,7 @@ export function Header() {
   // Derive breadcrumb from pathname
   const getBreadcrumbTitle = () => {
     if (pathname === "/" || pathname === "/dashboard") return "Dashboard";
+    if (pathname.startsWith("/content")) return "Content Setup";
     if (pathname.startsWith("/audit")) return "Audit";
     if (pathname.startsWith("/guidelines")) return "Guidelines";
     if (pathname.startsWith("/api-console")) return "API Console";

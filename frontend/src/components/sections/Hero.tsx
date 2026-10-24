@@ -21,17 +21,17 @@ export function Hero() {
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto mb-6">
               <Link
-                href="/dashboard"
+                href="/setup"
                 className="flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-background bg-primary hover:bg-[#004578] rounded-full cursor-pointer transition-all duration-300 ease-out shadow-sm hover:shadow-md"
               >
-                Start Now
+                🚀 Start Demo (Blinkit)
               </Link>
 
               <Link
-                href="/audit"
+                href="/judge"
                 className="flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-primary border-2 border-primary rounded-full cursor-pointer transition-all duration-300 ease-out hover:bg-blue-50/60"
               >
-                Audit Workspace
+                ⚖️ Judge Canvas
               </Link>
             </div>
 
