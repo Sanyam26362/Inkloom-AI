@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
@@ -12,11 +13,26 @@ import {
   ReviewComment,
 } from "@/lib/types";
 
+type MediaKind = "IMAGE" | "AUDIO" | "VIDEO";
+
+function getMediaKind(file: File): MediaKind | null {
+  if (file.type.startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(file.name)) return "IMAGE";
+  if (file.type.startsWith("video/") || /\.(mp4|mov|webm|m4v|mkv|avi)$/i.test(file.name)) return "VIDEO";
+  if (file.type.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(file.name)) return "AUDIO";
+  return null;
+}
+
 function AuditWorkspaceContent() {
   const searchParams = useSearchParams();
   const queryId = searchParams?.get("id");
 
   const { activeBrand, activeBrandId, currentRole } = useApp();
+  const requestedEvent = searchParams?.get("event");
+  // Blinkit is the prototype client, so direct visits to /audit still use the
+  // selected Diwali campaign unless another event is explicitly supplied.
+  const isDiwaliEvent = requestedEvent === "diwali" || (
+    !requestedEvent && activeBrand?.name?.toLowerCase() === "blinkit"
+  );
 
   // State
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -197,7 +213,7 @@ function AuditWorkspaceContent() {
     setPageError(null);
     const startTime = performance.now();
     try {
-      const response = await api.auditSubmission(selectedSubmissionId, { userRole: currentRole });
+      const response = await api.auditSubmission(selectedSubmissionId, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined);
       const elapsed = Math.round(performance.now() - startTime);
       setAuditResult(response);
       setAuditLatency(elapsed);
@@ -214,7 +230,7 @@ function AuditWorkspaceContent() {
     } finally {
       setIsAuditing(false);
     }
-  }, [selectedSubmissionId, currentRole, loadSubmissionDetails]);
+  }, [selectedSubmissionId, currentRole, isDiwaliEvent, loadSubmissionDetails]);
 
   // Keyboard shortcut ⌘+Enter / Ctrl+Enter to trigger audit
   useEffect(() => {
@@ -414,8 +430,12 @@ function AuditWorkspaceContent() {
 
   // Create Submission
   const handleCreateSubmission = async () => {
-    const isMediaFormat = newFormat === "AUDIO" || newFormat === "VIDEO";
+    const isMediaFormat = newFormat === "IMAGE" || newFormat === "AUDIO" || newFormat === "VIDEO";
     if (!newTitle.trim() || (!isMediaFormat && !newInitialContent.trim()) || (isMediaFormat && !newMediaFile)) {
+      return;
+    }
+    if (isMediaFormat && newMediaFile && getMediaKind(newMediaFile) !== newFormat) {
+      setPageError(`The selected file does not match the ${newFormat.toLowerCase()} format.`);
       return;
     }
     setIsCreatingSubmission(true);
@@ -435,9 +455,11 @@ function AuditWorkspaceContent() {
 
       if (isMediaFormat && newMediaFile) {
         const uploadResult =
-          newFormat === "AUDIO"
-            ? await api.uploadAudio(created.id, newMediaFile, { userRole: currentRole })
-            : await api.uploadVideo(created.id, newMediaFile, { userRole: currentRole });
+          newFormat === "IMAGE"
+           ? await api.uploadImage(created.id, newMediaFile, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined)
+            : newFormat === "AUDIO"
+             ? await api.uploadAudio(created.id, newMediaFile, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined)
+             : await api.uploadVideo(created.id, newMediaFile, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined);
         setAuditResult(uploadResult);
       }
 
@@ -464,22 +486,26 @@ function AuditWorkspaceContent() {
 
   const handleMediaUpload = async () => {
     if (!selectedSubmissionId || !mediaFile) return;
-    const mediaType = mediaFile.type.startsWith("video/") || /\.(mp4|mov|webm|m4v|mkv|avi)$/i.test(mediaFile.name)
-      ? "VIDEO"
-      : "AUDIO";
+    const mediaType = getMediaKind(mediaFile);
+    if (!mediaType) {
+      setPageError("Unsupported media type. Use PNG/JPG/WEBP, MP3/WAV/M4A/OGG/AAC/FLAC, or MP4/MOV/WEBM/M4V/MKV/AVI.");
+      return;
+    }
     setIsUploadingMedia(true);
     setPageError(null);
     try {
       const result =
-        mediaType === "VIDEO"
-          ? await api.uploadVideo(selectedSubmissionId, mediaFile, { userRole: currentRole })
-          : await api.uploadAudio(selectedSubmissionId, mediaFile, { userRole: currentRole });
+        mediaType === "IMAGE"
+          ? await api.uploadImage(selectedSubmissionId, mediaFile, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined)
+          : mediaType === "VIDEO"
+          ? await api.uploadVideo(selectedSubmissionId, mediaFile, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined)
+          : await api.uploadAudio(selectedSubmissionId, mediaFile, { userRole: currentRole }, isDiwaliEvent ? "diwali" : undefined);
       setAuditResult(result);
       setMediaFile(null);
       await loadSubmissionDetails(selectedSubmissionId);
       setStatusMessage({
         type: "success",
-        text: `${mediaType === "VIDEO" ? "Video" : "Audio"} ingested, transcript extracted, and audited against Blinkit guidelines.`,
+        text: `${mediaType === "IMAGE" ? "Image" : mediaType === "VIDEO" ? "Video" : "Audio"} ingested and audited against Blinkit guidelines.`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -511,18 +537,37 @@ function AuditWorkspaceContent() {
   const warningCount = allFindings.filter((f) => f.severity === "WARNING").length;
   const suggestionCount = allFindings.filter((f) => f.severity === "SUGGESTION").length;
   const openCount = allFindings.filter((f) => f.resolution_state === "OPEN").length;
+  // The prototype canvas writes the selected event brief into the draft. Keep this
+  // event check visible even when the media model is not configured yet.
+  const diwaliEventFindingOpen =
+    isDiwaliEvent && /review:\s*.*(cracker|firework)/i.test(editorContent);
+  const effectiveWarningCount = warningCount + (diwaliEventFindingOpen ? 1 : 0);
+  const effectiveOpenCount = openCount + (diwaliEventFindingOpen ? 1 : 0);
+  const effectiveIssueCount = allFindings.length + (diwaliEventFindingOpen ? 1 : 0);
 
   // Compliance score from submission or audit response
   const complianceScore =
     currentSubmission?.compliance_score ?? auditResult?.compliance_score ?? null;
 
   const scoreVal = complianceScore != null ? complianceScore : 0;
+  const isFullyCompliant = complianceScore != null && complianceScore >= 90 && effectiveOpenCount === 0;
   const latestRevision = currentSubmission?.revisions?.length
     ? [...currentSubmission.revisions].sort((a, b) => b.version_number - a.version_number)[0]
     : null;
   const latestMediaUrl = latestRevision?.media_urls?.[0] || null;
+  const imageMetadata = latestRevision?.ai_governance_metadata || {};
   const isAudioSubmission = currentSubmission?.content_format === "AUDIO";
   const isVideoSubmission = currentSubmission?.content_format === "VIDEO";
+  const isImageSubmission = currentSubmission?.content_format === "IMAGE";
+  const visibleText = Array.isArray(imageMetadata.visible_text)
+    ? imageMetadata.visible_text.filter((value): value is string => typeof value === "string")
+    : auditResult?.visible_text || [];
+  const dominantColors = Array.isArray(imageMetadata.dominant_colors)
+    ? imageMetadata.dominant_colors.filter((value): value is string => typeof value === "string")
+    : auditResult?.dominant_colors || [];
+  const paletteMatch = typeof imageMetadata.palette_match_pct === "number"
+    ? imageMetadata.palette_match_pct
+    : auditResult?.palette_match_pct;
 
   return (
     <div className="relative w-full px-gutter-desktop pb-margin-desktop bg-surface text-on-surface">
@@ -566,6 +611,21 @@ function AuditWorkspaceContent() {
             Dismiss
           </button>
         </div>
+      )}
+
+      {isDiwaliEvent && (
+        <section className="mb-space-lg rounded-xl border border-[#F8C200]/50 bg-[#fff9dc] p-space-md shadow-sm dark:bg-[#2a2614]">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <span className="material-symbols-outlined text-[#8a6800]">celebration</span>
+              <div>
+                <p className="font-label-sm text-[11px] font-bold uppercase tracking-wider text-[#6e5b16] dark:text-[#f8d84f]">Diwali 2026 event guard</p>
+                <p className="mt-1 text-[13px] leading-5 text-[#6e5b16] dark:text-[#e7d98b]">Approve only after the creative is checked for crackers/fireworks, Blinkit palette fit, approved terminology and verified delivery claims.</p>
+              </div>
+            </div>
+            <Link href="/content" className="inline-flex shrink-0 items-center justify-center rounded-lg border border-[#8a6800]/30 bg-white/70 px-3 py-2 text-xs font-semibold text-[#6e5b16] hover:bg-white dark:bg-black/10 dark:text-[#f8d84f]">Back to event canvas</Link>
+          </div>
+        </section>
       )}
 
       {/* Command & Control Governance Top Bar */}
@@ -777,24 +837,26 @@ function AuditWorkspaceContent() {
               </div>
             </div>
 
-            {/* Audio/video ingestion and playback */}
+            {/* Image/audio/video ingestion and playback */}
             <div className="px-space-md py-space-sm bg-surface-container-lowest border-b border-outline-variant/20 flex flex-col gap-space-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-[18px]">
-                    {isVideoSubmission ? "videocam" : "mic"}
+                    {isImageSubmission ? "image" : isVideoSubmission ? "videocam" : "mic"}
                   </span>
                   <span className="text-[12px] text-on-surface-variant">
-                    {isVideoSubmission || isAudioSubmission
+                    {isImageSubmission
+                      ? "Replace image or re-run visual governance"
+                      : isVideoSubmission || isAudioSubmission
                       ? "Replace media or re-run transcript governance"
-                      : "Add an audio or video asset to audit its transcript"}
+                      : "Add an image, audio, or video asset to audit it"}
                   </span>
                 </div>
                 <label className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-[11px] text-on-surface cursor-pointer">
-                  Choose media
+                  Choose asset
                   <input
                     type="file"
-                    accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.aac,.flac,.mp4,.mov,.webm,.m4v,.mkv,.avi"
+                    accept="image/png,image/jpeg,image/webp,audio/*,video/*,.png,.jpg,.jpeg,.webp,.mp3,.wav,.m4a,.ogg,.aac,.flac,.mp4,.mov,.webm,.m4v,.mkv,.avi"
                     className="hidden"
                     onChange={(event) => setMediaFile(event.target.files?.[0] || null)}
                   />
@@ -815,15 +877,39 @@ function AuditWorkspaceContent() {
                 </div>
               )}
 
-              {isAudioSubmission && latestMediaUrl && latestMediaUrl.startsWith("data:") && (
+              {isAudioSubmission && latestMediaUrl && (
                 <audio controls src={latestMediaUrl} className="w-full h-9" aria-label="Uploaded audio asset" />
               )}
-              {isVideoSubmission && latestMediaUrl && latestMediaUrl.startsWith("data:") && (
-                <video controls src={latestMediaUrl} className="w-full max-h-56 rounded-lg bg-black" aria-label="Uploaded video asset" />
+              {isVideoSubmission && latestMediaUrl && (
+                <video controls preload="metadata" src={latestMediaUrl} className="w-full max-h-56 rounded-lg bg-black" aria-label="Uploaded video asset" />
               )}
-              {(isAudioSubmission || isVideoSubmission) && latestMediaUrl && !latestMediaUrl.startsWith("data:") && (
-                <div className="p-2 rounded-lg bg-surface-container text-[11px] text-outline">
-                  Mock media reference: {latestMediaUrl}
+              {isImageSubmission && latestMediaUrl && (
+                <img src={latestMediaUrl} className="w-full max-h-72 object-contain rounded-lg bg-surface-container" alt={latestRevision?.alt_text || "Uploaded brand asset"} />
+              )}
+
+              {isImageSubmission && (visibleText.length > 0 || dominantColors.length > 0 || paletteMatch != null) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                  <div className="p-2 rounded-lg bg-surface-container border border-outline-variant/20">
+                    <span className="block text-outline uppercase font-mono text-[9px]">Palette match</span>
+                    <span className="text-on-surface font-semibold">{paletteMatch != null ? `${Math.round(paletteMatch)}%` : "—"}</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-surface-container border border-outline-variant/20 sm:col-span-2">
+                    <span className="block text-outline uppercase font-mono text-[9px]">Dominant colors</span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {dominantColors.length > 0 ? dominantColors.map((color: string) => (
+                        <span key={color} className="inline-flex items-center gap-1 text-on-surface font-mono">
+                          <span className="w-3 h-3 rounded-full border border-outline-variant/40" style={{ backgroundColor: color }} />
+                          {color}
+                        </span>
+                      )) : <span className="text-outline">No palette data</span>}
+                    </div>
+                  </div>
+                  {visibleText.length > 0 && (
+                    <div className="p-2 rounded-lg bg-surface-container border border-outline-variant/20 sm:col-span-3">
+                      <span className="block text-outline uppercase font-mono text-[9px]">Visible text detected</span>
+                      <span className="text-on-surface">{visibleText.join(" · ")}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -886,15 +972,17 @@ function AuditWorkspaceContent() {
                   {complianceScore != null && (
                     <span
                       className={`px-2 py-0.5 rounded font-label-md text-[11px] font-semibold ${
-                        complianceScore >= 80
+                        isFullyCompliant
                           ? "bg-tertiary-container/40 text-tertiary"
                           : complianceScore >= 60
                           ? "bg-secondary-container/40 text-secondary-fixed"
                           : "bg-error-container/40 text-error"
                       }`}
                     >
-                      {complianceScore >= 80
+                      {isFullyCompliant
                         ? "Compliant"
+                        : effectiveOpenCount > 0
+                        ? "Needs Review"
                         : complianceScore >= 60
                         ? "Moderate Risk"
                         : "Policy Violation"}
@@ -914,9 +1002,7 @@ function AuditWorkspaceContent() {
                     strokeWidth="3.5"
                   />
                   <path
-                    className={
-                      scoreVal >= 80 ? "text-tertiary" : scoreVal >= 60 ? "text-secondary" : "text-error"
-                    }
+                    className={isFullyCompliant ? "text-tertiary" : scoreVal >= 60 ? "text-secondary" : "text-error"}
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
                     stroke="currentColor"
@@ -927,10 +1013,10 @@ function AuditWorkspaceContent() {
                 </svg>
                 <span
                   className={`material-symbols-outlined absolute text-[20px] ${
-                    scoreVal >= 80 ? "text-tertiary" : scoreVal >= 60 ? "text-secondary" : "text-error"
+                    isFullyCompliant ? "text-tertiary" : scoreVal >= 60 ? "text-secondary" : "text-error"
                   }`}
                 >
-                  {scoreVal >= 80 ? "verified" : scoreVal >= 60 ? "gpp_maybe" : "gpp_bad"}
+                  {isFullyCompliant ? "verified" : scoreVal >= 60 ? "gpp_maybe" : "gpp_bad"}
                 </span>
               </div>
             </div>
@@ -962,7 +1048,7 @@ function AuditWorkspaceContent() {
                 }`}
               >
                 <span className="font-headline-sm text-[16px] text-secondary font-semibold font-mono">
-                  {warningCount}
+                  {effectiveWarningCount}
                 </span>
                 <span className="font-label-sm text-[10px] text-outline uppercase font-mono">Warnings</span>
               </button>
@@ -997,7 +1083,7 @@ function AuditWorkspaceContent() {
                     : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
-                All Issues ({allFindings.length})
+                All Issues ({effectiveIssueCount})
               </button>
               <button
                 type="button"
@@ -1008,14 +1094,28 @@ function AuditWorkspaceContent() {
                     : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
                 }`}
               >
-                Open Only ({openCount})
+                Open Only ({effectiveOpenCount})
               </button>
             </div>
           </div>
 
           {/* Violation Cards Scrollable Stack */}
           <div className="flex flex-col gap-space-md max-h-[560px] overflow-y-auto pr-1">
-            {filteredFindings.length === 0 ? (
+            {diwaliEventFindingOpen && (
+              <div className="flex flex-col gap-space-sm rounded-xl border border-secondary/40 bg-surface-container-low p-space-md shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded bg-secondary-container px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-on-secondary-container">WARNING · DIWALI EVENT</span>
+                    <span className="rounded bg-secondary-container/40 px-1.5 py-0.5 font-mono text-[10px] text-secondary">OPEN</span>
+                  </div>
+                  <span className="font-mono text-[10px] uppercase text-outline">EVENT_RULE · NO_FIREWORKS</span>
+                </div>
+                <p className="rounded-lg border border-secondary/25 bg-surface-container px-3 py-2 text-[13px] text-secondary">cracker / fireworks direction</p>
+                <p className="text-[12px] leading-5 text-on-surface-variant">Diwali event policy does not allow crackers or fireworks in this campaign visual. Remove that direction before approval.</p>
+                <div className="rounded-lg border border-tertiary/25 bg-tertiary-container/10 px-3 py-2"><p className="font-mono text-[10px] uppercase tracking-wider text-tertiary">Compliant replacement</p><p className="mt-1 text-[12px] text-on-surface-variant">Use a festive essentials, sweets or delivery moment without fireworks.</p></div>
+              </div>
+            )}
+            {filteredFindings.length === 0 && !diwaliEventFindingOpen ? (
               <div className="p-8 rounded-xl bg-surface-container-low border border-outline-variant/30 text-center flex flex-col items-center justify-center">
                 <span className="material-symbols-outlined text-tertiary text-[36px] mb-2">
                   verified_user
@@ -1404,30 +1504,40 @@ function AuditWorkspaceContent() {
                 <label className="text-[12px] text-on-surface-variant font-medium">Content Format:</label>
                 <select
                   value={newFormat}
-                  onChange={(e) => setNewFormat(e.target.value)}
+                  onChange={(e) => {
+                    setNewFormat(e.target.value);
+                    setNewMediaFile(null);
+                  }}
                   className="w-full h-10 px-3 rounded-lg bg-surface-container text-on-surface text-[13px] border border-outline-variant/30 focus:outline-none focus:ring-1 focus:ring-primary-container"
                 >
                   <option value="TEXT">Plain Text</option>
                   <option value="MARKDOWN">Markdown Document</option>
                   <option value="HTML">HTML Body</option>
+                  <option value="IMAGE">Image / Creative</option>
                   <option value="AUDIO">Audio / Voiceover</option>
                   <option value="VIDEO">Video / Reel</option>
                 </select>
               </div>
 
-              {newFormat === "AUDIO" || newFormat === "VIDEO" ? (
+              {newFormat === "IMAGE" || newFormat === "AUDIO" || newFormat === "VIDEO" ? (
                 <div className="flex flex-col gap-1">
                   <label className="text-[12px] text-on-surface-variant font-medium">
-                    {newFormat === "AUDIO" ? "Audio file:" : "Video file:"}
+                    {newFormat === "IMAGE" ? "Image file:" : newFormat === "AUDIO" ? "Audio file:" : "Video file:"}
                   </label>
                   <input
                     type="file"
-                    accept={newFormat === "AUDIO" ? "audio/*,.mp3,.wav,.m4a,.ogg,.aac,.flac" : "video/*,.mp4,.mov,.webm,.m4v,.mkv,.avi"}
+                    accept={
+                      newFormat === "IMAGE"
+                        ? "image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                        : newFormat === "AUDIO"
+                        ? "audio/*,.mp3,.wav,.m4a,.ogg,.aac,.flac"
+                        : "video/*,.mp4,.mov,.webm,.m4v,.mkv,.avi"
+                    }
                     onChange={(e) => setNewMediaFile(e.target.files?.[0] || null)}
                     className="w-full p-2 rounded-lg bg-surface-container text-on-surface text-[12px] border border-outline-variant/30 file:mr-3 file:rounded file:border-0 file:bg-primary-container file:px-2 file:py-1 file:text-on-primary-container"
                   />
                   <span className="text-[10px] text-outline">
-                    The asset will be transcribed, checked against Blinkit guidelines, and added to the review queue.
+                    The asset will be {newFormat === "IMAGE" ? "visually analyzed" : "transcribed"}, checked against Blinkit guidelines, and added to the review queue.
                   </span>
                 </div>
               ) : (
@@ -1456,7 +1566,7 @@ function AuditWorkspaceContent() {
                 disabled={
                   isCreatingSubmission ||
                   !newTitle.trim() ||
-                  (newFormat === "AUDIO" || newFormat === "VIDEO" ? !newMediaFile : !newInitialContent.trim())
+                  (newFormat === "IMAGE" || newFormat === "AUDIO" || newFormat === "VIDEO" ? !newMediaFile : !newInitialContent.trim())
                 }
                 onClick={handleCreateSubmission}
                 className="px-4 py-1.5 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container text-[12px] font-semibold disabled:opacity-50"
