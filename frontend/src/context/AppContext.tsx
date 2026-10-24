@@ -23,6 +23,8 @@ interface AppContextType {
   toggleTheme: () => void;
   refreshBrands: () => Promise<void>;
   refreshHealth: () => Promise<void>;
+  refreshKey: number;
+  triggerRefresh: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -35,19 +37,34 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [isLoadingBrands, setIsLoadingBrands] = useState<boolean>(true);
   const [brandsError, setBrandsError] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [theme, setThemeState] = useState<ThemeMode>("light");
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
-  // Load and synchronize theme on mount
+  const triggerRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("inkloom_theme") as ThemeMode | null;
+        if (saved === "dark" || saved === "light") {
+          return saved;
+        }
+      } catch {
+        // localStorage not available
+      }
+    }
+    return "light";
+  });
+
+  // Synchronize document theme class on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("inkloom_theme") as ThemeMode | null;
-      if (saved === "dark" || saved === "light") {
-        setThemeState(saved);
-        if (saved === "dark") {
-          document.documentElement.classList.add("dark");
-        } else {
-          document.documentElement.classList.remove("dark");
-        }
+      if (saved === "dark") {
+        document.documentElement.classList.add("dark");
+      } else if (saved === "light") {
+        document.documentElement.classList.remove("dark");
       }
     } catch {
       // localStorage may fail in restricted browser envs
@@ -162,6 +179,8 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         toggleTheme,
         refreshBrands: fetchBrands,
         refreshHealth: fetchHealth,
+        refreshKey,
+        triggerRefresh,
       }}
     >
       {children}

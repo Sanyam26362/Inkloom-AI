@@ -14,7 +14,7 @@ import {
 
 function AuditWorkspaceContent() {
   const searchParams = useSearchParams();
-  const queryId = searchParams.get("id");
+  const queryId = searchParams?.get("id");
 
   const { activeBrand, activeBrandId, currentRole } = useApp();
 

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 
 export function Sidebar() {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "";
   const {
     currentRole,
     health,
@@ -59,14 +59,14 @@ export function Sidebar() {
       <aside
         className={`fixed left-0 top-0 h-screen w-72 border-r shadow-xs z-50 flex flex-col justify-between select-none transition-all duration-200 font-sans ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } ${isDark ? "bg-[#1b1b1f] border-[#292a2d] text-[#e3e2e6]" : "bg-white border-[#e5e7eb] text-[#111827]"}`}
+        } ${isDark ? "bg-[#1b1b1f] border-[#3b3c44] text-[#e3e2e6]" : "bg-white border-[#cbd5e1] text-[#111827]"}`}
       >
         {/* Top Header & Navigation */}
         <div className="flex flex-col">
           {/* Brand Header */}
           <div
             className={`h-16 px-6 flex items-center gap-3 border-b transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
             <div
@@ -170,7 +170,7 @@ export function Sidebar() {
         {/* Bottom Information Widgets */}
         <div
           className={`flex flex-col p-3 gap-2 border-t transition-colors ${
-            isDark ? "bg-[#121316] border-[#292a2d]" : "bg-[#f8fafc] border-[#e5e7eb]"
+            isDark ? "bg-[#121316] border-[#3b3c44]" : "bg-[#f8fafc] border-[#cbd5e1]"
           }`}
         >
           {/* Theme Switcher Toggle Card (Whole card is clickable) */}
@@ -178,8 +178,8 @@ export function Sidebar() {
             onClick={toggleTheme}
             className={`px-3 py-2.5 rounded-md border shadow-2xs flex items-center justify-between cursor-pointer transition-all ${
               isDark
-                ? "bg-[#1f1f23] border-[#292a2d] hover:bg-[#292a2d]"
-                : "bg-white border-[#e5e7eb] hover:bg-[#f4f4f4]"
+                ? "bg-[#1f1f23] border-[#3b3c44] hover:bg-[#292a2d]"
+                : "bg-white border-[#cbd5e1] hover:bg-[#f4f4f4]"
             }`}
             title="Click to toggle between Dark and Light mode"
             role="button"
@@ -217,7 +217,7 @@ export function Sidebar() {
           {/* Active Workspace / Brand Indicator */}
           <div
             className={`px-3 py-2 rounded-md border shadow-2xs flex items-center justify-between transition-colors ${
-              isDark ? "bg-[#1f1f23] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+              isDark ? "bg-[#1f1f23] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
             <div className="flex flex-col overflow-hidden">
@@ -248,7 +248,7 @@ export function Sidebar() {
           {/* Engine Status Card */}
           <div
             className={`px-3 py-2 rounded-md border shadow-2xs flex flex-col gap-1 transition-colors ${
-              isDark ? "bg-[#1f1f23] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+              isDark ? "bg-[#1f1f23] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
             <div className="flex items-center justify-between">

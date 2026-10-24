@@ -16,7 +16,7 @@
   --color-on-surface: #111827;
   --color-on-surface-variant: #4b5563;
   --color-outline: #9ca3af;
-  --color-outline-variant: #e5e7eb;
+  --color-outline-variant: #cbd5e1;
   
   --color-primary: #005797;
   --color-primary-container: #005797;
@@ -44,6 +44,11 @@
   --color-on-error: #ffffff;
   --color-on-error-container: #991b1b;
 
+  --color-warning: #d97706;
+  --color-warning-container: #fffbeb;
+  --color-on-warning: #ffffff;
+  --color-on-warning-container: #b45309;
+
   --spacing-space-xs: 0.25rem;
   --spacing-space-sm: 0.5rem;
   --spacing-space-md: 0.75rem;
@@ -58,7 +63,7 @@
   
   --font-geist: var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), "JetBrains Mono", monospace;
-  --font-sans: var(--font-lato), "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: var(--font-domine), "Domine", Georgia, serif;
   --font-lato: var(--font-lato), "Lato", sans-serif;
 
@@ -69,7 +74,7 @@
   --color-text-primary: #374151;
   --color-text-muted: #4b5563;
   --color-accent: #ffe29f;
-  --color-border: #d9d9d9;
+  --color-border: #cbd5e1;
   --color-equally-action-color: #111827;
   --color-palette-1: #e5e7eb;
   --color-palette-2: #ffffff99;
@@ -97,7 +102,7 @@
     padding: 0;
     background-color: #f8fafc;
     color: #111827;
-    font-family: var(--font-lato), "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-geist-sans), "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
@@ -130,7 +135,7 @@
 }
 
 /* =====================================================================
-   DARK THEME OVERRIDES (Applied when html has 'dark' class)
+   DARK THEME ORIGINAL PALETTE (Restored as requested by user)
    ===================================================================== */
 html.dark {
   --color-surface: #121316;
@@ -158,7 +163,7 @@ html.dark {
   --color-text-primary: #e3e2e6;
   --color-text-muted: #958da1;
   --color-equally-action-color: #f3f4f6;
-  --color-border: #292a2d;
+  --color-border: #3b3c44;
   --color-palette-1: #292a2d;
   --color-palette-4: #1f1f23;
   --color-palette-7: #1b1b1f;
@@ -172,7 +177,7 @@ html.dark body {
   color: #e3e2e6;
 }
 
-/* Dark Mode Scoped Adaptations across entire website */
+/* Dark Mode Scoped Adaptations across landing page */
 html.dark .landing-scope {
   --color-primary: #7c3aed;
   --color-surface: #1b1b1f;
@@ -210,6 +215,10 @@ html.dark .border-\[\#e5e7eb\] {
 
 html.dark .border-\[\#f1f5f9\] {
   border-color: #1f1f23 !important;
+}
+
+html.dark .border-\[\#292a2d\] {
+  border-color: #292a2d !important;
 }
 
 html.dark .text-\[\#111827\] {
@@ -258,6 +267,25 @@ html.dark .bg-\[\#fffbeb\] {
 html.dark .bg-\[\#fef2f2\] {
   background-color: rgba(220, 38, 38, 0.2) !important;
   color: #ffb4ab !important;
+}
+
+html.dark .text-\[\#d2bbff\] {
+  color: #d2bbff !important;
+}
+
+html.dark .bg-\[\#7c3aed\] {
+  background-color: #7c3aed !important;
+}
+
+html.dark .hover\:bg-\[\#6d28d9\]:hover {
+  background-color: #6d28d9 !important;
+}
+
+/* Tabular Numerals Utility */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  -webkit-font-feature-settings: "tnum";
+  font-feature-settings: "tnum";
 }
 
 /* Material Symbols icon helper */

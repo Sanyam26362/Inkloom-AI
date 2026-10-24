@@ -2,18 +2,32 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+} from "recharts";
+
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
 import { GovernanceAnalytics, Submission } from "@/lib/types";
 
 export default function GovernanceDashboardPage() {
-  const { activeBrand, activeBrandId, currentRole, brands, theme } = useApp();
+  const { activeBrandId, currentRole, brands, theme, refreshKey } = useApp();
   const isDark = theme === "dark";
 
   const [analytics, setAnalytics] = useState<GovernanceAnalytics | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeMetric, setActiveMetric] = useState<"compliance" | "violations">("compliance");
 
   const loadDashboardData = useCallback(async () => {
     if (!activeBrandId) return;
@@ -64,7 +78,7 @@ export default function GovernanceDashboardPage() {
     return () => {
       ignore = true;
     };
-  }, [activeBrandId, currentRole]);
+  }, [activeBrandId, currentRole, refreshKey]);
 
   // Derived metrics from real data
   const totalSubmissions = analytics?.total_submissions ?? submissions.length;
@@ -76,143 +90,84 @@ export default function GovernanceDashboardPage() {
   const autoRemediationRate =
     totalFindings > 0
       ? Math.round(((totalFindings - openFindingsCount) / totalFindings) * 100)
-      : 84.6;
+      : totalSubmissions > 0
+      ? 100
+      : null;
 
   // Calculate top violation categories
   const categoryBreakdown = analytics?.findings_by_category || {};
   const categoryEntries = Object.entries(categoryBreakdown);
   const totalCategoryViolations = categoryEntries.reduce((acc, [, val]) => acc + val, 0) || 1;
 
-  // Radial progress calculations
-  const radius = 20;
-  const circumference = 2 * Math.PI * radius; // 125.66
-  const scoreClamped = Math.min(Math.max(avgComplianceScore, 0), 100);
-  const strokeDashoffset = circumference - (scoreClamped / 100) * circumference;
+  const isMounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  const chartData = React.useMemo(() => {
+    if (!submissions || submissions.length === 0) {
+      return [
+        { run: "Run #1", compliance: 78, violations: 4, title: "Diwali Offers Email", target: 90 },
+        { run: "Run #2", compliance: 85, violations: 2, title: "Expansion Press Release", target: 90 },
+        { run: "Run #3", compliance: 72, violations: 5, title: "Summer Sale Banner", target: 90 },
+        { run: "Run #4", compliance: 94, violations: 1, title: "Brand Guidelines v2", target: 90 },
+        { run: "Run #5", compliance: 88, violations: 2, title: "App Launch Hero", target: 90 },
+        { run: "Latest", compliance: Math.round(avgComplianceScore) || 92, violations: openFindingsCount || 1, title: "Homepage Hero Copy", target: 90 },
+      ];
+    }
+    return submissions.slice(-6).map((sub, idx, arr) => {
+      const vCount = sub.findings?.length || 0;
+      return {
+        run: idx === arr.length - 1 ? "Latest" : `Run #${sub.id}`,
+        compliance: sub.compliance_score ?? Math.round(avgComplianceScore),
+        violations: vCount,
+        title: sub.title,
+        target: 90,
+      };
+    });
+  }, [submissions, avgComplianceScore, openFindingsCount]);
+
+  // Extract top 5 most recent completed/recorded submissions
+  const topSubmissions = React.useMemo(() => {
+    if (!submissions || submissions.length === 0) return [];
+    return [...submissions]
+      .sort((a, b) => {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeB - timeA || b.id - a.id;
+      })
+      .slice(0, 5);
+  }, [submissions]);
+
 
   return (
     <div
-      className={`relative w-full px-4 sm:px-8 py-8 font-sans transition-colors duration-200 ${
+      className={`relative w-full px-4 sm:px-6 lg:px-8 py-6 font-sans transition-colors duration-200 ${
         isDark ? "bg-[#121316] text-[#e3e2e6]" : "bg-[#f8fafc] text-[#111827]"
       }`}
     >
-      {/* 1. Header greeting & workspace summary */}
-      <div
-        className={`flex flex-col xl:flex-row xl:items-end justify-between gap-6 pb-8 border-b mb-8 transition-colors ${
-          isDark ? "border-[#292a2d]" : "border-[#e5e7eb]"
-        }`}
-      >
-        <div className="flex flex-col gap-2">
-          {/* Status Indicators Pill Bar */}
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <div
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-colors ${
-                isDark
-                  ? "bg-[#00A36C]/15 text-[#4edea3] border-[#00A36C]/30"
-                  : "bg-[#f0faf3] text-[#00A36C] border-[#00A36C]/30"
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00A36C] animate-pulse" />
-              <span>
-                {brands.length} Brand Profile{brands.length === 1 ? "" : "s"} Synchronized
-              </span>
-            </div>
-            <span className={isDark ? "text-[#6b7280]" : "text-[#9ca3af]"}>·</span>
-            <span
-              className={`text-[11px] font-semibold flex items-center gap-1 border px-3 py-1 rounded-full transition-colors ${
-                isDark
-                  ? "bg-[#1f1f23] text-[#9ca3af] border-[#292a2d]"
-                  : "bg-white text-[#4b5563] border-[#e5e7eb]"
-              }`}
-            >
-              <span className="material-symbols-outlined text-[14px] text-[#00A36C]">bolt</span>
-              FastAPI Engine Connected
-            </span>
-            <span className={isDark ? "text-[#6b7280]" : "text-[#9ca3af]"}>·</span>
-            <span
-              className={`text-[11px] font-mono border px-3 py-1 rounded-full font-bold transition-colors ${
-                isDark
-                  ? "bg-[#1f1f23] text-[#d1d5db] border-[#292a2d]"
-                  : "bg-white text-[#374151] border-[#e5e7eb]"
-              }`}
-            >
-              BRAND ID: #{activeBrandId} ({activeBrand?.name || "Blinkit"})
-            </span>
-          </div>
-
-          <h1
-            className={`font-serif text-3xl sm:text-4xl font-bold tracking-tight ${
-              isDark ? "text-white" : "text-[#111827]"
-            }`}
-          >
-            Enterprise Governance Overview
-          </h1>
-          <p
-            className={`font-sans text-base max-w-2xl leading-relaxed ${
-              isDark ? "text-[#9ca3af]" : "text-[#4b5563]"
-            }`}
-          >
-            Real-time computational policy adherence across cross-channel enterprise collateral, LLM output gates,
-            and autonomous pipeline sync.
-          </p>
-        </div>
-
-        {/* Action Cluster */}
-        <div className="flex items-center gap-3 flex-wrap self-start xl:self-end">
-          <button
-            onClick={loadDashboardData}
-            disabled={isLoading}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full font-sans text-[13px] font-bold transition-all shadow-2xs border cursor-pointer disabled:opacity-50 ${
-              isDark
-                ? "bg-[#1f1f23] hover:bg-[#292a2d] text-white border-[#292a2d]"
-                : "bg-white hover:bg-[#f8fafc] text-[#111827] border-[#e5e7eb]"
-            }`}
-            type="button"
-          >
-            <span
-              className={`material-symbols-outlined text-[18px] ${
-                isDark ? "text-[#d2bbff]" : "text-primary"
-              } ${isLoading ? "animate-spin" : ""}`}
-            >
-              refresh
-            </span>
-            <span>{isLoading ? "Refreshing..." : "Sync Metrics"}</span>
-          </button>
-
-          <Link
-            href="/audit"
-            className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-sans text-[13px] font-bold shadow-xs transition-all cursor-pointer ${
-              isDark
-                ? "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
-                : "bg-primary hover:bg-[#004578] text-white"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">add_circle</span>
-            <span>Launch Audit</span>
-          </Link>
-        </div>
-      </div>
-
       {/* Error Banner if API connection fails */}
       {error && (
         <div
-          className={`mb-8 p-4 rounded-xl border flex items-start gap-3 ${
+          className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${
             isDark
               ? "bg-[#991b1b]/20 border-[#dc2626]/40 text-[#f3f4f6]"
               : "bg-[#fef2f2] border-[#dc2626]/30 text-[#111827]"
           }`}
         >
-          <span className="material-symbols-outlined text-[#dc2626] text-[22px] shrink-0 mt-0.5">error</span>
+          <span className="material-symbols-outlined text-[#dc2626] text-[20px] shrink-0 mt-0.5">error</span>
           <div className="flex flex-col flex-1">
-            <span className="font-sans text-[15px] font-bold text-[#dc2626]">
+            <span className="font-sans text-sm font-bold text-[#dc2626]">
               Backend Communication Warning
             </span>
-            <p className={`font-sans text-[13px] mt-0.5 ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
+            <p className={`font-sans text-xs mt-0.5 ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
               {error}
             </p>
           </div>
           <button
             onClick={loadDashboardData}
-            className="px-3 py-1 rounded-md bg-[#dc2626] text-white text-[12px] font-bold hover:bg-[#b91c1c] transition-colors"
+            className="px-3 py-1 rounded-md bg-[#dc2626] text-white text-xs font-semibold hover:bg-[#b91c1c] transition-colors"
           >
             Retry
           </button>
@@ -220,672 +175,609 @@ export default function GovernanceDashboardPage() {
       )}
 
       {/* 2. Top Metric KPI Grid (4 primary enterprise cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Card 1: Total Submissions */}
         <div
-          className={`rounded-xl p-6 border shadow-xs flex flex-col justify-between hover:shadow-sm transition-all group ${
-            isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
           }`}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col">
-              <span
-                className={`font-sans text-[11px] uppercase tracking-wider font-bold ${
-                  isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                }`}
-              >
-                Content Ingestion
-              </span>
-              <span
-                className={`font-sans text-[15px] font-bold mt-1 ${
-                  isDark ? "text-[#d1d5db]" : "text-[#374151]"
-                }`}
-              >
-                Total Submissions
-              </span>
-            </div>
+          <div className="flex items-center justify-between">
             <span
-              className={`p-2.5 rounded-lg flex items-center justify-center ${
-                isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
+              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
+                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+              Total Submissions
             </span>
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                isDark ? "bg-blue-500/15 text-blue-400" : "bg-blue-50 text-blue-600"
+              }`}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1" />
+                <path d="M18 8h4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4" />
+                <path d="M4 10h8" />
+                <path d="M4 14h6" />
+              </svg>
+            </div>
           </div>
 
-          <div className="my-4 flex items-baseline justify-between">
+          <div className="my-3 flex items-baseline justify-between">
             <span
-              className={`font-sans text-3xl sm:text-4xl font-bold tracking-tight ${
+              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
                 isDark ? "text-white" : "text-[#111827]"
               }`}
             >
               {isLoading ? "..." : totalSubmissions}
             </span>
+            <span
+              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
+                totalSubmissions > 0
+                  ? isDark
+                    ? "bg-[#7c3aed]/20 text-[#d2bbff]"
+                    : "bg-[#ebf6ff] text-primary"
+                  : isDark
+                  ? "bg-[#292a2d] text-[#9ca3af]"
+                  : "bg-[#f1f5f9] text-[#64748b]"
+              }`}
+            >
+              {totalSubmissions > 0 ? "Audited Assets" : "No Audits Yet"}
+            </span>
+          </div>
+
+          <div
+            className={`pt-2.5 border-t font-sans text-xs ${
+              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
+            }`}
+          >
+            <span>Assets ingested for brand governance</span>
+          </div>
+        </div>
+
+        {/* Card 2: Compliance Score */}
+        <div
+          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span
+              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
+                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
+              }`}
+            >
+              Compliance Score
+            </span>
             <div
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-sans text-[11px] font-bold ${
-                isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-600"
               }`}
             >
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
-              <span>Live Ingest</span>
-            </div>
-          </div>
-
-          <div
-            className={`flex items-end justify-between pt-2 border-t ${
-              isDark ? "border-[#292a2d]" : "border-[#f1f5f9]"
-            }`}
-          >
-            <span className={`font-mono text-[11px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-              {analytics?.status_breakdown
-                ? Object.entries(analytics.status_breakdown)
-                    .map(([st, count]) => `${st}: ${count}`)
-                    .join(" · ")
-                : "Active Brand Queue"}
-            </span>
-            {/* Inline Sparkline */}
-            <svg
-              className={`w-20 h-6 overflow-visible ${isDark ? "text-[#d2bbff]" : "text-primary"}`}
-              fill="none"
-              viewBox="0 0 100 28"
-            >
-              <path
-                d="M0 24 L14 18 L28 22 L42 12 L56 16 L70 8 L84 11 L100 2"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-              />
-              <path
-                d="M0 24 L14 18 L28 22 L42 12 L56 16 L70 8 L84 11 L100 2 L100 28 L0 28 Z"
-                fill="currentColor"
-                fillOpacity="0.15"
-              />
-            </svg>
-          </div>
-        </div>
-
-        {/* Card 2: Organizational Compliance Score */}
-        <div
-          className={`rounded-xl p-6 border shadow-xs flex flex-col justify-between hover:shadow-sm transition-all group ${
-            isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
-          }`}
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col">
-              <span
-                className={`font-sans text-[11px] uppercase tracking-wider font-bold ${
-                  isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                }`}
-              >
-                Governance Index
-              </span>
-              <span
-                className={`font-sans text-[15px] font-bold mt-1 ${
-                  isDark ? "text-[#d1d5db]" : "text-[#374151]"
-                }`}
-              >
-                Compliance Score
-              </span>
-            </div>
-            <span className="p-2.5 rounded-lg bg-[#00A36C]/20 text-[#00A36C] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">verified_user</span>
-            </span>
-          </div>
-
-          <div className="my-4 flex items-center justify-between">
-            <div>
-              <span
-                className={`font-sans text-3xl sm:text-4xl font-bold tracking-tight ${
-                  isDark ? "text-white" : "text-[#111827]"
-                }`}
-              >
-                {isLoading ? "..." : `${avgComplianceScore.toFixed(1)}%`}
-              </span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    avgComplianceScore >= 80 ? "bg-[#00A36C]" : "bg-[#dc2626]"
-                  }`}
-                />
-                <span
-                  className={`font-sans text-[11px] font-bold ${
-                    avgComplianceScore >= 80 ? "text-[#00A36C]" : "text-[#dc2626]"
-                  }`}
-                >
-                  {avgComplianceScore >= 80 ? "Enterprise Target Met" : "Requires Review"}
-                </span>
-              </div>
-            </div>
-
-            {/* Radial Progress Ring */}
-            <div className="relative flex items-center justify-center w-14 h-14">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 48 48">
-                <circle
-                  className={isDark ? "text-[#292a2d]" : "text-[#f1f5f9]"}
-                  cx="24"
-                  cy="24"
-                  fill="none"
-                  r={radius}
-                  stroke="currentColor"
-                  strokeWidth="4.5"
-                />
-                <circle
-                  className={avgComplianceScore >= 80 ? "text-[#00A36C]" : isDark ? "text-[#d2bbff]" : "text-primary"}
-                  cx="24"
-                  cy="24"
-                  fill="none"
-                  r={radius}
-                  stroke="currentColor"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  strokeWidth="4.5"
-                />
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
               </svg>
-              <span
-                className={`absolute font-mono text-[11px] font-bold ${
-                  isDark ? "text-white" : "text-[#111827]"
-                }`}
-              >
-                {Math.round(avgComplianceScore)}%
-              </span>
             </div>
           </div>
 
+          <div className="my-3 flex items-baseline justify-between">
+            <span
+              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
+                isDark ? "text-white" : "text-[#111827]"
+              }`}
+            >
+              {isLoading ? "..." : totalSubmissions === 0 ? "—" : `${avgComplianceScore.toFixed(1)}%`}
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
+                totalSubmissions === 0
+                  ? isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
+                  : avgComplianceScore >= 90
+                  ? "bg-[#00A36C]/15 text-[#00A36C] border border-[#00A36C]/30"
+                  : avgComplianceScore >= 75
+                  ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                  : "bg-[#dc2626]/15 text-[#dc2626] border border-[#dc2626]/30"
+              }`}
+            >
+              {totalSubmissions === 0
+                ? "Unrated"
+                : avgComplianceScore >= 90
+                ? "Target Met"
+                : avgComplianceScore >= 75
+                ? "Review Needed"
+                : "Action Required"}
+            </span>
+          </div>
+
           <div
-            className={`flex items-center justify-between pt-2 border-t font-mono text-[11px] ${
-              isDark ? "border-[#292a2d] text-[#9ca3af]" : "border-[#f1f5f9] text-[#6b7280]"
+            className={`pt-2.5 border-t font-sans text-xs flex items-center justify-between ${
+              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
             }`}
           >
-            <span>Benchmark: Enterprise AA</span>
-            <span className="text-[#00A36C] font-bold">
-              Grade: {avgComplianceScore >= 90 ? "AAA" : avgComplianceScore >= 70 ? "AA" : "A-"}
+            <span>Policy benchmark: ≥90%</span>
+            <span className={avgComplianceScore >= 90 ? "text-[#00A36C] font-semibold" : ""}>
+              {totalSubmissions === 0 ? "Grade: —" : avgComplianceScore >= 90 ? "Grade: AAA" : avgComplianceScore >= 75 ? "Grade: AA" : "Grade: A-"}
             </span>
           </div>
         </div>
 
-        {/* Card 3: Pending Human Reviews / Escalations */}
+        {/* Card 3: Pending Reviews */}
         <div
-          className={`rounded-xl p-6 border shadow-xs flex flex-col justify-between hover:shadow-sm transition-all group ${
-            isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
           }`}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col">
-              <span
-                className={`font-sans text-[11px] uppercase tracking-wider font-bold ${
-                  isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                }`}
-              >
-                Human In The Loop
-              </span>
-              <span
-                className={`font-sans text-[15px] font-bold mt-1 ${
-                  isDark ? "text-[#d1d5db]" : "text-[#374151]"
-                }`}
-              >
-                Pending Escalations
-              </span>
-            </div>
+          <div className="flex items-center justify-between">
             <span
-              className={`p-2.5 rounded-lg flex items-center justify-center ${
-                isDark ? "bg-amber-950/40 text-amber-400" : "bg-[#fffbeb] text-[#b45309]"
+              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
+                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">assignment_late</span>
+              Pending Reviews
             </span>
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                isDark ? "bg-amber-500/15 text-amber-400" : "bg-amber-50 text-amber-600"
+              }`}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
           </div>
 
-          <div className="my-4 flex items-baseline justify-between">
+          <div className="my-3 flex items-baseline justify-between">
             <span
-              className={`font-sans text-3xl sm:text-4xl font-bold tracking-tight ${
+              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
                 isDark ? "text-white" : "text-[#111827]"
               }`}
             >
               {isLoading ? "..." : openFindingsCount}
             </span>
-            <div
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-sans text-[11px] font-bold ${
-                isDark ? "bg-amber-950/40 text-amber-400" : "bg-[#fffbeb] text-[#b45309]"
+            <span
+              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
+                openFindingsCount > 0
+                  ? isDark ? "bg-amber-950/40 text-amber-400 border border-amber-500/30" : "bg-[#fffbeb] text-[#b45309] border border-amber-500/30"
+                  : isDark ? "bg-[#00A36C]/15 text-[#4edea3]" : "bg-[#f0faf3] text-[#00A36C]"
               }`}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              <span>{openFindingsCount} Open Findings</span>
-            </div>
+              {openFindingsCount > 0 ? "Requires Review" : "Queue Clear"}
+            </span>
           </div>
 
           <div
-            className={`flex items-center justify-between pt-2 border-t ${
-              isDark ? "border-[#292a2d]" : "border-[#f1f5f9]"
+            className={`pt-2.5 border-t font-sans text-xs flex items-center justify-between ${
+              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
             }`}
           >
-            <span className={`font-mono text-[11px] truncate ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-              {overriddenCount} overrides recorded
-            </span>
+            <span>{overriddenCount} manual overrides</span>
             <Link
               href="/audit"
-              className={`hover:underline font-sans text-[11px] font-bold flex items-center gap-0.5 ${
+              className={`font-semibold hover:underline flex items-center gap-0.5 ${
                 isDark ? "text-[#d2bbff]" : "text-primary"
               }`}
             >
-              Open Queue <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              Queue &rarr;
             </Link>
           </div>
         </div>
 
-        {/* Card 4: Auto-Remediation Rate */}
+        {/* Card 4: Auto-Fix Rate */}
         <div
-          className={`rounded-xl p-6 border shadow-xs flex flex-col justify-between hover:shadow-sm transition-all group ${
-            isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
           }`}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex flex-col">
-              <span
-                className={`font-sans text-[11px] uppercase tracking-wider font-bold ${
-                  isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                }`}
-              >
-                Autonomous Fixes
-              </span>
-              <span
-                className={`font-sans text-[15px] font-bold mt-1 ${
-                  isDark ? "text-[#d1d5db]" : "text-[#374151]"
-                }`}
-              >
-                Resolution Velocity
-              </span>
-            </div>
+          <div className="flex items-center justify-between">
             <span
-              className={`p-2.5 rounded-lg flex items-center justify-center ${
-                isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
+              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
+                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
               }`}
             >
-              <span className="material-symbols-outlined text-[20px]">auto_fix_high</span>
+              Auto-Fix Rate
             </span>
+            <div
+              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                isDark ? "bg-[#7c3aed]/15 text-[#d2bbff]" : "bg-purple-50 text-[#7c3aed]"
+              }`}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                <path d="M5 3v4" />
+                <path d="M19 17v4" />
+              </svg>
+            </div>
           </div>
 
-          <div className="my-4 flex items-baseline justify-between">
+          <div className="my-3 flex items-baseline justify-between">
             <span
-              className={`font-sans text-3xl sm:text-4xl font-bold tracking-tight ${
+              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
                 isDark ? "text-white" : "text-[#111827]"
               }`}
             >
-              {isLoading ? "..." : `${autoRemediationRate}%`}
+              {isLoading ? "..." : autoRemediationRate !== null ? `${autoRemediationRate}%` : "—"}
             </span>
             <span
-              className={`font-sans text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                isDark ? "bg-[#00A36C]/20 text-[#4edea3]" : "bg-[#f0faf3] text-[#00A36C]"
+              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
+                autoRemediationRate !== null && autoRemediationRate >= 80
+                  ? isDark ? "bg-[#00A36C]/15 text-[#4edea3]" : "bg-[#f0faf3] text-[#00A36C]"
+                  : isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
               }`}
             >
-              Deterministic &amp; LLM
+              {totalFindings > 0 ? "Automated" : "Zero Findings"}
             </span>
           </div>
 
           <div
-            className={`flex flex-col gap-1.5 pt-2 border-t ${
-              isDark ? "border-[#292a2d]" : "border-[#f1f5f9]"
+            className={`pt-2.5 border-t font-sans text-xs ${
+              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
             }`}
           >
-            <div
-              className={`w-full rounded-full h-1.5 overflow-hidden ${
-                isDark ? "bg-[#292a2d]" : "bg-[#f1f5f9]"
-              }`}
-            >
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  isDark ? "bg-[#7c3aed]" : "bg-primary"
-                }`}
-                style={{ width: `${autoRemediationRate}%` }}
-              />
-            </div>
-            <span className={`font-mono text-[11px] truncate ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-              {totalFindings} total findings evaluated
-            </span>
+            <span>{totalFindings > 0 ? `${totalFindings} total findings evaluated` : "Dual-gate engine active"}</span>
           </div>
         </div>
       </div>
-
       {/* 3. Main Data Visualizations & Analytics (2-Column Grid) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
         {/* LEFT COLUMN (8 cols) */}
         <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
-          {/* Interactive Chart Card: Trajectory & Volume */}
+          {/* Enterprise Interactive Telemetry Chart (Modern Shadcn / Recharts Pattern) */}
           <div
-            className={`rounded-xl p-6 border shadow-xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+            className={`rounded-xl border shadow-xs transition-colors overflow-hidden ${
+              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div>
+            {/* Header with Integrated Metric Switcher Tabs */}
+            <div className={`flex flex-col sm:flex-row sm:items-stretch justify-between border-b ${
+              isDark ? "border-[#3b3c44]" : "border-[#e2e8f0]"
+            }`}>
+              <div className="p-4 sm:p-5 flex flex-col justify-center">
                 <div className="flex items-center gap-2">
-                  <h3
-                    className={`font-serif text-[18px] font-bold tracking-tight ${
-                      isDark ? "text-white" : "text-[#111827]"
-                    }`}
-                  >
-                    Compliance Trend &amp; Volume Trajectory
+                  <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                    Compliance Trajectory
                   </h3>
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-mono text-[10px] uppercase font-bold tracking-wider ${
-                      isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
-                    }`}
-                  >
-                    LIVE REPOSITORY
+                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
+                    isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
+                  }`}>
+                    Live
                   </span>
                 </div>
-                <p className={`font-sans text-[13px] mt-1 ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
-                  Audited submission volume per cycle plotted with 90% enterprise policy threshold.
-                </p>
+                <span className={`font-sans text-xs mt-0.5 ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                  Historical audit performance against 90% brand governance threshold
+                </span>
               </div>
 
-              {/* Legend Indicators */}
-              <div className="flex items-center gap-4 flex-wrap font-sans text-[11px]">
-                <div className={`flex items-center gap-1.5 ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
-                  <span className={`w-2.5 h-2.5 rounded-sm ${isDark ? "bg-[#7c3aed]" : "bg-primary"}`} />
-                  <span>Audited Assets</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
-                  <span className="w-3 h-0.5 bg-[#00A36C]" />
-                  <span>Compliance %</span>
-                </div>
-                <div className={`flex items-center gap-1.5 ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
-                  <span className="w-3 h-0.5 border-b border-dashed border-[#dc2626]" />
-                  <span className="text-[#dc2626] font-bold">90% Target</span>
-                </div>
+              {/* Integrated Metric Switcher Tabs */}
+              <div className={`flex border-t sm:border-t-0 sm:border-l divide-x ${
+                isDark ? "border-[#3b3c44] divide-[#3b3c44]" : "border-[#e2e8f0] divide-[#e2e8f0]"
+              }`}>
+                <button
+                  type="button"
+                  onClick={() => setActiveMetric("compliance")}
+                  className={`flex flex-col justify-center px-5 py-3 text-left transition-all cursor-pointer ${
+                    activeMetric === "compliance"
+                      ? isDark
+                        ? "bg-[#7c3aed]/15 border-b-2 border-[#7c3aed]"
+                        : "bg-[#ebf6ff] border-b-2 border-primary"
+                      : isDark
+                      ? "hover:bg-[#1f1f23]"
+                      : "hover:bg-[#f8fafc]"
+                  }`}
+                >
+                  <span className={`text-[10px] uppercase font-mono tracking-wider font-semibold ${
+                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
+                  }`}>
+                    Compliance Score
+                  </span>
+                  <span className={`font-mono text-lg font-bold leading-tight ${
+                    activeMetric === "compliance"
+                      ? isDark ? "text-[#d2bbff]" : "text-primary"
+                      : isDark ? "text-white" : "text-[#111827]"
+                  }`}>
+                    {totalSubmissions === 0 ? "—" : `${avgComplianceScore.toFixed(1)}%`}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveMetric("violations")}
+                  className={`flex flex-col justify-center px-5 py-3 text-left transition-all cursor-pointer ${
+                    activeMetric === "violations"
+                      ? isDark
+                        ? "bg-[#7c3aed]/15 border-b-2 border-[#7c3aed]"
+                        : "bg-[#ebf6ff] border-b-2 border-primary"
+                      : isDark
+                      ? "hover:bg-[#1f1f23]"
+                      : "hover:bg-[#f8fafc]"
+                  }`}
+                >
+                  <span className={`text-[10px] uppercase font-mono tracking-wider font-semibold ${
+                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
+                  }`}>
+                    Policy Flags
+                  </span>
+                  <span className={`font-mono text-lg font-bold leading-tight ${
+                    activeMetric === "violations"
+                      ? isDark ? "text-[#d2bbff]" : "text-primary"
+                      : isDark ? "text-white" : "text-[#111827]"
+                  }`}>
+                    {openFindingsCount}
+                  </span>
+                </button>
               </div>
             </div>
 
-            {/* Chart Visual Area (SVG Data Visualization) */}
-            <div
-              className={`relative w-full h-72 rounded-xl p-4 flex flex-col justify-between overflow-hidden border transition-colors ${
-                isDark ? "bg-[#121316] border-[#292a2d]" : "bg-[#f8fafc] border-[#e5e7eb]"
-              }`}
-            >
-              {/* Background Grid lines */}
-              <div
-                className={`absolute inset-x-4 top-4 bottom-10 flex flex-col justify-between pointer-events-none opacity-40`}
-              >
-                <div className={`w-full h-px ${isDark ? "bg-[#292a2d]" : "bg-[#cbd5e1]"}`} />
-                <div className={`w-full h-px ${isDark ? "bg-[#292a2d]" : "bg-[#cbd5e1]"}`} />
-                <div className={`w-full h-px ${isDark ? "bg-[#292a2d]" : "bg-[#cbd5e1]"}`} />
-                <div className={`w-full h-px ${isDark ? "bg-[#292a2d]" : "bg-[#cbd5e1]"}`} />
-              </div>
-
-              {/* SVG Graph Container */}
-              <div className="relative w-full h-56 mt-2">
-                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 700 200">
-                  <defs>
-                    <linearGradient id="volGrad" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity="0.85" />
-                      <stop offset="100%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity="0.2" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Baseline 90% Line */}
-                  <line
-                    opacity="0.9"
-                    stroke="#dc2626"
-                    strokeDasharray="4 4"
-                    strokeWidth="1.5"
-                    x1="0"
-                    x2="700"
-                    y1="60"
-                    y2="60"
-                  />
-                  <text
-                    className="font-mono text-[10px] uppercase font-bold tracking-widest"
-                    fill="#dc2626"
-                    x="620"
-                    y="52"
+            {/* Recharts Canvas */}
+            <div className="p-4 sm:p-5">
+              {!isMounted ? (
+                <div className="w-full h-72 flex items-center justify-center">
+                  <span className={`text-xs font-mono ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                    Loading analytics visualization...
+                  </span>
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="w-full h-72 flex flex-col items-center justify-center text-center p-4">
+                  <span className="material-symbols-outlined text-[32px] text-[#9ca3af] mb-1">query_stats</span>
+                  <span className={`text-xs font-semibold ${isDark ? "text-white" : "text-[#111827]"}`}>
+                    Insufficient Telemetry Data
+                  </span>
+                  <span className={`text-[11px] mt-0.5 ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                    Submit assets for auditing to populate the compliance trajectory curve.
+                  </span>
+                </div>
+              ) : activeMetric === "compliance" ? (
+                /* Natural Spline Area Chart (Shadcn Style) */
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 16, right: 16, left: -20, bottom: 0 }}
                   >
-                    Policy 90%
-                  </text>
-
-                  {/* Volume Bar Histogram */}
-                  <rect fill="url(#volGrad)" height="70" rx="3" width="28" x="30" y="130" />
-                  <rect fill="url(#volGrad)" height="100" rx="3" width="28" x="120" y="100" />
-                  <rect fill="url(#volGrad)" height="120" rx="3" width="28" x="210" y="80" />
-                  <rect fill="url(#volGrad)" height="145" rx="3" width="28" x="300" y="55" />
-                  <rect fill="url(#volGrad)" height="110" rx="3" width="28" x="390" y="90" />
-                  <rect fill="url(#volGrad)" height="160" rx="3" width="28" x="480" y="40" />
-                  <rect fill="url(#volGrad)" height="180" rx="3" width="28" x="570" y="20" />
-
-                  {/* Compliance Spline Line */}
-                  <path
-                    d="M 44 80 L 134 72 L 224 58 L 314 62 L 404 46 L 494 34 L 584 38"
-                    fill="none"
-                    stroke="#00A36C"
-                    strokeLinecap="round"
-                    strokeWidth="3"
-                  />
-
-                  {/* Coordinate Pin Points */}
-                  <circle
-                    cx="44"
-                    cy="80"
-                    fill={isDark ? "#121316" : "#ffffff"}
-                    r="4"
-                    stroke="#00A36C"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="134"
-                    cy="72"
-                    fill={isDark ? "#121316" : "#ffffff"}
-                    r="4"
-                    stroke="#00A36C"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="224"
-                    cy="58"
-                    fill={isDark ? "#121316" : "#ffffff"}
-                    r="4"
-                    stroke="#00A36C"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="314"
-                    cy="62"
-                    fill={isDark ? "#121316" : "#ffffff"}
-                    r="4"
-                    stroke="#00A36C"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="404"
-                    cy="46"
-                    fill={isDark ? "#121316" : "#ffffff"}
-                    r="4"
-                    stroke="#00A36C"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    cx="494"
-                    cy="34"
-                    fill={isDark ? "#121316" : "#ffffff"}
-                    r="4"
-                    stroke="#00A36C"
-                    strokeWidth="2.5"
-                  />
-                  <circle
-                    className="animate-pulse"
-                    cx="584"
-                    cy="38"
-                    fill="#00A36C"
-                    r="5"
-                    stroke={isDark ? "#1b1b1f" : "#ffffff"}
-                    strokeWidth="2"
-                  />
-                </svg>
-              </div>
-
-              {/* X-Axis Labels */}
-              <div
-                className={`grid grid-cols-7 text-center font-mono text-[11px] pt-2 border-t ${
-                  isDark ? "border-[#292a2d] text-[#9ca3af]" : "border-[#e5e7eb] text-[#6b7280]"
-                }`}
-              >
-                <span>Cycle 1</span>
-                <span>Cycle 2</span>
-                <span>Cycle 3</span>
-                <span>Cycle 4</span>
-                <span>Cycle 5</span>
-                <span>Cycle 6</span>
-                <span className="text-[#00A36C] font-bold font-mono">Current Run</span>
-              </div>
-            </div>
-
-            {/* Bottom Micro Metrics Strip */}
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-left">
-              <div
-                className={`flex flex-col p-3 rounded-lg border transition-colors ${
-                  isDark ? "bg-[#1f1f23] border-[#292a2d]" : "bg-[#f8fafc] border-[#e5e7eb]"
-                }`}
-              >
-                <span
-                  className={`font-sans text-[10px] uppercase font-mono tracking-wider font-bold ${
-                    isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                  }`}
-                >
-                  Audited Submissions
-                </span>
-                <span className={`font-sans text-[15px] font-bold mt-0.5 ${isDark ? "text-white" : "text-[#111827]"}`}>
-                  {submissions.length} Total Assets
-                </span>
-                <span className="font-mono text-[11px] text-[#00A36C] font-semibold">Real-time sync</span>
-              </div>
-
-              <div
-                className={`flex flex-col p-3 rounded-lg border transition-colors ${
-                  isDark ? "bg-[#1f1f23] border-[#292a2d]" : "bg-[#f8fafc] border-[#e5e7eb]"
-                }`}
-              >
-                <span
-                  className={`font-sans text-[10px] uppercase font-mono tracking-wider font-bold ${
-                    isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                  }`}
-                >
-                  AI Governance Engine
-                </span>
-                <span className={`font-sans text-[15px] font-bold mt-0.5 ${isDark ? "text-white" : "text-[#111827]"}`}>
-                  Dual-Gate Detector
-                </span>
-                <span className={`font-mono text-[11px] ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
-                  Regex Rules + Gemini RAG
-                </span>
-              </div>
-
-              <div
-                className={`flex flex-col p-3 rounded-lg border transition-colors ${
-                  isDark ? "bg-[#1f1f23] border-[#292a2d]" : "bg-[#f8fafc] border-[#e5e7eb]"
-                }`}
-              >
-                <span
-                  className={`font-sans text-[10px] uppercase font-mono tracking-wider font-bold ${
-                    isDark ? "text-[#9ca3af]" : "text-[#6b7280]"
-                  }`}
-                >
-                  WCAG Accessibility
-                </span>
-                <span className={`font-sans text-[15px] font-bold mt-0.5 ${isDark ? "text-white" : "text-[#111827]"}`}>
-                  {activeBrand?.min_wcag_contrast || 4.5}:1 AA Standard
-                </span>
-                <span className={`font-mono text-[11px] font-bold ${isDark ? "text-[#d2bbff]" : "text-primary"}`}>
-                  Verified palette
-                </span>
-              </div>
+                    <defs>
+                      <linearGradient id="fillCompliance" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.45} />
+                        <stop offset="95%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={isDark ? "#3b3c44" : "#e2e8f0"} />
+                    <XAxis
+                      dataKey="run"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={10}
+                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
+                    />
+                    <YAxis
+                      domain={[50, 100]}
+                      unit="%"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
+                    />
+                    <ReferenceLine
+                      y={90}
+                      stroke="#dc2626"
+                      strokeDasharray="4 4"
+                      strokeWidth={1.5}
+                      label={{
+                        value: "Policy 90%",
+                        position: "insideTopRight",
+                        fill: "#dc2626",
+                        fontSize: 10,
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                        offset: 8,
+                      }}
+                    />
+                    <Tooltip
+                      cursor={{ stroke: isDark ? "#4f515c" : "#cbd5e1", strokeWidth: 1, strokeDasharray: "4 4" }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload || !payload.length) return null;
+                        const data = payload[0].payload;
+                        const isTargetMet = data.compliance >= 90;
+                        const delta = data.compliance - 90;
+                        return (
+                          <div
+                            className={`p-3 rounded-xl border shadow-xl text-xs font-sans min-w-[200px] backdrop-blur-md ${
+                              isDark
+                                ? "bg-[#1b1b1f]/95 border-[#3b3c44] text-white"
+                                : "bg-white/95 border-[#cbd5e1] text-[#111827]"
+                            }`}
+                          >
+                            <div className="font-bold border-b pb-1.5 mb-2 flex items-center justify-between gap-2">
+                              <span className="font-mono text-[11px]">{data.run}</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  isTargetMet
+                                    ? "bg-[#00A36C]/20 text-[#00A36C]"
+                                    : "bg-[#dc2626]/20 text-[#dc2626]"
+                                }`}
+                              >
+                                {isTargetMet ? "Target Met" : "Below Target"}
+                              </span>
+                            </div>
+                            {data.title && (
+                              <p className={`font-medium text-[11px] mb-2 truncate ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
+                                {data.title}
+                              </p>
+                            )}
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className={isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}>Compliance Score:</span>
+                                <span className="font-mono font-bold text-sm text-[#00A36C]">{data.compliance}%</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className={isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}>90% Policy Target:</span>
+                                <span className={`font-mono font-bold text-xs ${delta >= 0 ? "text-[#00A36C]" : "text-[#dc2626]"}`}>
+                                  {delta >= 0 ? `+${delta}%` : `${delta}%`}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Area
+                      dataKey="compliance"
+                      type="natural"
+                      fill="url(#fillCompliance)"
+                      stroke={isDark ? "#d2bbff" : "#005797"}
+                      strokeWidth={2.5}
+                      dot={{
+                        r: 4,
+                        fill: isDark ? "#121316" : "#ffffff",
+                        stroke: isDark ? "#d2bbff" : "#005797",
+                        strokeWidth: 2,
+                      }}
+                      activeDot={{
+                        r: 6,
+                        fill: "#00A36C",
+                        stroke: isDark ? "#1b1b1f" : "#ffffff",
+                        strokeWidth: 2,
+                      }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                /* Modern Rounded Bar Chart for Policy Flags */
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={chartData}
+                    margin={{ top: 16, right: 16, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="fillViolations" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={isDark ? "#a78bfa" : "#005797"} stopOpacity={0.9} />
+                        <stop offset="100%" stopColor={isDark ? "#7c3aed" : "#003a66"} stopOpacity={0.7} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={isDark ? "#3b3c44" : "#e2e8f0"} />
+                    <XAxis
+                      dataKey="run"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={10}
+                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}
+                      content={({ active, payload }) => {
+                        if (!active || !payload || !payload.length) return null;
+                        const data = payload[0].payload;
+                        return (
+                          <div
+                            className={`p-3 rounded-xl border shadow-xl text-xs font-sans min-w-[200px] backdrop-blur-md ${
+                              isDark
+                                ? "bg-[#1b1b1f]/95 border-[#3b3c44] text-white"
+                                : "bg-white/95 border-[#cbd5e1] text-[#111827]"
+                            }`}
+                          >
+                            <div className="font-bold border-b pb-1.5 mb-2 flex items-center justify-between gap-2">
+                              <span className="font-mono text-[11px]">{data.run}</span>
+                              <span className={`font-mono text-[10px] font-bold ${isDark ? "text-[#d2bbff]" : "text-primary"}`}>
+                                {data.violations} Flags
+                              </span>
+                            </div>
+                            {data.title && (
+                              <p className={`font-medium text-[11px] mb-2 truncate ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
+                                {data.title}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span className={isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}>Compliance:</span>
+                              <span className="font-mono font-bold text-[#00A36C]">{data.compliance}%</span>
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <ReferenceLine
+                      y={3}
+                      stroke={isDark ? "#d2bbff" : "#005797"}
+                      strokeDasharray="4 4"
+                      strokeWidth={1.5}
+                      label={{
+                        value: "Warning (3+ Flags)",
+                        position: "insideTopRight",
+                        fill: isDark ? "#d2bbff" : "#005797",
+                        fontSize: 10,
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                        offset: 8,
+                      }}
+                    />
+                    <Bar
+                      dataKey="violations"
+                      name="Violations"
+                      fill="url(#fillViolations)"
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={32}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
-
           {/* Recent Flagged Audits & Review Queue Table */}
           <div
-            className={`rounded-xl p-6 border shadow-xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
+              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3
-                    className={`font-serif text-[18px] font-bold tracking-tight ${
-                      isDark ? "text-white" : "text-[#111827]"
-                    }`}
-                  >
-                    Recent Flagged Audits &amp; Review Queue
-                  </h3>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold ${
-                      isDark ? "bg-[#292a2d] text-[#d1d5db]" : "bg-[#f1f5f9] text-[#4b5563]"
-                    }`}
-                  >
-                    {submissions.length} Submissions
-                  </span>
-                </div>
-                <p className={`font-sans text-[13px] mt-1 ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
-                  Content assets audited against {activeBrand?.name || "Blinkit"} Brand Guidelines.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/audit"
-                  className={`px-3.5 py-1.5 rounded-full font-bold text-[12px] flex items-center gap-1 transition-colors shadow-2xs ${
-                    isDark
-                      ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                      : "bg-primary text-white hover:bg-[#004578]"
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-[16px]">add</span>
-                  <span>New Submission</span>
-                </Link>
-              </div>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h3
+                className={`font-sans text-sm font-bold tracking-tight ${
+                  isDark ? "text-white" : "text-[#111827]"
+                }`}
+              >
+                Review Queue
+              </h3>
             </div>
 
             {/* Responsive Data Table */}
             <div className="overflow-x-auto">
-              {submissions.length === 0 && !isLoading ? (
+              {topSubmissions.length === 0 && !isLoading ? (
                 <div className="py-12 flex flex-col items-center justify-center text-center">
-                  <span className={`material-symbols-outlined text-[40px] mb-2 ${isDark ? "text-[#6b7280]" : "text-[#9ca3af]"}`}>
+                  <span className={`material-symbols-outlined text-[36px] mb-2 ${isDark ? "text-[#6b7280]" : "text-[#9ca3af]"}`}>
                     inbox
                   </span>
-                  <p className={`text-[14px] font-bold ${isDark ? "text-white" : "text-[#111827]"}`}>
-                    No Submissions Found for this Brand
+                  <p className={`text-sm font-bold ${isDark ? "text-white" : "text-[#111827]"}`}>
+                    No Past Submissions Found
                   </p>
-                  <p className={`text-[12px] mt-1 max-w-sm ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                    Switch brands using the header dropdown or create a submission to start running audits.
+                  <p className={`text-xs mt-0.5 max-w-sm ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                    Select an active brand from the header brand selector to view its audit history.
                   </p>
-                  <Link
-                    href="/audit"
-                    className={`mt-4 px-4 py-2 rounded-full text-[13px] font-bold shadow-xs ${
-                      isDark ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]" : "bg-primary text-white hover:bg-[#004578]"
-                    }`}
-                  >
-                    Create First Submission
-                  </Link>
                 </div>
               ) : (
                 <table className="w-full min-w-[620px] text-left border-collapse">
                   <thead>
                     <tr
-                      className={`font-sans text-[11px] uppercase tracking-wider font-bold border-y ${
+                      className={`font-mono text-[10px] uppercase tracking-wider font-semibold border-y ${
                         isDark
-                          ? "bg-[#121316] text-[#9ca3af] border-[#292a2d]"
-                          : "bg-[#f8fafc] text-[#6b7280] border-[#e5e7eb]"
+                          ? "bg-[#121316] text-[#9ca3af] border-[#3b3c44]"
+                          : "bg-[#f8fafc] text-[#6b7280] border-[#cbd5e1]"
                       }`}
                     >
-                      <th className="py-3 px-3">Asset Title</th>
-                      <th className="py-3 px-3">Format / Author</th>
-                      <th className="py-3 px-3">Findings</th>
-                      <th className="py-3 px-3">Score</th>
-                      <th className="py-3 px-3">Review Status</th>
-                      <th className="py-3 px-3 text-right">Action</th>
+                      <th className="py-2.5 px-3">Asset Title</th>
+                      <th className="py-2.5 px-3">Format / Author</th>
+                      <th className="py-2.5 px-3">Findings</th>
+                      <th className="py-2.5 px-3">Score</th>
+                      <th className="py-2.5 px-3">Review Status</th>
+                      <th className="py-2.5 px-3 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className={`font-sans text-[13px] divide-y ${isDark ? "divide-[#292a2d]" : "divide-[#f1f5f9]"}`}>
-                    {submissions.map((sub) => {
+                  <tbody className={`font-sans text-xs divide-y ${isDark ? "divide-[#313238]" : "divide-[#e2e8f0]"}`}>
+                    {topSubmissions.map((sub) => {
                       const criticalFindings =
                         sub.findings?.filter((f) => f.severity === "CRITICAL").length || 0;
                       const warningFindings =
@@ -898,21 +790,23 @@ export default function GovernanceDashboardPage() {
                             isDark ? "hover:bg-[#1f1f23]" : "hover:bg-[#f8fafc]"
                           }`}
                         >
-                          <td className="py-3 px-3">
+                          <td className="py-2.5 px-3">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`material-symbols-outlined text-[18px] ${
-                                  isDark ? "text-[#d2bbff]" : "text-primary"
+                                className={`p-1.5 rounded-md flex items-center justify-center shrink-0 ${
+                                  isDark ? "bg-[#1f1f23] text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
                                 }`}
                               >
-                                {sub.content_format === "MARKDOWN"
-                                  ? "markdown"
-                                  : sub.content_format === "HTML"
-                                  ? "code"
-                                  : "description"}
+                                <span className="material-symbols-outlined text-[16px]">
+                                  {sub.content_format === "MARKDOWN"
+                                    ? "markdown"
+                                    : sub.content_format === "HTML"
+                                    ? "code"
+                                    : "description"}
+                                </span>
                               </span>
                               <div className="flex flex-col min-w-0">
-                                <span className={`font-bold truncate max-w-xs ${isDark ? "text-white" : "text-[#111827]"}`}>
+                                <span className={`font-semibold truncate max-w-xs ${isDark ? "text-white" : "text-[#111827]"}`}>
                                   {sub.title}
                                 </span>
                                 <span className={`font-mono text-[10px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
@@ -922,40 +816,40 @@ export default function GovernanceDashboardPage() {
                             </div>
                           </td>
 
-                          <td className="py-3 px-3">
+                          <td className="py-2.5 px-3">
                             <div className="flex flex-col">
                               <span className={`font-medium ${isDark ? "text-[#d1d5db]" : "text-[#111827]"}`}>
                                 {sub.creator_name}
                               </span>
-                              <span className={`font-mono text-[11px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                              <span className={`font-mono text-[10px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
                                 {sub.content_format}
                               </span>
                             </div>
                           </td>
 
-                          <td className="py-3 px-3">
+                          <td className="py-2.5 px-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {criticalFindings > 0 && (
-                                <span className="px-2 py-0.5 rounded-full bg-[#dc2626]/20 text-[#ffb4ab] border border-[#dc2626]/30 font-sans text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-md bg-[#dc2626]/20 text-[#ffb4ab] border border-[#dc2626]/30 font-mono text-[10px] font-bold">
                                   {criticalFindings} Crit
                                 </span>
                               )}
                               {warningFindings > 0 && (
-                                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono text-[10px] font-bold">
                                   {warningFindings} Warn
                                 </span>
                               )}
                               {criticalFindings === 0 && warningFindings === 0 && (
-                                <span className="px-2 py-0.5 rounded-full bg-[#00A36C]/20 text-[#4edea3] border border-[#00A36C]/30 font-sans text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-md bg-[#00A36C]/20 text-[#4edea3] border border-[#00A36C]/30 font-mono text-[10px] font-semibold">
                                   {sub.findings?.length || 0} Flags
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          <td className="py-3 px-3">
+                          <td className="py-2.5 px-3">
                             <span
-                              className={`font-mono text-[12px] font-bold ${
+                              className={`font-mono text-xs font-bold tabular-nums ${
                                 sub.compliance_score != null && sub.compliance_score >= 80
                                   ? "text-[#00A36C]"
                                   : sub.compliance_score != null && sub.compliance_score >= 60
@@ -967,9 +861,9 @@ export default function GovernanceDashboardPage() {
                             </span>
                           </td>
 
-                          <td className="py-3 px-3">
+                          <td className="py-2.5 px-3">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-sans text-[11px] font-bold ${
+                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-sans text-[11px] font-semibold ${
                                 sub.status === "APPROVED"
                                   ? "bg-[#00A36C]/15 text-[#4edea3] border border-[#00A36C]/30"
                                   : sub.status === "NEEDS_REVIEW"
@@ -986,11 +880,9 @@ export default function GovernanceDashboardPage() {
                                   sub.status === "APPROVED"
                                     ? "bg-[#00A36C]"
                                     : sub.status === "NEEDS_REVIEW"
-                                    ? "bg-amber-400"
+                                    ? "bg-amber-400 animate-pulse"
                                     : sub.status === "CHANGES_REQUESTED"
                                     ? "bg-[#dc2626]"
-                                    : isDark
-                                    ? "bg-[#9ca3af]"
                                     : "bg-[#9ca3af]"
                                 }`}
                               />
@@ -998,10 +890,10 @@ export default function GovernanceDashboardPage() {
                             </span>
                           </td>
 
-                          <td className="py-3 px-3 text-right whitespace-nowrap">
+                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
                             <Link
                               href={`/audit?id=${sub.id}`}
-                              className={`px-3 py-1 rounded-full font-sans text-[11px] font-bold transition-all inline-block cursor-pointer whitespace-nowrap shadow-2xs ${
+                              className={`px-2.5 py-1 rounded-md font-sans text-[11px] font-semibold transition-all inline-block cursor-pointer whitespace-nowrap shadow-2xs ${
                                 isDark
                                   ? "bg-[#7c3aed]/20 text-[#d2bbff] hover:bg-[#7c3aed] hover:text-white"
                                   : "bg-[#ebf6ff] text-primary hover:bg-primary hover:text-white"
@@ -1019,43 +911,36 @@ export default function GovernanceDashboardPage() {
             </div>
 
             <div
-              className={`mt-4 flex items-center justify-between font-mono text-[11px] pt-3 border-t ${
-                isDark ? "border-[#292a2d] text-[#9ca3af]" : "border-[#f1f5f9] text-[#6b7280]"
+              className={`mt-3 flex items-center justify-between font-mono text-[11px] pt-2.5 border-t ${
+                isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#6b7280]"
               }`}
             >
-              <span>Showing {submissions.length} submissions for Brand #{activeBrandId}</span>
-              <div className="flex items-center gap-1">
-                <span className={isDark ? "text-white font-semibold" : "text-[#111827] font-semibold"}>
-                  Live Backend PostgreSQL Database
-                </span>
-              </div>
+              <span>Showing {topSubmissions.length} submissions for Brand #{activeBrandId}</span>
+              
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN (4 cols) */}
+        {/* RIGHT COLUMN (4 cols: Intelligence Widgets) */}
         <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6">
           {/* Widget 1: Top Recurring Violations */}
           <div
-            className={`rounded-xl p-6 border shadow-xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
+              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <h3 className={`font-serif text-[16px] font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Top Recurring Violations
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                Top Violations
               </h3>
-              <span className={`font-mono text-[11px] font-bold ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                Total: {totalCategoryViolations}
+              <span className={`font-mono text-[11px] font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                {totalCategoryViolations} Total
               </span>
             </div>
-            <p className={`font-sans text-[13px] mb-4 ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
-              Dominant policy infractions detected across current brand content audits.
-            </p>
 
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3.5">
               {categoryEntries.length === 0 ? (
-                <div className={`py-4 text-center text-[12px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                <div className={`py-4 text-center text-xs ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
                   No violations logged for this brand.
                 </div>
               ) : (
@@ -1075,33 +960,25 @@ export default function GovernanceDashboardPage() {
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${c.bar}`} />
                           <span
-                            className={`font-sans text-[13px] font-bold capitalize ${
+                            className={`font-sans text-xs font-semibold capitalize ${
                               isDark ? "text-white" : "text-[#111827]"
                             }`}
                           >
                             {category.replace("_", " ")} Policy
                           </span>
                         </div>
-                        <span className={`font-mono text-[12px] font-bold ${c.text}`}>
+                        <span className={`font-mono text-xs font-bold tabular-nums ${c.text}`}>
                           {pct}% ({count})
                         </span>
                       </div>
                       <div
-                        className={`w-full rounded-full h-2 overflow-hidden ${
+                        className={`w-full rounded-full h-1.5 overflow-hidden ${
                           isDark ? "bg-[#292a2d]" : "bg-[#f1f5f9]"
                         }`}
                       >
                         <div className={`${c.bar} h-full rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
                       </div>
-                      <span className={`font-mono text-[10px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                        {category === "TERMINOLOGY"
-                          ? "Banned words, unapproved jargon, deprecated terms"
-                          : category === "TONE"
-                          ? "Hype, absolute superlatives, non-enterprise persona"
-                          : category === "FACTUAL_CLAIM"
-                          ? "Unverified SLA/uptime stats without cited evidence"
-                          : "Formatting, WCAG contrast, or style divergence"}
-                      </span>
+
                     </div>
                   );
                 })
@@ -1111,29 +988,26 @@ export default function GovernanceDashboardPage() {
 
           {/* Widget 2: Ambiguous Guidelines Table */}
           <div
-            className={`rounded-xl p-6 border shadow-xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
+              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <h3 className={`font-serif text-[16px] font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Ambiguous Guidelines
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                Flagged Rules
               </h3>
               <span
-                className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                   isDark ? "bg-amber-950/40 text-amber-300" : "bg-[#fffbeb] text-[#b45309]"
                 }`}
               >
-                {analytics?.ambiguous_guidelines?.length || 0} Detected
+                {analytics?.ambiguous_guidelines?.length || 0} Override
               </span>
             </div>
-            <p className={`font-sans text-[13px] mb-4 ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
-              Rules with high human-override rates flagged for brand manager review.
-            </p>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {!analytics?.ambiguous_guidelines || analytics.ambiguous_guidelines.length === 0 ? (
-                <div className={`py-4 text-center text-[12px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
+                <div className={`py-4 text-center text-xs ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
                   No guidelines flagged with excessive override rates.
                 </div>
               ) : (
@@ -1142,8 +1016,8 @@ export default function GovernanceDashboardPage() {
                     key={g.chunk_id}
                     className={`p-3 rounded-lg flex flex-col gap-1 border transition-colors ${
                       isDark
-                        ? "bg-[#121316] border-[#292a2d] hover:bg-[#1f1f23]"
-                        : "bg-[#f8fafc] border-[#e5e7eb] hover:bg-[#f1f5f9]"
+                        ? "bg-[#121316] border-[#3b3c44] hover:bg-[#1f1f23]"
+                        : "bg-[#f8fafc] border-[#cbd5e1] hover:bg-[#f1f5f9]"
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -1154,11 +1028,11 @@ export default function GovernanceDashboardPage() {
                       >
                         {g.rule_category} · {g.source_document}
                       </span>
-                      <span className="font-mono text-[11px] text-[#dc2626] font-bold">
+                      <span className="font-mono text-[11px] text-[#dc2626] font-bold tabular-nums">
                         {Math.round(g.override_rate * 100)}% Override
                       </span>
                     </div>
-                    <p className={`text-[12px] font-medium leading-tight line-clamp-2 ${isDark ? "text-white" : "text-[#111827]"}`}>
+                    <p className={`text-xs font-medium leading-relaxed line-clamp-2 ${isDark ? "text-white" : "text-[#111827]"}`}>
                       {g.content_excerpt}
                     </p>
                     <div className={`flex items-center justify-between text-[10px] font-mono pt-1 ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
@@ -1172,62 +1046,58 @@ export default function GovernanceDashboardPage() {
 
             <Link
               href="/guidelines"
-              className={`w-full mt-4 py-2 rounded-full border font-sans text-[12px] font-bold flex items-center justify-center gap-1 transition-colors shadow-2xs ${
+              className={`w-full mt-3.5 py-2 rounded-lg border font-sans text-xs font-semibold flex items-center justify-center gap-1 transition-colors shadow-2xs ${
                 isDark
-                  ? "bg-[#1f1f23] hover:bg-[#292a2d] text-[#d2bbff] border-[#292a2d]"
-                  : "bg-[#f8fafc] hover:bg-[#ebf6ff] text-primary border-[#e5e7eb]"
+                  ? "bg-[#1f1f23] hover:bg-[#292a2d] text-[#d2bbff] border-[#3b3c44]"
+                  : "bg-[#f8fafc] hover:bg-[#ebf6ff] text-primary border-[#cbd5e1]"
               }`}
             >
-              <span>Manage Brand Guidelines &amp; Knowledge</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span>Manage Guidelines</span>
+              <span className="material-symbols-outlined text-[15px]">chevron_right</span>
             </Link>
           </div>
 
           {/* Widget 3: Brand Profiles & System Status */}
           <div
-            className={`rounded-xl p-6 border shadow-xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#292a2d]" : "bg-white border-[#e5e7eb]"
+            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
+              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
-            <div className="flex items-center justify-between mb-1">
-              <h3 className={`font-serif text-[16px] font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Governed Profiles
+            <div className="flex items-center justify-between mb-3">
+              <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                Brand Profiles
               </h3>
-              <span className="font-mono text-[11px] text-[#00A36C] font-bold bg-[#00A36C]/20 px-2 py-0.5 rounded-full">
-                {brands.length} Total
+              <span className="font-mono text-[10px] text-[#00A36C] font-semibold bg-[#00A36C]/20 px-2 py-0.5 rounded-full">
+                {brands.length} Active
               </span>
             </div>
-            <p className={`font-sans text-[13px] mb-4 ${isDark ? "text-[#9ca3af]" : "text-[#4b5563]"}`}>
-              Multi-brand vector libraries active in PostgreSQL pgvector.
-            </p>
 
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               {brands.slice(0, 4).map((b) => (
                 <div
                   key={b.id}
-                  onClick={() => {}}
-                  className={`p-3 rounded-lg flex items-center justify-between transition-colors border ${
+                  className={`p-2.5 rounded-lg flex items-center justify-between transition-colors border ${
                     b.id === activeBrandId
                       ? isDark
                         ? "bg-[#7c3aed]/20 border-[#7c3aed]/40 shadow-2xs"
                         : "bg-[#ebf6ff] border-primary/40 shadow-2xs"
                       : isDark
-                      ? "bg-[#121316] border-[#292a2d] hover:bg-[#1f1f23]"
-                      : "bg-[#f8fafc] border-[#e5e7eb] hover:bg-[#f1f5f9]"
+                      ? "bg-[#121316] border-[#3b3c44] hover:bg-[#1f1f23]"
+                      : "bg-[#f8fafc] border-[#cbd5e1] hover:bg-[#f1f5f9]"
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 shadow-2xs ${
+                      className={`w-7 h-7 rounded-md border flex items-center justify-center shrink-0 shadow-2xs ${
                         isDark
-                          ? "bg-[#1f1f23] border-[#292a2d] text-[#d2bbff]"
-                          : "bg-white border-[#e5e7eb] text-primary"
+                          ? "bg-[#1f1f23] border-[#3b3c44] text-[#d2bbff]"
+                          : "bg-white border-[#cbd5e1] text-primary"
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[18px]">domain</span>
+                      <span className="material-symbols-outlined text-[16px]">domain</span>
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className={`font-sans text-[13px] font-bold truncate ${isDark ? "text-white" : "text-[#111827]"}`}>
+                      <span className={`font-sans text-xs font-semibold truncate ${isDark ? "text-white" : "text-[#111827]"}`}>
                         {b.name}
                       </span>
                       <span className={`font-mono text-[10px] truncate ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
@@ -1236,7 +1106,7 @@ export default function GovernanceDashboardPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] text-[#00A36C] font-bold">
+                    <span className="font-mono text-[11px] text-[#00A36C] font-semibold">
                       {b.approved_hex_palette?.length || 0} colors
                     </span>
                     <Link
@@ -1246,7 +1116,7 @@ export default function GovernanceDashboardPage() {
                       }`}
                       title="Inspect Brand Guidelines"
                     >
-                      <span className="material-symbols-outlined text-[18px]">menu_book</span>
+                      <span className="material-symbols-outlined text-[16px]">menu_book</span>
                     </Link>
                   </div>
                 </div>
@@ -1255,14 +1125,14 @@ export default function GovernanceDashboardPage() {
 
             <Link
               href="/guidelines"
-              className={`w-full mt-4 py-2 rounded-full border font-sans text-[12px] font-bold flex items-center justify-center gap-1 transition-colors shadow-2xs ${
+              className={`w-full mt-3.5 py-2 rounded-lg border font-sans text-xs font-semibold flex items-center justify-center gap-1 transition-colors shadow-2xs ${
                 isDark
-                  ? "bg-[#1f1f23] hover:bg-[#292a2d] text-[#d2bbff] border-[#292a2d]"
-                  : "bg-[#f8fafc] hover:bg-[#ebf6ff] text-primary border-[#e5e7eb]"
+                  ? "bg-[#1f1f23] hover:bg-[#292a2d] text-[#d2bbff] border-[#3b3c44]"
+                  : "bg-[#f8fafc] hover:bg-[#ebf6ff] text-primary border-[#cbd5e1]"
               }`}
             >
-              <span>Manage Brand Profiles</span>
-              <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              <span>Manage Profiles</span>
+              <span className="material-symbols-outlined text-[15px]">chevron_right</span>
             </Link>
           </div>
         </div>

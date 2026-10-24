@@ -11,7 +11,7 @@ import {
 
 function BrandGuidelinesContent() {
   const searchParams = useSearchParams();
-  const queryBrandId = searchParams.get("brand_id");
+  const queryBrandId = searchParams?.get("brand_id");
 
   const {
     brands,
