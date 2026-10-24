@@ -83,7 +83,7 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSidebarCollapsed, toggleSidebar]);
 
-  const roles: UserRole[] = ["CREATOR", "REVIEWER", "MANAGER"];
+  const roles: UserRole[] = ["CREATOR", "JUDGE", "ADMIN", "REVIEWER", "MANAGER"];
 
   const navItems = [
     {
@@ -136,15 +136,25 @@ export function Sidebar() {
       bg: isDark ? "bg-emerald-950/40 border-emerald-800/40" : "bg-emerald-50 border-emerald-200",
       text: isDark ? "text-emerald-400" : "text-emerald-700",
     },
+    JUDGE: {
+      dot: "bg-amber-500",
+      bg: isDark ? "bg-amber-950/40 border-amber-800/40" : "bg-amber-50 border-amber-200",
+      text: isDark ? "text-amber-400" : "text-amber-700",
+    },
+    ADMIN: {
+      dot: "bg-purple-500",
+      bg: isDark ? "bg-purple-950/40 border-purple-800/40" : "bg-purple-50 border-purple-200",
+      text: isDark ? "text-purple-400" : "text-purple-700",
+    },
     REVIEWER: {
       dot: "bg-blue-500",
       bg: isDark ? "bg-blue-950/40 border-blue-800/40" : "bg-blue-50 border-blue-200",
       text: isDark ? "text-blue-400" : "text-blue-700",
     },
     MANAGER: {
-      dot: "bg-purple-500",
-      bg: isDark ? "bg-purple-950/40 border-purple-800/40" : "bg-purple-50 border-purple-200",
-      text: isDark ? "text-purple-400" : "text-purple-700",
+      dot: "bg-indigo-500",
+      bg: isDark ? "bg-indigo-950/40 border-indigo-800/40" : "bg-indigo-50 border-indigo-200",
+      text: isDark ? "text-indigo-400" : "text-indigo-700",
     },
   };
 
