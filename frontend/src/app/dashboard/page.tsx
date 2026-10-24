@@ -18,6 +18,7 @@ import {
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
 import { GovernanceAnalytics, Submission, SubmissionStatus } from "@/lib/types";
+import TechText from "@/components/ui/TechText";
 
 export default function GovernanceDashboardPage() {
   const { activeBrandId, currentRole, brands, theme, refreshKey } = useApp();
@@ -207,6 +208,65 @@ export default function GovernanceDashboardPage() {
           </button>
         </div>
       )}
+
+            {/* 1. Dashboard Hero Section with TechText */}
+      <section className="mb-6">
+        <div
+          className={`relative w-full rounded-2xl border shadow-2xs overflow-hidden transition-colors ${
+            isDark
+              ? "bg-[#18191d]/90 border-[#2e2f38]"
+              : "bg-white border-[#cbd5e1]"
+          }`}
+        >
+          {/* Subtle Top Status Bar inside Hero */}
+          <div className={`px-4 sm:px-6 pt-3.5 pb-2.5 flex items-center justify-between border-b ${
+            isDark ? "border-[#2e2f38]/60 bg-[#141518]/50" : "border-[#e2e8f0]/80 bg-[#f8fafc]/50"
+          }`}>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00A36C] animate-pulse" />
+              <span className={`text-[11px] font-mono tracking-wider uppercase font-bold ${
+                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
+              }`}>
+                Governance Engine &bull; Active Node
+              </span>
+            </div>
+            <div className={`hidden sm:flex items-center gap-1.5 text-[10px] font-mono ${
+              isDark ? "text-[#9ca3af]" : "text-[#64748b]"
+            }`}>
+              <span>Interactive Vector Canvas &bull; Click or drag letters</span>
+            </div>
+          </div>
+
+          {/* Interactive TechText Canvas Container */}
+          <div
+            className="w-full relative"
+            style={{ width: "100%", height: "240px", position: "relative" }}
+          >
+            <TechText
+              text="Inkloom AI"
+              align="left"
+              fontWeight={600}
+              fontSize={110}
+              reveal="letter"
+              dashLength={4}
+              dashGap={2}
+              specks={6}
+              intro="metrics"
+              introDuration={2.8}
+              clickKick
+              guides
+              fontFamily="Georgia, serif"
+              letterSpacing={-0.02}
+              lineStyle="solid"
+              strokeWidth={1.5}
+              bounce={0.75}
+              color={isDark ? "#f8fafc" : "#0f172a"}
+              accentColor={isDark ? "#a78bfa" : "#005797"}
+              style={{ width: "100%", height: "240px" }}
+            />
+          </div>
+        </div>
+      </section>
 
       {/* 2. Top Metric KPI Grid (4 primary enterprise cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

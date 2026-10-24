@@ -1,11 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useApp } from "@/context/AppContext";
-import { UserRole } from "@/lib/types";
-
+// Deprecated: The upper header bar has been removed and its components unified into Sidebar.
 export function Header() {
   const rawPathname = usePathname();
   const pathname = rawPathname || "";
@@ -315,3 +310,5 @@ export function Header() {
     </header>
   );
 }
+
+export default Header;

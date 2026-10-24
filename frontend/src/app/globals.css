@@ -68,7 +68,9 @@
   --font-geist: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-sans: var(--font-geist-sans);
-  --font-serif: Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-sniglet), "Sniglet", Georgia, serif;
+  --font-sniglet: var(--font-sniglet), "Sniglet", sans-serif;
+  --font-heading: var(--font-sniglet), "Sniglet", sans-serif;
   --font-lato: var(--font-geist-sans);
 
   /* =====================================================================
@@ -384,4 +386,20 @@ html.dark ::-webkit-scrollbar-thumb {
 }
 html.dark ::-webkit-scrollbar-thumb:hover {
   background: #4a4455;
+}
+
+
+/* =====================================================================
+   All Headings — Styled with Sniglet
+   ===================================================================== */
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6,
+.font-heading,
+.landing-scope h1,
+.landing-scope h2,
+.landing-scope h3,
+.landing-scope h4,
+.landing-scope h5,
+.landing-scope h6 {
+  font-family: var(--font-sniglet), 'Sniglet', sans-serif !important;
 }
