@@ -12,12 +12,13 @@ from app.core.config import settings
 
 # Async SQLAlchemy Engine
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    settings.async_database_url,
     echo=False,
     future=True,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=5,
+    max_overflow=10,
     pool_pre_ping=True,
+    pool_recycle=300,
 )
 
 # Async Session Factory
@@ -28,12 +29,17 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
-# Redis Async Client
-redis_client = aioredis.from_url(
-    settings.REDIS_URL,
-    encoding="utf-8",
-    decode_responses=True,
-)
+# Redis Async Client (graceful fallback if not configured)
+redis_client = None
+if settings.REDIS_URL and settings.REDIS_URL.strip():
+    try:
+        redis_client = aioredis.from_url(
+            settings.REDIS_URL.strip(),
+            encoding="utf-8",
+            decode_responses=True,
+        )
+    except Exception:
+        redis_client = None
 
 
 class Base(DeclarativeBase):
@@ -54,5 +60,8 @@ async def init_db() -> None:
     import app.models  # noqa: F401 - ensures all models are registered on Base
 
     async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        try:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        except Exception:
+            pass
         await conn.run_sync(Base.metadata.create_all)
