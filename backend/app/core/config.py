@@ -25,11 +25,16 @@ class Settings(BaseSettings):
     MEDIA_PUBLIC_BASE_URL: str = "http://127.0.0.1:8000"
 
     # Model Routing
-    PRIMARY_LLM_MODEL: str = "gemini-3.8-flash"
-    VISION_MODEL: str = "gemini-3.8-flash"
-    FAST_INLINE_MODEL: str = "gemini-3.8-flash-lite"
+    PRIMARY_LLM_MODEL: str = "gemini-3.5-flash"
+    VISION_MODEL: str = "gemini-3.5-flash"
     EMBEDDING_MODEL: str = "gemini-embedding-2"
     EMBEDDING_DIMENSIONS: int = 768
+
+    # AI Request Timeouts (in seconds)
+    GEMINI_TIMEOUT_TEXT: int = 30
+    GEMINI_TIMEOUT_IMAGE: int = 60
+    GEMINI_TIMEOUT_MEDIA: int = 180
+    GEMINI_TIMEOUT_EMBEDDING: int = 20
 
     # Governance Constants
     DEFAULT_MIN_WCAG_CONTRAST: float = 4.5

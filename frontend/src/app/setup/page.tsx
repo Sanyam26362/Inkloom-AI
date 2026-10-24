@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
@@ -56,7 +56,7 @@ function formatBytes(bytes: number): string {
 
 export default function SetupPage() {
   const router = useRouter();
-  const { brands, activeBrandId, setActiveBrandId, currentRole, refreshBrands } = useApp();
+  const { brands, setActiveBrandId, currentRole, refreshBrands } = useApp();
 
   const [step, setStep] = useState<Step>("select-brand");
   const [selectedBrand, setSelectedBrand] = useState<(typeof BRAND_CATALOGUE)[0] | null>(
@@ -74,6 +74,32 @@ export default function SetupPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const detectFileType = (file: File): UploadedFile["type"] => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (ext === "pdf") return "pdf";
+    if (ext === "md" || ext === "markdown" || file.type.includes("markdown")) return "markdown";
+    return "other";
+  };
+
+  const processFiles = useCallback((files: File[]) => {
+    const newUploads: UploadedFile[] = files.map((f) => ({
+      file: f,
+      name: f.name,
+      size: formatBytes(f.size),
+      type: detectFileType(f),
+    }));
+    setUploadedFiles((prev) => {
+      const existing = new Set(prev.map((u) => u.name));
+      return [...prev, ...newUploads.filter((u) => !existing.has(u.name))];
+    });
+  }, []);
+
+  const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    processFiles(files);
+  }, [processFiles]);
 
   const loadPremadeFiles = async () => {
     setLoadingPremade(true);
@@ -101,40 +127,6 @@ export default function SetupPage() {
     } finally {
       setLoadingPremade(false);
     }
-  };
-
-  // Check if Blinkit already exists and preselect it
-  useEffect(() => {
-    const existing = brands.find((b) => b.name.toLowerCase() === "blinkit");
-    if (existing) {
-      setCreatedBrand(existing);
-    }
-  }, [brands]);
-
-  const detectFileType = (file: File): UploadedFile["type"] => {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "";
-    if (ext === "pdf") return "pdf";
-    if (ext === "md" || ext === "markdown" || file.type.includes("markdown")) return "markdown";
-    return "other";
-  };
-
-  const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    processFiles(files);
-  }, []);
-
-  const processFiles = (files: File[]) => {
-    const newUploads: UploadedFile[] = files.map((f) => ({
-      file: f,
-      name: f.name,
-      size: formatBytes(f.size),
-      type: detectFileType(f),
-    }));
-    setUploadedFiles((prev) => {
-      const existing = new Set(prev.map((u) => u.name));
-      return [...prev, ...newUploads.filter((u) => !existing.has(u.name))];
-    });
   };
 
   const removeFile = (name: string) => {
@@ -415,7 +407,7 @@ export default function SetupPage() {
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
-                <strong>💡 Prototype Note:</strong> This is a hackathon demo. Blinkit is pre-configured as a sample client to demonstrate Inkloom AI's capabilities. The platform is brand-agnostic and works for any company.
+                <strong>💡 Prototype Note:</strong> This is a hackathon demo. Blinkit is pre-configured as a sample client to demonstrate Inkloom AI&apos;s capabilities. The platform is brand-agnostic and works for any company.
               </div>
 
               <div className="flex justify-end">

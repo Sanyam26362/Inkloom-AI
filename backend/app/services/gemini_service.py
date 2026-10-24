@@ -1,13 +1,37 @@
+import asyncio
 import json
 import logging
+import math
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
+from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception
 from google import genai
 from google.genai import types
+from google.genai import errors
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def is_retryable_exception(exc: Exception) -> bool:
+    """Detects transient network timeouts, 429 rate limits, and 5xx server errors for retry."""
+    if isinstance(exc, (TimeoutError, asyncio.TimeoutError)):
+        return True
+    exc_str = str(exc).lower()
+    if "timeout" in exc_str or "timed out" in exc_str:
+        return True
+    if isinstance(exc, errors.ServerError):
+        return True
+    if isinstance(exc, errors.ClientError):
+        code = getattr(exc, "code", None)
+        if code == 429 or "429" in exc_str or "quota" in exc_str or "resource exhausted" in exc_str:
+            return True
+    if isinstance(exc, errors.APIError):
+        code = getattr(exc, "code", None)
+        if code in (429, 500, 502, 503, 504):
+            return True
+    return False
 
 
 class GeminiAuditFindingItem(BaseModel):
@@ -32,7 +56,7 @@ class GeminiImageAuditOutput(BaseModel):
     prohibited_elements_found: List[str] = Field(description="List of specific prohibited elements found in the visual")
     visible_text: List[str] = Field(description="All visible headlines, copy, badges, and captions extracted from the image")
     dominant_colors: List[str] = Field(description="Dominant colors identified in approximate hex code format e.g. #0C831F, #F8CB46")
-    palette_match_pct: float = Field(description="Estimated percentage (0-100) of colors matching the approved brand palette")
+    palette_match_pct: Optional[float] = Field(None, description="Estimated percentage (0-100) of colors matching the approved brand palette")
     findings: List[GeminiAuditFindingItem] = Field(description="List of detected brand visual, accessibility, copy, and event violations")
 
 
@@ -42,11 +66,19 @@ class GeminiService:
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or settings.GEMINI_API_KEY
         self._client: Optional[genai.Client] = None
+        self.embedding_failure_count: int = 0
+        self.last_embedding_error: Optional[str] = None
+        self.model_validation_status: Dict[str, Dict[str, bool]] = {
+            settings.PRIMARY_LLM_MODEL: {"valid": False},
+            settings.EMBEDDING_MODEL: {"valid": False},
+        }
+
         if self.api_key:
             try:
+                # Default client timeout sets baseline socket timeout
                 self._client = genai.Client(
                     api_key=self.api_key,
-                    http_options=types.HttpOptions(timeout=10000),
+                    http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_TEXT * 1000),
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize Google GenAI Client: {e}")
@@ -56,78 +88,168 @@ class GeminiService:
     def is_available(self) -> bool:
         return self._client is not None
 
-    def _generate_with_fallback(self, model: str, contents: Any, config: Any):
+    async def verify_configured_models(self) -> Dict[str, Dict[str, bool]]:
         """
-        Attempts generation with primary model (e.g. gemini-3.8-flash).
-        If the primary model is busy or unavailable (503/server spike),
-        automatically falls back to gemini-3.5-flash / gemini-2.5-flash so audits never fail.
+        Verifies that settings.PRIMARY_LLM_MODEL and settings.EMBEDDING_MODEL
+        are available in Google Gemini API catalog.
+        Logs a clear error if either model is missing.
         """
-        models_to_try = [model]
-        for fallback in ["gemini-3.5-flash", "gemini-2.5-flash"]:
-            if fallback not in models_to_try:
-                models_to_try.append(fallback)
+        results = {
+            settings.PRIMARY_LLM_MODEL: {"valid": False},
+            settings.EMBEDDING_MODEL: {"valid": False},
+        }
+        if not self._client:
+            self.model_validation_status = results
+            return results
 
+        try:
+            models_pager = await self._client.aio.models.list()
+            available_names = set()
+            async for m in models_pager:
+                name = getattr(m, "name", "")
+                available_names.add(name)
+                available_names.add(name.replace("models/", ""))
+
+            for target in [settings.PRIMARY_LLM_MODEL, settings.EMBEDDING_MODEL]:
+                clean_target = target.replace("models/", "")
+                if target in available_names or clean_target in available_names:
+                    results[target]["valid"] = True
+                else:
+                    logger.error(
+                        f"CRITICAL: Configured model '{target}' was NOT found in Google Gemini API catalog!"
+                    )
+
+            self.model_validation_status = results
+        except Exception as e:
+            logger.error(f"Failed to query model list from Gemini API during startup check: {e}")
+            self.model_validation_status = results
+
+        return results
+
+    async def _generate_with_retry(self, model: str, contents: Any, config: Any):
+        """
+        Attempts generation with configured model with up to 3 attempts
+        and exponential backoff on 429/5xx/timeout.
+        """
         last_error = None
-        for m in models_to_try:
-            try:
-                logger.info(f"Invoking Gemini model: {m}")
-                return self._client.models.generate_content(
-                    model=m,
-                    contents=contents,
-                    config=config,
-                )
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Model '{m}' call failed: {e}. Trying fallback if available...")
-                continue
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception(is_retryable_exception),
+            reraise=True,
+        ):
+            with attempt:
+                try:
+                    logger.info(f"Invoking Gemini model: {model} (attempt {attempt.retry_state.attempt_number})")
+                    return await self._client.aio.models.generate_content(
+                        model=model,
+                        contents=contents,
+                        config=config,
+                    )
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"Model '{model}' attempt {attempt.retry_state.attempt_number} failed: {e}")
+                    raise
         raise last_error
 
-    def generate_embedding(self, text: str) -> Optional[List[float]]:
+    async def _embed_with_retry(self, model: str, contents: Any, config: Any):
+        """
+        Attempts embedding with configured model with up to 3 attempts
+        and exponential backoff on 429/5xx/timeout.
+        """
+        last_error = None
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception(is_retryable_exception),
+            reraise=True,
+        ):
+            with attempt:
+                try:
+                    return await self._client.aio.models.embed_content(
+                        model=model,
+                        contents=contents,
+                        config=config,
+                    )
+                except Exception as e:
+                    last_error = e
+                    logger.warning(f"Embedding attempt {attempt.retry_state.attempt_number} failed: {e}")
+                    raise
+        raise last_error
+
+    async def generate_embedding(
+        self, text: str, task_type: str = "RETRIEVAL_DOCUMENT"
+    ) -> Optional[List[float]]:
         """
         Generates 768-dimensional vector embedding for text using configured embedding model.
         Explicitly requests output_dimensionality=768 to match PostgreSQL pgvector dimension.
+        Applies L2-normalization if truncated.
         """
         if not self._client or not text.strip():
             return None
 
         try:
-            config = types.EmbedContentConfig(output_dimensionality=settings.EMBEDDING_DIMENSIONS)
-            response = self._client.models.embed_content(
+            config = types.EmbedContentConfig(
+                output_dimensionality=settings.EMBEDDING_DIMENSIONS,
+                task_type=task_type,
+                http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_EMBEDDING * 1000),
+            )
+            response = await self._embed_with_retry(
                 model=settings.EMBEDDING_MODEL,
                 contents=text.strip(),
                 config=config,
             )
             if hasattr(response, "embeddings") and response.embeddings:
-                values = response.embeddings[0].values
-                if len(values) == settings.EMBEDDING_DIMENSIONS:
-                    return list(values)
+                values = list(response.embeddings[0].values)
+                if len(values) > settings.EMBEDDING_DIMENSIONS:
+                    values = values[: settings.EMBEDDING_DIMENSIONS]
+                    norm = math.sqrt(sum(x * x for x in values))
+                    if norm > 0:
+                        values = [x / norm for x in values]
+                elif len(values) == settings.EMBEDDING_DIMENSIONS:
+                    return values
                 else:
                     logger.warning(
                         f"Embedding dimension mismatch: got {len(values)}, expected {settings.EMBEDDING_DIMENSIONS}"
                     )
-                    return list(values[: settings.EMBEDDING_DIMENSIONS])
+                return values
+            else:
+                self.embedding_failure_count += 1
+                logger.error("Embedding API returned empty response without embeddings.")
+                return None
         except Exception as e:
+            self.embedding_failure_count += 1
+            self.last_embedding_error = str(e)
             logger.error(f"Error generating embedding via Gemini API: {e}")
             return None
 
-        return None
-
-    def audit_content_semantic(
+    async def audit_content_semantic(
         self,
         scrubbed_text: str,
         tone_persona: str,
         guidelines_context: List[Dict[str, Any]],
         approved_facts: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """
         Performs semantic audit of copy using Gemini structured outputs.
-        Guarded against prompt injection by isolating user copy in explicit boundaries.
-        Returns parsed finding dictionaries with category, severity, explanation, and suggestions.
+        Returns a dict distinguishing successful audits from errors:
+        {"ai_status": "ok"|"failed"|"skipped", "findings": [...], "ai_error": Optional[str], "overall_summary": str}
         """
-        if not self._client or not scrubbed_text.strip():
-            return []
+        if not self._client:
+            return {
+                "ai_status": "failed",
+                "findings": [],
+                "ai_error": "Gemini AI client offline or API key missing",
+                "overall_summary": "AI audit unavailable.",
+            }
+        if not scrubbed_text.strip():
+            return {
+                "ai_status": "skipped",
+                "findings": [],
+                "ai_error": None,
+                "overall_summary": "Empty copy provided.",
+            }
 
-        # Prepare context
         guidelines_str = ""
         for g in guidelines_context:
             g_id = g.get("id", "N/A")
@@ -138,7 +260,10 @@ class GeminiService:
 
         facts_str = ""
         for f in approved_facts:
-            facts_str += f"- Verified Fact: {f.get('claim', '')} (Source: {f.get('source', 'Company Records')})\n"
+            claim_text = f.get("claim") or f.get("fact") or ""
+            source_text = f.get("source", "Company Records")
+            if claim_text:
+                facts_str += f"- Verified Fact: {claim_text} (Source: {source_text})\n"
 
         prompt = f"""You are Inkloom AI, an impartial and rigorous enterprise brand governance auditor.
 Your job is to audit submitted text against the organization's official brand guidelines, tone persona, and verified facts.
@@ -172,24 +297,40 @@ AUDITING RULES:
                 response_mime_type="application/json",
                 response_schema=GeminiAuditOutput,
                 temperature=0.1,
+                http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_TEXT * 1000),
             )
-            response = self._generate_with_fallback(
+            response = await self._generate_with_retry(
                 model=settings.PRIMARY_LLM_MODEL,
                 contents=prompt,
                 config=config,
             )
 
             if not response.text:
-                return []
+                return {
+                    "ai_status": "ok",
+                    "findings": [],
+                    "ai_error": None,
+                    "overall_summary": "Empty response from AI auditor.",
+                }
 
             parsed = json.loads(response.text)
             findings_data = parsed.get("findings", [])
-            return findings_data
+            return {
+                "ai_status": "ok",
+                "findings": findings_data,
+                "ai_error": None,
+                "overall_summary": parsed.get("overall_summary", "Semantic audit completed successfully."),
+            }
         except Exception as e:
             logger.error(f"Semantic audit failed via Gemini API: {e}")
-            return []
+            return {
+                "ai_status": "failed",
+                "findings": [],
+                "ai_error": str(e),
+                "overall_summary": f"Semantic audit error: {str(e)}",
+            }
 
-    def audit_image_semantic(
+    async def audit_image_semantic(
         self,
         image_bytes: bytes,
         mime_type: str,
@@ -212,8 +353,10 @@ AUDITING RULES:
                 "overall_summary": "Image analysis unavailable (Gemini service offline).",
                 "visible_text": [],
                 "dominant_colors": [],
-                "palette_match_pct": 100.0,
+                "palette_match_pct": None,
                 "findings": [],
+                "ai_status": "failed",
+                "ai_error": "Gemini service client offline or missing image bytes",
             }
 
         guidelines_str = ""
@@ -226,12 +369,14 @@ AUDITING RULES:
 
         facts_str = ""
         for f in approved_facts:
-            facts_str += f"- Verified Fact: {f.get('claim', '')} (Source: {f.get('source', 'Company Records')})\n"
+            claim_text = f.get("claim") or f.get("fact") or ""
+            source_text = f.get("source", "Company Records")
+            if claim_text:
+                facts_str += f"- Verified Fact: {claim_text} (Source: {source_text})\n"
 
         banned_str = ", ".join(f'"{t}"' for t in banned_terms) if banned_terms else "None specified"
         palette_str = ", ".join(approved_hex_palette) if approved_hex_palette else "No restrictive palette configured"
-        # Build campaign event enforcement rules
-        # Build campaign event enforcement rules
+
         ALWAYS_BANNED_VISUAL_SUBJECTS = [
             "superheroes", "spiderman", "spider-man", "spider man", "batman", "superman", "iron man", "ironman", "thor", "captain america",
             "hulk", "avengers", "marvel", "dc comics", "cartoon characters", "fictional characters",
@@ -309,7 +454,7 @@ AUDIT OBJECTIVES:
    - FACTUAL_CLAIM: If visible statistics, delivery times, or product claims differ from approved facts, generate a finding with category 'FACTUAL_CLAIM'.
    - EVENT_FIT: If the visual is unrelated to the selected campaign event, or violates an event-specific prohibition, generate a finding with category 'EVENT_FIT'.
 5. For each finding, provide:
-    - category: 'VISUAL', 'ACCESSIBILITY', 'TONE', 'FACTUAL_CLAIM', 'TERMINOLOGY', or 'EVENT_FIT'
+   - category: 'VISUAL', 'ACCESSIBILITY', 'TONE', 'FACTUAL_CLAIM', 'TERMINOLOGY', or 'EVENT_FIT'
    - severity: 'CRITICAL', 'WARNING', or 'SUGGESTION'
    - flagged_excerpt: exact text, color code, or visual element
    - explanation: why this violates brand guidelines
@@ -323,8 +468,9 @@ AUDIT OBJECTIVES:
                 response_mime_type="application/json",
                 response_schema=GeminiImageAuditOutput,
                 temperature=0.1,
+                http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_IMAGE * 1000),
             )
-            response = self._generate_with_fallback(
+            response = await self._generate_with_retry(
                 model=settings.VISION_MODEL,
                 contents=[image_part, prompt],
                 config=config,
@@ -335,11 +481,15 @@ AUDIT OBJECTIVES:
                     "overall_summary": "No audit output returned.",
                     "visible_text": [],
                     "dominant_colors": [],
-                    "palette_match_pct": 100.0,
+                    "palette_match_pct": None,
                     "findings": [],
+                    "ai_status": "ok",
+                    "ai_error": None,
                 }
 
             parsed = json.loads(response.text)
+            parsed["ai_status"] = "ok"
+            parsed["ai_error"] = None
             return parsed
         except Exception as e:
             logger.error(f"Image semantic audit failed via Gemini API: {e}")
@@ -347,11 +497,13 @@ AUDIT OBJECTIVES:
                 "overall_summary": f"Image audit error: {str(e)}",
                 "visible_text": [],
                 "dominant_colors": [],
-                "palette_match_pct": 100.0,
+                "palette_match_pct": None,
                 "findings": [],
+                "ai_status": "failed",
+                "ai_error": str(e),
             }
 
-    def transcribe_audio(self, audio_bytes: bytes, mime_type: str) -> str:
+    async def transcribe_audio(self, audio_bytes: bytes, mime_type: str) -> str:
         """
         Transcribes audio (MP3, WAV, M4A) using Gemini multimodal audio capabilities.
         Returns the exact transcript text.
@@ -362,22 +514,22 @@ AUDIT OBJECTIVES:
         try:
             audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
             prompt = "Transcribe this audio exactly. Return only the transcript text, no commentary."
-            response = self._client.models.generate_content(
+            config = types.GenerateContentConfig(
+                http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_MEDIA * 1000),
+            )
+            response = await self._generate_with_retry(
                 model=settings.PRIMARY_LLM_MODEL,
                 contents=[audio_part, prompt],
+                config=config,
             )
             return (response.text or "").strip()
         except Exception as e:
             logger.error(f"Audio transcription failed via Gemini API: {e}")
-            return ""
+            raise
 
-    def transcribe_video(self, video_bytes: bytes, mime_type: str) -> str:
+    async def transcribe_video(self, video_bytes: bytes, mime_type: str) -> str:
         """
         Transcribes spoken dialogue and meaningful on-screen copy from a video.
-
-        The transcript is deliberately returned as plain text so it can flow through
-        the same deterministic and RAG-backed text governance pipeline as copy that
-        was typed directly into Inkloom.
         """
         if not self._client or not video_bytes:
             return ""
@@ -389,15 +541,18 @@ AUDIT OBJECTIVES:
                 "in reading order. Return only the transcript, with short speaker or scene labels "
                 "when useful; do not add commentary or an analysis."
             )
-            response = self._client.models.generate_content(
+            config = types.GenerateContentConfig(
+                http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_MEDIA * 1000),
+            )
+            response = await self._generate_with_retry(
                 model=settings.PRIMARY_LLM_MODEL,
                 contents=[video_part, prompt],
+                config=config,
             )
             return (response.text or "").strip()
         except Exception as e:
             logger.error(f"Video transcription failed via Gemini API: {e}")
-            return ""
+            raise
 
 
 gemini_service = GeminiService()
-

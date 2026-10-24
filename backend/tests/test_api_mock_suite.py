@@ -31,20 +31,25 @@ def mock_external_ai(monkeypatch):
     # Mock 768-dim embedding
     mock_vector = [0.02] * 768
 
-    def mock_embed(text: str):
+    async def mock_embed(text: str, task_type: str = "RETRIEVAL_DOCUMENT"):
         return mock_vector
 
-    def mock_semantic(scrubbed_text, tone_persona, guidelines_context, approved_facts):
-        return [
-            {
-                "category": "TONE",
-                "severity": "WARNING",
-                "flagged_excerpt": "guarantees 100% uptime",
-                "explanation": "Absolute superlative contradicts verified empirical SLA guidelines.",
-                "suggested_correction": "offers a 99.9% uptime SLA",
-                "cited_guideline_id": None,
-            }
-        ]
+    async def mock_semantic(scrubbed_text, tone_persona, guidelines_context, approved_facts):
+        return {
+            "ai_status": "ok",
+            "findings": [
+                {
+                    "category": "TONE",
+                    "severity": "WARNING",
+                    "flagged_excerpt": "guarantees 100% uptime",
+                    "explanation": "Absolute superlative contradicts verified empirical SLA guidelines.",
+                    "suggested_correction": "offers a 99.9% uptime SLA",
+                    "cited_guideline_id": None,
+                }
+            ],
+            "ai_error": None,
+            "overall_summary": "Semantic audit completed via mock.",
+        }
 
     monkeypatch.setattr(gemini_service, "generate_embedding", mock_embed)
     monkeypatch.setattr(gemini_service, "audit_content_semantic", mock_semantic)
@@ -390,6 +395,16 @@ async def test_endpoint_submissions_full_workflow(client: AsyncClient):
     assert res_rev.status_code == 201
     rev = res_rev.json()
     assert rev["version_number"] == 2
+
+    # Audit v2 revision to establish compliance score and ai_status
+    res_audit_v2 = await client.post(f"/api/v1/submissions/{sub_id}/audit", headers=CREATOR_HEADERS)
+    assert res_audit_v2.status_code == 200
+    for f in res_audit_v2.json().get("findings", []):
+        await client.post(
+            f"/api/v1/submissions/findings/{f['id']}/override",
+            json={"reason": "Approved exception for v2 revision"},
+            headers=REVIEWER_HEADERS,
+        )
 
     # 11. POST /api/v1/submissions/{sub_id}/status -> Transition status to APPROVED by Reviewer
     res_status = await client.post(

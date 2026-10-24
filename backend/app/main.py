@@ -73,6 +73,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("Redis cache not configured (running in direct DB mode).")
 
+    # Startup model catalog validation check
+    from app.services.gemini_service import gemini_service
+    if gemini_service.is_available:
+        try:
+            await gemini_service.verify_configured_models()
+            logger.info("Gemini configured models verified during startup.")
+        except Exception as e:
+            logger.error(f"Error during Gemini startup model verification: {e}")
+
     yield
 
     logger.info("Shutting down Inkloom AI services...")

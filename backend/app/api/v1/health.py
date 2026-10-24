@@ -35,6 +35,13 @@ async def health_check(session: AsyncSession = Depends(get_db)) -> Dict[str, Any
         except Exception as e:
             redis_status = f"unhealthy: {str(e)}"
 
+    model_status = gemini_service.model_validation_status
+    if not any(v.get("valid") for v in model_status.values()) and gemini_service.is_available:
+        try:
+            model_status = await gemini_service.verify_configured_models()
+        except Exception:
+            pass
+
     ai_status = {
         "provider": "Google Gemini",
         "primary_model": settings.PRIMARY_LLM_MODEL,
@@ -42,9 +49,13 @@ async def health_check(session: AsyncSession = Depends(get_db)) -> Dict[str, Any
         "embedding_dimensions": settings.EMBEDDING_DIMENSIONS,
         "configured": bool(settings.GEMINI_API_KEY),
         "client_ready": gemini_service.is_available,
+        "models": {
+            settings.PRIMARY_LLM_MODEL: {"valid": model_status.get(settings.PRIMARY_LLM_MODEL, {}).get("valid", False)},
+            settings.EMBEDDING_MODEL: {"valid": model_status.get(settings.EMBEDDING_MODEL, {}).get("valid", False)},
+        },
     }
 
-    overall_healthy = db_status == "healthy"
+    overall_healthy = (db_status == "healthy") and not redis_status.startswith("unhealthy")
 
     return {
         "status": "healthy" if overall_healthy else "degraded",

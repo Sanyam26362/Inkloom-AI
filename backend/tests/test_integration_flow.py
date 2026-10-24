@@ -1,5 +1,35 @@
 import pytest
 from httpx import AsyncClient
+from app.services.gemini_service import gemini_service
+
+
+@pytest.fixture(autouse=True)
+def mock_external_ai(monkeypatch):
+    """Network-boundary mock for Google Gemini API to ensure test runs hermetically."""
+    mock_vector = [0.02] * 768
+
+    async def mock_embed(text: str, task_type: str = "RETRIEVAL_DOCUMENT"):
+        return mock_vector
+
+    async def mock_semantic(scrubbed_text, tone_persona, guidelines_context, approved_facts):
+        return {
+            "ai_status": "ok",
+            "findings": [
+                {
+                    "category": "TONE",
+                    "severity": "WARNING",
+                    "flagged_excerpt": "guarantees 100% uptime",
+                    "explanation": "Absolute superlative contradicts verified empirical SLA guidelines.",
+                    "suggested_correction": "offers a 99.9% uptime SLA",
+                    "cited_guideline_id": None,
+                }
+            ],
+            "ai_error": None,
+            "overall_summary": "E2E Press Release processed.",
+        }
+
+    monkeypatch.setattr(gemini_service, "generate_embedding", mock_embed)
+    monkeypatch.setattr(gemini_service, "audit_content_semantic", mock_semantic)
 
 
 @pytest.mark.asyncio
@@ -58,16 +88,16 @@ async def test_full_governance_lifecycle_e2e(client: AsyncClient):
     assert comment_res.status_code == 201
     assert comment_res.json()["author_role"] == "REVIEWER"
 
-    # 4. Override a finding with valid reason
+    # 4. Override findings with valid reason
     findings = audit_data["findings"]
-    first_finding_id = findings[0]["id"]
-    override_res = await client.post(
-        f"/api/v1/submissions/findings/{first_finding_id}/override",
-        json={"reason": "Approved executive exception by CMO for launch embargo"},
-        headers={"x-user-id": "reviewer_1", "x-user-name": "Jordan Lee", "x-user-role": "REVIEWER"},
-    )
-    assert override_res.status_code == 200
-    assert override_res.json()["resolution_state"] == "OVERRIDDEN"
+    for f in findings:
+        override_res = await client.post(
+            f"/api/v1/submissions/findings/{f['id']}/override",
+            json={"reason": "Approved executive exception by CMO for launch embargo"},
+            headers={"x-user-id": "reviewer_1", "x-user-name": "Jordan Lee", "x-user-role": "REVIEWER"},
+        )
+        assert override_res.status_code == 200
+        assert override_res.json()["resolution_state"] == "OVERRIDDEN"
 
     # 5. Transition to APPROVED by Reviewer
     status_res = await client.post(

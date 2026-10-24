@@ -171,20 +171,28 @@ class WorkflowService:
                 )
 
             latest_revision_stmt = (
-                select(SubmissionRevision.id)
+                select(SubmissionRevision)
                 .where(SubmissionRevision.submission_id == submission.id)
                 .where(SubmissionRevision.version_number == submission.current_version)
             )
-            latest_revision_id = (await session.execute(latest_revision_stmt)).scalar_one_or_none()
-            if latest_revision_id is None:
+            latest_revision = (await session.execute(latest_revision_stmt)).scalar_one_or_none()
+            if latest_revision is None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="The current revision must be audited before it can be approved.",
                 )
+
+            current_ai_status = (latest_revision.ai_governance_metadata or {}).get("ai_status", "ok")
+            if current_ai_status != "ok":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Cannot approve submission: AI analysis status is '{current_ai_status}'. AI analysis must be fully completed ('ok') before approval.",
+                )
+
             open_findings_stmt = (
                 select(AuditFinding.id)
                 .where(AuditFinding.submission_id == submission.id)
-                .where(AuditFinding.revision_id == latest_revision_id)
+                .where(AuditFinding.revision_id == latest_revision.id)
                 .where(AuditFinding.resolution_state == "OPEN")
             )
             open_findings = list((await session.execute(open_findings_stmt)).scalars().all())

@@ -24,7 +24,7 @@ class AuditService:
         cls, session: AsyncSession, brand_id: int, query_text: str, limit: int = 5
     ) -> List[GuidelineChunk]:
         """Retrieves top-k relevant guideline chunks using pgvector cosine distance."""
-        embedding = gemini_service.generate_embedding(query_text)
+        embedding = await gemini_service.generate_embedding(query_text, task_type="RETRIEVAL_QUERY")
         if embedding:
             stmt = (
                 select(GuidelineChunk)
@@ -212,42 +212,73 @@ class AuditService:
         retrieved_map = {c.id: c for c in retrieved_chunks}
 
         # 4. Semantic AI Audit via Gemini
-        if gemini_service.is_available and scrubbed_text.strip():
-            ai_findings_raw = gemini_service.audit_content_semantic(
-                scrubbed_text=scrubbed_text,
-                tone_persona=brand.tone_persona or "",
-                guidelines_context=guidelines_context,
-                approved_facts=brand.approved_facts or [],
-            )
+        ai_status = "ok"
+        ai_error: Optional[str] = None
 
-            for af in ai_findings_raw:
-                flagged = af.get("flagged_excerpt", "")
-                suggestion = af.get("suggested_correction", "")
-                explanation = af.get("explanation", "")
-                category = af.get("category", "TONE").upper()
-                severity = af.get("severity", "WARNING").upper()
-                cited_id = af.get("cited_guideline_id")
-
-                # Restore any scrubbed tokens in suggestions
-                restored_flagged = ConfidentialityScrubber.restore(flagged, restore_map)
-                restored_suggestion = ConfidentialityScrubber.restore(suggestion, restore_map)
-
-                citation = "Brand Tone & Style Persona"
-                if cited_id and cited_id in retrieved_map:
-                    citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
-
-                all_draft_findings.append(
-                    FindingDraft(
-                        category=category,
-                        severity=severity,
-                        detector_source="RAG_LLM",
-                        flagged_excerpt=restored_flagged,
-                        explanation=explanation,
-                        guideline_citation=citation,
-                        suggested_correction=restored_suggestion,
-                        cited_chunk_id=cited_id if cited_id in retrieved_map else None,
+        if scrubbed_text.strip():
+            if gemini_service.is_available:
+                try:
+                    ai_result = await gemini_service.audit_content_semantic(
+                        scrubbed_text=scrubbed_text,
+                        tone_persona=brand.tone_persona or "",
+                        guidelines_context=guidelines_context,
+                        approved_facts=brand.approved_facts or [],
                     )
+                except Exception as exc:
+                    ai_result = {
+                        "ai_status": "failed",
+                        "findings": [],
+                        "ai_error": str(exc),
+                    }
+                ai_status = ai_result.get("ai_status", "ok")
+                ai_error = ai_result.get("ai_error")
+                ai_findings_raw = ai_result.get("findings", [])
+
+                for af in ai_findings_raw:
+                    flagged = af.get("flagged_excerpt", "")
+                    suggestion = af.get("suggested_correction", "")
+                    explanation = af.get("explanation", "")
+                    category = af.get("category", "TONE").upper()
+                    severity = af.get("severity", "WARNING").upper()
+                    cited_id = af.get("cited_guideline_id")
+
+                    # Restore any scrubbed tokens in suggestions
+                    restored_flagged = ConfidentialityScrubber.restore(flagged, restore_map)
+                    restored_suggestion = ConfidentialityScrubber.restore(suggestion, restore_map)
+
+                    citation = "Brand Tone & Style Persona"
+                    if cited_id and cited_id in retrieved_map:
+                        citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
+
+                    all_draft_findings.append(
+                        FindingDraft(
+                            category=category,
+                            severity=severity,
+                            detector_source="RAG_LLM",
+                            flagged_excerpt=restored_flagged,
+                            explanation=explanation,
+                            guideline_citation=citation,
+                            suggested_correction=restored_suggestion,
+                            cited_chunk_id=cited_id if cited_id in retrieved_map else None,
+                        )
+                    )
+            else:
+                ai_status = "failed"
+                ai_error = "Gemini AI service is offline or unconfigured."
+
+        # Fail closed: when any AI step fails or is unavailable, add visible WARNING finding
+        if ai_status == "failed":
+            all_draft_findings.append(
+                FindingDraft(
+                    category="ACCESSIBILITY",
+                    severity="WARNING",
+                    detector_source="AI_GOVERNANCE_ENGINE",
+                    flagged_excerpt="AI Governance Audit Incomplete",
+                    explanation=f"AI analysis incomplete: {ai_error or 'AI service unavailable'}",
+                    guideline_citation="System Reliability Guardrail",
+                    suggested_correction="Retry the audit once AI services are operational.",
                 )
+            )
 
         # Media audits can contribute visual findings to the same revision. They
         # are merged before deduplication so text and visual policy violations are
@@ -271,13 +302,21 @@ class AuditService:
             "pii_disclosure": pii_disclosure,
             "retrieved_guidelines_count": len(retrieved_chunks),
             "findings_count": len(deduped_findings),
+            "ai_status": ai_status,
+            "ai_error": ai_error,
         }
         if additional_metadata:
             revision.ai_governance_metadata.update(additional_metadata)
+            if "ai_status" in additional_metadata:
+                ai_status = additional_metadata["ai_status"]
+            if "ai_error" in additional_metadata:
+                ai_error = additional_metadata["ai_error"]
         submission.compliance_score = score
 
-        # Update submission status
-        if score == 100.0:
+        # Update submission status - fail closed to NEEDS_REVIEW if AI step failed
+        if ai_status == "failed":
+            submission.status = "NEEDS_REVIEW"
+        elif score == 100.0:
             submission.status = "NEEDS_REVIEW"
         else:
             submission.status = "CHANGES_REQUESTED" if any(f.severity == "CRITICAL" for f in deduped_findings) else "NEEDS_REVIEW"
@@ -340,6 +379,8 @@ class AuditService:
             "findings_by_severity": severity_counts,
             "findings": created_finding_records,
             "confidentiality_report": pii_disclosure,
+            "ai_status": ai_status,
+            "ai_error": ai_error,
         }
 
     @classmethod
@@ -439,16 +480,38 @@ class AuditService:
                     )
                     break  # One finding per source is enough
 
-        vision_result = gemini_service.audit_image_semantic(
-            image_bytes=image_bytes,
-            mime_type=mime_type,
-            tone_persona=brand.tone_persona or "",
-            approved_hex_palette=brand.approved_hex_palette or [],
-            approved_facts=brand.approved_facts or [],
-            banned_terms=brand.banned_terms or [],
-            guidelines_context=guidelines_context,
-            campaign_event=campaign_event,
-        )
+        try:
+            vision_result = await gemini_service.audit_image_semantic(
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+                tone_persona=brand.tone_persona or "",
+                approved_hex_palette=brand.approved_hex_palette or [],
+                approved_facts=brand.approved_facts or [],
+                banned_terms=brand.banned_terms or [],
+                guidelines_context=guidelines_context,
+                campaign_event=campaign_event,
+            )
+        except Exception as exc:
+            vision_result = {
+                "ai_status": "failed",
+                "findings": [],
+                "ai_error": str(exc),
+                "palette_match_pct": None,
+            }
+        vision_ai_status = vision_result.get("ai_status", "ok")
+        vision_ai_error = vision_result.get("ai_error")
+        if vision_ai_status == "failed":
+            all_draft_findings.append(
+                FindingDraft(
+                    category="VISUAL",
+                    severity="WARNING",
+                    detector_source="AI_VISION_ENGINE",
+                    flagged_excerpt="AI Visual Analysis Incomplete",
+                    explanation=f"AI analysis incomplete: {vision_ai_error or 'Vision service unavailable'}",
+                    guideline_citation="Brand Visual Reliability Policy",
+                    suggested_correction="Ensure visual asset is accessible and retry the audit.",
+                )
+            )
 
         visible_text_list = vision_result.get("visible_text", [])
         # Prefer the local pixel analysis for colors. Model-described colors are useful
@@ -644,13 +707,23 @@ class AuditService:
             "image_metadata": image_metadata,
             "findings_count": len(deduped_findings),
             "campaign_event": campaign_event,
+            "ai_status": vision_ai_status,
+            "ai_error": vision_ai_error,
         }
         if additional_metadata:
             revision.ai_governance_metadata.update(additional_metadata)
+            if "ai_status" in additional_metadata:
+                vision_ai_status = additional_metadata["ai_status"]
+            if "ai_error" in additional_metadata:
+                vision_ai_error = additional_metadata["ai_error"]
         submission.compliance_score = score
         if persist:
             submission.content_format = "IMAGE"
-        if score == 100.0:
+
+        # Fail closed on AI failure
+        if vision_ai_status == "failed":
+            submission.status = "NEEDS_REVIEW"
+        elif score == 100.0:
             submission.status = "NEEDS_REVIEW"
         else:
             submission.status = "CHANGES_REQUESTED" if any(f.severity == "CRITICAL" for f in deduped_findings) else "NEEDS_REVIEW"
@@ -662,6 +735,8 @@ class AuditService:
                 "dominant_colors": dominant_colors,
                 "palette_match_pct": palette_match_pct,
                 "image_metadata": image_metadata,
+                "ai_status": vision_ai_status,
+                "ai_error": vision_ai_error,
             }
 
         # Persist findings
@@ -729,5 +804,7 @@ class AuditService:
             "visible_text": visible_text_list,
             "dominant_colors": dominant_colors,
             "palette_match_pct": palette_match_pct,
+            "ai_status": vision_ai_status,
+            "ai_error": vision_ai_error,
         }
 

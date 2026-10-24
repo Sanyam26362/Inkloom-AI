@@ -110,7 +110,7 @@ async def seed_database() -> None:
         ]
 
         for g in guidelines_data:
-            emb = gemini_service.generate_embedding(g["content_text"])
+            emb = await gemini_service.generate_embedding(g["content_text"], task_type="RETRIEVAL_DOCUMENT")
             chunk = GuidelineChunk(
                 brand_id=brand.id,
                 source_document=g["source_document"],

@@ -218,7 +218,7 @@ async def seed_blinkit() -> None:
 
         for g in mock_guidelines:
             logger.info(f"  Generating embedding for: {g['section_reference']}")
-            emb = gemini_service.generate_embedding(g["content_text"])
+            emb = await gemini_service.generate_embedding(g["content_text"], task_type="RETRIEVAL_DOCUMENT")
             chunk = GuidelineChunk(
                 brand_id=brand.id,
                 source_document=g["source_document"],

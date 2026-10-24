@@ -16,9 +16,8 @@ alembic==1.13.3
 redis==5.1.1
 httpx==0.27.2
 
-# 100% Free AI SDKs (Google Gemini + Groq)
+# 100% Free AI SDKs (Google Gemini)
 google-genai>=1.0.0
-groq==0.11.0
 tenacity==9.0.0
 
 # PDF Parsing, Image Processing & Color/Contrast Math

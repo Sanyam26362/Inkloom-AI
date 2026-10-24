@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { AuditExecutionResponse, BrandProfile, AuditFinding } from "@/lib/types";
+import { AuditExecutionResponse, AuditFinding } from "@/lib/types";
 
 type ContentType = "image" | "poster" | "video" | "audio" | "text";
 
@@ -37,7 +37,16 @@ function formatBytes(bytes: number): string {
 export default function JudgeCanvasPage() {
   const { brands, activeBrandId, setActiveBrandId, currentRole } = useApp();
 
-  const [session, setSession] = useState<JudgeSession | null>(null);
+  const [guidelinesSource, setGuidelinesSource] = useState<"preloaded" | "uploaded">("preloaded");
+  const currentBrand = brands.find((b) => b.id === activeBrandId) || brands[0];
+  const session: JudgeSession | null = currentBrand
+    ? {
+        brandId: currentBrand.id,
+        brandName: currentBrand.name,
+        guidelinesSource,
+      }
+    : null;
+
   const [contentType, setContentType] = useState<ContentType>("image");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textContent, setTextContent] = useState("");
@@ -51,7 +60,6 @@ export default function JudgeCanvasPage() {
   const [indexingPremade, setIndexingPremade] = useState(false);
   const [premadeLoadedMessage, setPremadeLoadedMessage] = useState<string | null>(null);
   const [guidelineFile, setGuidelineFile] = useState<File | null>(null);
-  const [isSetup, setIsSetup] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const guidelineRef = useRef<HTMLInputElement>(null);
@@ -63,7 +71,7 @@ export default function JudgeCanvasPage() {
     try {
       const chunks = await api.loadPremadeGuidelines(session.brandId, { userRole: currentRole });
       setPremadeLoadedMessage(`Indexed ${chunks.length} policy chunks from backend guidelines.pdf & design.md!`);
-      setSession((prev) => (prev ? { ...prev, guidelinesSource: "preloaded" } : prev));
+      setGuidelinesSource("preloaded");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load pre-made guidelines");
     } finally {
@@ -116,21 +124,6 @@ export default function JudgeCanvasPage() {
     setError(null);
   };
 
-  useEffect(() => {
-    // Auto-configure session with the active brand
-    if (brands.length > 0 && activeBrandId > 0) {
-      const brand = brands.find((b) => b.id === activeBrandId) || brands[0];
-      if (brand) {
-        setSession({
-          brandId: brand.id,
-          brandName: brand.name,
-          guidelinesSource: "preloaded",
-        });
-        setIsSetup(true);
-      }
-    }
-  }, [brands, activeBrandId]);
-
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setAuditResult(null);
@@ -168,7 +161,7 @@ export default function JudgeCanvasPage() {
         }
       }
       setGuidelineFile(file);
-      setSession((prev) => prev ? { ...prev, guidelinesSource: "uploaded" } : prev);
+      setGuidelinesSource("uploaded");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to upload guidelines");
     } finally {
@@ -289,8 +282,7 @@ export default function JudgeCanvasPage() {
                   onChange={(e) => {
                     const id = Number(e.target.value);
                     setActiveBrandId(id);
-                    const brand = brands.find((b) => b.id === id);
-                    if (brand) setSession({ brandId: id, brandName: brand.name, guidelinesSource: "preloaded" });
+                    setGuidelinesSource("preloaded");
                   }}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 >
@@ -552,7 +544,7 @@ export default function JudgeCanvasPage() {
             {/* Audit Button */}
             <button
               onClick={runAudit}
-              disabled={isAuditing || !isSetup}
+              disabled={isAuditing || !session}
               className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
             >
               {isAuditing ? (

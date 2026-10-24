@@ -346,9 +346,83 @@ async def upload_audio_and_audit(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a secure audio URL.")
 
     # Transcribe via Gemini
-    transcript = gemini_service.transcribe_audio(audio_bytes=audio_bytes, mime_type=content_type)
+    try:
+        transcript = await gemini_service.transcribe_audio(audio_bytes=audio_bytes, mime_type=content_type)
+        transcribe_error = None
+    except Exception as exc:
+        transcript = None
+        transcribe_error = str(exc)
+
     if not transcript:
-        transcript = "(No speech or spoken content detected in audio recording)"
+        # Fail closed: Do NOT audit fake placeholder string!
+        new_version = (submission.current_version or 0) + 1
+        submission.current_version = new_version
+        submission.content_format = "AUDIO"
+        submission.status = "NEEDS_REVIEW"
+        submission.compliance_score = 0.0
+
+        ai_error_msg = f"Audio transcription failed: {transcribe_error or 'No speech detected or provider error'}"
+        revision = SubmissionRevision(
+            submission_id=submission.id,
+            version_number=new_version,
+            content_body="",
+            media_urls=[audio_url],
+            change_summary="Audio transcription failed",
+            created_by=user.user_name,
+            compliance_score=0.0,
+            ai_governance_metadata={
+                "storage": cloudinary_asset,
+                "ai_status": "failed",
+                "ai_error": ai_error_msg,
+                "campaign_event": event,
+            },
+        )
+        session.add(revision)
+        await session.flush()
+
+        warning_finding = AuditFinding(
+            submission_id=submission.id,
+            revision_id=revision.id,
+            category="ACCESSIBILITY",
+            severity="WARNING",
+            detector_source="AI_TRANSCRIPTION_ENGINE",
+            flagged_excerpt="Audio Transcription Incomplete",
+            explanation=f"AI analysis incomplete: {ai_error_msg}",
+            guideline_citation="Media Governance Pipeline",
+            suggested_correction="Check audio clarity and format, and retry the upload once service is operational.",
+            resolution_state="OPEN",
+        )
+        session.add(warning_finding)
+
+        event_log = WorkflowEvent(
+            submission_id=submission.id,
+            actor_id=user.user_id,
+            actor_name=user.user_name,
+            actor_role=user.role.value,
+            event_type="AUDIT_COMPLETED",
+            from_status="AUDITING",
+            to_status="NEEDS_REVIEW",
+            notes=f"Audit failed closed: {ai_error_msg}",
+            metadata_json={"ai_status": "failed", "ai_error": ai_error_msg},
+        )
+        session.add(event_log)
+        await session.commit()
+        await session.refresh(warning_finding)
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": revision.id,
+            "version_number": new_version,
+            "compliance_score": 0.0,
+            "status": "NEEDS_REVIEW",
+            "total_findings": 1,
+            "findings_by_severity": {"CRITICAL": 0, "WARNING": 1, "SUGGESTION": 0},
+            "findings": [warning_finding],
+            "confidentiality_report": {},
+            "transcript": "",
+            "ai_status": "failed",
+            "ai_error": ai_error_msg,
+        }
 
     # Create new revision with transcript
     new_version = (submission.current_version or 0) + 1
@@ -460,9 +534,83 @@ async def upload_video_and_audit(
     if not video_url:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="The media provider did not return a playable video URL.")
 
-    transcript = gemini_service.transcribe_video(video_bytes=video_bytes, mime_type=content_type)
+    try:
+        transcript = await gemini_service.transcribe_video(video_bytes=video_bytes, mime_type=content_type)
+        transcribe_error = None
+    except Exception as exc:
+        transcript = None
+        transcribe_error = str(exc)
+
     if not transcript:
-        transcript = "(No spoken dialogue or meaningful on-screen text detected in video)"
+        # Fail closed: Do NOT audit fake placeholder string!
+        new_version = (submission.current_version or 0) + 1
+        submission.current_version = new_version
+        submission.content_format = "VIDEO"
+        submission.status = "NEEDS_REVIEW"
+        submission.compliance_score = 0.0
+
+        ai_error_msg = f"Video transcription failed: {transcribe_error or 'No dialogue/text detected or provider error'}"
+        revision = SubmissionRevision(
+            submission_id=submission.id,
+            version_number=new_version,
+            content_body="",
+            media_urls=[video_url],
+            change_summary="Video transcription failed",
+            created_by=user.user_name,
+            compliance_score=0.0,
+            ai_governance_metadata={
+                "storage": cloudinary_asset,
+                "ai_status": "failed",
+                "ai_error": ai_error_msg,
+                "campaign_event": event,
+            },
+        )
+        session.add(revision)
+        await session.flush()
+
+        warning_finding = AuditFinding(
+            submission_id=submission.id,
+            revision_id=revision.id,
+            category="VISUAL",
+            severity="WARNING",
+            detector_source="AI_TRANSCRIPTION_ENGINE",
+            flagged_excerpt="Video Transcription Incomplete",
+            explanation=f"AI analysis incomplete: {ai_error_msg}",
+            guideline_citation="Media Governance Pipeline",
+            suggested_correction="Check video format and quality, and retry the upload once service is operational.",
+            resolution_state="OPEN",
+        )
+        session.add(warning_finding)
+
+        event_log = WorkflowEvent(
+            submission_id=submission.id,
+            actor_id=user.user_id,
+            actor_name=user.user_name,
+            actor_role=user.role.value,
+            event_type="AUDIT_COMPLETED",
+            from_status="AUDITING",
+            to_status="NEEDS_REVIEW",
+            notes=f"Audit failed closed: {ai_error_msg}",
+            metadata_json={"ai_status": "failed", "ai_error": ai_error_msg},
+        )
+        session.add(event_log)
+        await session.commit()
+        await session.refresh(warning_finding)
+
+        return {
+            "submission_id": submission.id,
+            "revision_id": revision.id,
+            "version_number": new_version,
+            "compliance_score": 0.0,
+            "status": "NEEDS_REVIEW",
+            "total_findings": 1,
+            "findings_by_severity": {"CRITICAL": 0, "WARNING": 1, "SUGGESTION": 0},
+            "findings": [warning_finding],
+            "confidentiality_report": {},
+            "transcript": "",
+            "ai_status": "failed",
+            "ai_error": ai_error_msg,
+        }
 
     new_version = (submission.current_version or 0) + 1
     submission.current_version = new_version

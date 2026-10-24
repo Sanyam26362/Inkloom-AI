@@ -77,3 +77,5 @@ class AuditExecutionResponse(BaseModel):
     palette_match_pct: Optional[float] = None
     transcript: Optional[str] = None
     duration_seconds: Optional[float] = None
+    ai_status: str = Field("ok", description="ok | partial | failed | skipped")
+    ai_error: Optional[str] = None

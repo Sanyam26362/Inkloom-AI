@@ -51,7 +51,12 @@ async def create_guideline_chunk(
     if not brand_res.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand profile not found")
 
-    embedding = gemini_service.generate_embedding(payload.content_text)
+    embedding = await gemini_service.generate_embedding(payload.content_text, task_type="RETRIEVAL_DOCUMENT")
+    if not embedding:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to generate embedding for guideline chunk: {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
+        )
 
     chunk = GuidelineChunk(
         brand_id=payload.brand_id,
@@ -100,7 +105,12 @@ async def upload_guideline_pdf(
 
     saved_chunks: List[GuidelineChunk] = []
     for rc in raw_chunks:
-        embedding = gemini_service.generate_embedding(rc["content_text"])
+        embedding = await gemini_service.generate_embedding(rc["content_text"], task_type="RETRIEVAL_DOCUMENT")
+        if not embedding:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to generate embedding for guideline chunk '{rc.get('section_reference', '')}': {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
+            )
         chunk = GuidelineChunk(
             brand_id=brand_id,
             source_document=rc["source_document"],
@@ -157,7 +167,12 @@ async def load_premade_guidelines(
             )
             # Take key semantic chunks (max 8)
             for rc in raw_chunks[:8]:
-                embedding = gemini_service.generate_embedding(rc["content_text"])
+                embedding = await gemini_service.generate_embedding(rc["content_text"], task_type="RETRIEVAL_DOCUMENT")
+                if not embedding:
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Failed to generate embedding for premade guideline chunk '{rc.get('section_reference', '')}': {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
+                    )
                 chunk = GuidelineChunk(
                     brand_id=brand_id,
                     source_document=rc["source_document"],
@@ -183,7 +198,12 @@ async def load_premade_guidelines(
             title = lines[0].replace("#", "").strip() or "Design System"
             body = "\n".join(lines[1:15]).strip()
             chunk_content = f"{title}\n{body}"
-            embedding = gemini_service.generate_embedding(chunk_content)
+            embedding = await gemini_service.generate_embedding(chunk_content, task_type="RETRIEVAL_DOCUMENT")
+            if not embedding:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Failed to generate embedding for design system chunk '{title}': {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
+                )
             chunk = GuidelineChunk(
                 brand_id=brand_id,
                 source_document="blinkit_diwali_2026_design_system.md",
@@ -203,7 +223,12 @@ async def load_premade_guidelines(
         "marigold flowers, festive lights, lanterns, sweets, gift boxes, or festive headline). "
         "Strictly prohibited: firecrackers, fireworks, weapons, and copyrighted characters (Spider-Man, etc.)."
     )
-    embedding = gemini_service.generate_embedding(event_text)
+    embedding = await gemini_service.generate_embedding(event_text, task_type="RETRIEVAL_DOCUMENT")
+    if not embedding:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Failed to generate embedding for campaign event: {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
+        )
     chunk = GuidelineChunk(
         brand_id=brand_id,
         source_document="Campaign Brief - Diwali 2026",
@@ -230,7 +255,7 @@ async def search_guidelines(
     user: CurrentUser = Depends(get_current_user),
 ) -> List[GuidelineSearchResult]:
     """Semantic vector search over brand guidelines using pgvector cosine distance."""
-    embedding = gemini_service.generate_embedding(payload.query)
+    embedding = await gemini_service.generate_embedding(payload.query, task_type="RETRIEVAL_QUERY")
     if not embedding:
         # Fallback to text match
         text_stmt = (

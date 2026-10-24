@@ -43,7 +43,7 @@ All core defects have been repaired, and the application foundation is fully ope
 | 2 | Empty `app/main.py` entry point | File was 0 bytes without FastAPI application, routers, or lifespan. | Server could not start (`uvicorn app.main:app` failed). | Directory inspection showing 0-byte file. |
 | 3 | Docker port collision on 5433 & 6379 | Stale containers (`wtf-postgres` and `wtf-redis`) were listening on host ports 5433 and 6379. | `inkloom_postgres` and `inkloom_redis` failed to bind host ports, preventing connection. | `docker compose up -d` returned `Bind for 0.0.0.0:6379 failed: port is already allocated`. |
 | 4 | Missing Alembic migrations | Alembic was present in `requirements.txt` but no `alembic.ini` or migration environment existed. | No version-controlled migration path existed for schema evolution. | Absence of `alembic.ini` in backend directory. |
-| 5 | Stale/invalid AI model identifiers | `.env.example` referenced `gemini-2.5-flash` (retired by Google API) and `gemini-3.8-flash` (unnecessary reasoning token latency). | AI calls threw 404 `ClientError` or hung on reasoning tokens. | Live Google GenAI response: `This model models/gemini-2.5-flash is no longer available to new users.` |
+| 5 | Stale/invalid AI model identifiers | `.env.example` referenced deprecated models (retired by Google API or with high demand spikes). | AI calls threw 404 `ClientError` or hung on requests. | Live Google GenAI response: `This model is no longer available to new users.` |
 | 6 | Embedding dimension mismatch risk | `gemini-embedding-2` returns 3072 floats by default unless explicitly configured. | Inserting 3072 floats into PostgreSQL `vector(768)` throws a database constraint exception. | Initial test without `output_dimensionality=768` returned vector length 3072. |
 | 7 | PII Scrubber offset drift risk | Iterative `str.replace(..., 1)` substitutions caused string shifts, risking incorrect spans and placeholder collision. | Potential corruption of text spans or missed redactions. | Code inspection of `app/core/pii_scrubber.py`. |
 | 8 | Missing automated test suite | `pytest` and `pytest-asyncio` were not installed; no test files existed. | Zero automated regression protection. | `python -m pytest` returned `No module named pytest`. |
@@ -64,7 +64,7 @@ All core defects have been repaired, and the application foundation is fully ope
 
 ### 2. `backend/app/core/config.py` & `.env.example`
 - **Root Cause:** Stale and deprecated model names in configuration.
-- **Modification:** Set `PRIMARY_LLM_MODEL="gemini-3.5-flash"` and `FAST_INLINE_MODEL="gemini-3.5-flash-lite"`. Preserved `EMBEDDING_DIMENSIONS=768`.
+- **Modification:** Set `PRIMARY_LLM_MODEL="gemini-3.5-flash"` and `VISION_MODEL="gemini-3.5-flash"`. Preserved `EMBEDDING_DIMENSIONS=768`.
 - **Why Necessary:** Guarantees 100% compatibility with active Gemini API models and ensures low-latency audit responses.
 - **Regression Test:** `tests/test_api_endpoints.py::test_health_endpoint`.
 
