@@ -1,7 +1,11 @@
+import logging
+from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.core.database import get_db
 from app.core.security import CurrentUser, get_current_user
@@ -108,6 +112,109 @@ async def upload_guideline_pdf(
         )
         session.add(chunk)
         saved_chunks.append(chunk)
+
+    await session.commit()
+    for sc in saved_chunks:
+        await session.refresh(sc)
+
+    return saved_chunks
+
+
+@router.post("/load-premade", response_model=List[GuidelineChunkResponse], status_code=status.HTTP_201_CREATED)
+async def load_premade_guidelines(
+    brand_id: int = Form(...),
+    session: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+) -> List[GuidelineChunk]:
+    """
+    Loads pre-built Blinkit Diwali 2026 Guidelines (PDF) and Design System (MD)
+    from the backend directory, parses them into semantic chunks, generates embeddings,
+    and indexes them in PostgreSQL pgvector.
+    """
+    brand_stmt = select(BrandProfile).where(BrandProfile.id == brand_id)
+    brand_res = await session.execute(brand_stmt)
+    brand = brand_res.scalar_one_or_none()
+    if not brand:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand profile not found")
+
+    # If brand already has pre-loaded guidelines, return them immediately
+    existing_stmt = select(GuidelineChunk).where(GuidelineChunk.brand_id == brand_id)
+    existing_res = await session.execute(existing_stmt)
+    existing_chunks = list(existing_res.scalars().all())
+    if len(existing_chunks) >= 6:
+        logger.info(f"Brand #{brand_id} already has {len(existing_chunks)} guidelines indexed. Returning immediately.")
+        return existing_chunks
+
+    saved_chunks: List[GuidelineChunk] = []
+
+    # 1. Parse and index backend/blinkit_guidelines.pdf (key policy sections)
+    pdf_path = Path("blinkit_guidelines.pdf")
+    if pdf_path.exists():
+        pdf_bytes = pdf_path.read_bytes()
+        try:
+            raw_chunks = DocumentService.extract_chunks_from_pdf(
+                pdf_bytes=pdf_bytes, filename="blinkit_guidelines.pdf"
+            )
+            # Take key semantic chunks (max 8)
+            for rc in raw_chunks[:8]:
+                embedding = gemini_service.generate_embedding(rc["content_text"])
+                chunk = GuidelineChunk(
+                    brand_id=brand_id,
+                    source_document=rc["source_document"],
+                    page_number=rc["page_number"],
+                    section_reference=rc["section_reference"],
+                    rule_category=rc["rule_category"],
+                    content_text=rc["content_text"],
+                    embedding=embedding,
+                )
+                session.add(chunk)
+                saved_chunks.append(chunk)
+        except Exception as e:
+            logger.error(f"Error extracting premade PDF guidelines: {e}")
+
+    # 2. Parse and index backend/blinkit_diwali_2026_design_system.md (key design sections)
+    ds_path = Path("blinkit_diwali_2026_design_system.md")
+    if ds_path.exists():
+        text = ds_path.read_text(encoding="utf-8")
+        sections = [s.strip() for s in text.split("\n## ") if s.strip()]
+        for sec in sections[:5]:
+            sec_text = "## " + sec if not sec.startswith("#") else sec
+            lines = sec_text.split("\n")
+            title = lines[0].replace("#", "").strip() or "Design System"
+            body = "\n".join(lines[1:15]).strip()
+            chunk_content = f"{title}\n{body}"
+            embedding = gemini_service.generate_embedding(chunk_content)
+            chunk = GuidelineChunk(
+                brand_id=brand_id,
+                source_document="blinkit_diwali_2026_design_system.md",
+                page_number=1,
+                section_reference=title,
+                rule_category="DESIGN",
+                content_text=chunk_content,
+                embedding=embedding,
+            )
+            session.add(chunk)
+            saved_chunks.append(chunk)
+
+    # 3. Add upcoming campaign event chunk
+    event_text = (
+        "Upcoming Campaign Event: Diwali 2026. "
+        "Every Diwali campaign visual must include at least two clear festive cues (diyas, rangoli, "
+        "marigold flowers, festive lights, lanterns, sweets, gift boxes, or festive headline). "
+        "Strictly prohibited: firecrackers, fireworks, weapons, and copyrighted characters (Spider-Man, etc.)."
+    )
+    embedding = gemini_service.generate_embedding(event_text)
+    chunk = GuidelineChunk(
+        brand_id=brand_id,
+        source_document="Campaign Brief - Diwali 2026",
+        page_number=1,
+        section_reference="Upcoming Campaign Event",
+        rule_category="EVENT",
+        content_text=event_text,
+        embedding=embedding,
+    )
+    session.add(chunk)
+    saved_chunks.append(chunk)
 
     await session.commit()
     for sc in saved_chunks:
