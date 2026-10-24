@@ -48,6 +48,12 @@ class GeminiAuditOutput(BaseModel):
     findings: List[GeminiAuditFindingItem] = Field(description="List of detected compliance issues")
 
 
+class TextContrastPair(BaseModel):
+    text: str = Field(description="Visible text excerpt")
+    foreground_hex: str = Field(description="Foreground text hex color e.g. #FFFFFF")
+    background_hex: str = Field(description="Background hex color immediately behind text e.g. #F8C200")
+
+
 class GeminiImageAuditOutput(BaseModel):
     overall_summary: str = Field(description="Brief assessment of the visual asset against brand voice, color palette, and accessibility")
     detected_subjects: List[str] = Field(description="Primary visual entities, characters, or subjects recognized e.g. ['product', 'person', 'setting']")
@@ -58,7 +64,9 @@ class GeminiImageAuditOutput(BaseModel):
     visible_text: List[str] = Field(description="All visible headlines, copy, badges, and captions extracted from the image")
     dominant_colors: List[str] = Field(description="Dominant colors identified in approximate hex code format")
     palette_match_pct: Optional[float] = Field(None, description="Estimated percentage (0-100) of colors matching the approved brand palette")
+    text_contrast_pairs: List[TextContrastPair] = Field(default_factory=list, description="Foreground/background text color pairs for contrast analysis")
     findings: List[GeminiAuditFindingItem] = Field(description="List of detected brand visual, accessibility, copy, and event violations")
+
 
 
 class ExtractedFactItem(BaseModel):
@@ -495,6 +503,7 @@ AUDIT OBJECTIVES:
    - explanation: why this violates brand guidelines
    - suggested_correction: actionable correction or approved alternative
    - cited_guideline_id: integer ID of relevant retrieved guideline if applicable, or null.
+8. Extract text and background color pairs for visible copy into `text_contrast_pairs` (e.g. [{"text": "Deliveries", "foreground_hex": "#FFFFFF", "background_hex": "#F8C200"}]).
 """
 
         try:

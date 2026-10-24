@@ -92,3 +92,47 @@ Phase 1 focuses exclusively on making the AI calling pipeline reliable, asynchro
   - Fallback ordering is deterministic by `id ASC` when vector embeddings are unavailable.
   - Increments `times_triggered` once per audit across all retrieved chunks.
 
+---
+
+# Phase 4 Implementation Notes: Verdict Logic and Detector Fixes
+
+## 1. Authoritative Verdict & Rubric Scoring
+- Introduced `AuditService.evaluate_verdict_and_dimensions`:
+  - Partitions findings into 6 standardized governance dimensions: `visual_identity`, `prohibited_content`, `campaign_event`, `voice_and_terminology`, `accessibility`, `claims_and_facts`.
+  - Calculates per-dimension status (`PASS`, `NEEDS_REVIEW`, `FAIL`) and dimension scores.
+  - Overall verdict logic is authoritative:
+    - Overall `FAIL` if any dimension fails or any `CRITICAL` finding is present.
+    - Overall `NEEDS_REVIEW` if any dimension needs review, any `WARNING` finding is present, or `ai_status != "ok"`.
+    - Overall `PASS` if all dimensions pass with 0 critical or warning findings and `ai_status == "ok"`.
+  - Stored inside `SubmissionRevision.ai_governance_metadata["dimension_results"]` and exposed on `Submission.verdict`.
+
+## 2. Word Boundary Matching with Symbol Boundaries
+- Implemented `RuleEngine.build_boundary_pattern`:
+  - Standard regex `\b` fails on non-word characters (e.g. trailing `%` in `"100%"`), which caused false negatives in term detection.
+  - Inspects first and last characters of terms: uses `\b` for alphanumeric/underscore characters and `(?<!\w)` / `(?!\w)` for punctuation-adjacent boundaries.
+  - Completely prevents substring false matches (e.g. "thor" matching inside "author", or "marvel" matching inside "marvelous").
+
+## 3. Structured Event Cue Counting & Prohibited Guardrails
+- Count only structured `event_cues_detected` from the vision model intersected with `campaign.required_cues`.
+- Eliminated loose keyword scanning on image metadata and text descriptions which previously matched "lamp-post" as festive Diwali "lamp".
+- Prohibited visual subject guards inspect only structured fields (`detected_subjects`, `prohibited_elements_found`, `has_prohibited_elements`) and extracted `visible_text`. Model explanations/summaries are not scanned, preventing false alarms when the model states that no prohibited elements were found.
+
+## 4. CIELAB DeltaE Palette Matching
+- Replaced the unweighted `//16*16` integer quantisation logic with standard CIELAB CIE76 DeltaE distance:
+  - Converts sRGB pixels to linear RGB, D65 XYZ, and CIELAB space.
+  - Evaluates pixel-area match against approved brand swatches using Euclidean distance in Lab color space.
+  - Matches under the dynamic palette threshold (from `RuleSet.decision_rules["palette_threshold"]` or default 75.0%) generate a `WARNING`, or `CRITICAL` if severely misaligned (< threshold - 25%).
+
+## 5. WCAG 2.1 AA Contrast Calculation
+- `RuleEngine.calculate_wcag_contrast(fg_hex, bg_hex)` calculates standard relative luminance contrast ratio (1.0 to 21.0).
+- Text/background color pairs extracted by the vision model (`text_contrast_pairs`) are evaluated; ratios below 4.5:1 generate an accessibility finding (`CRITICAL` if < 3.0:1, `WARNING` if < 4.5:1).
+
+## 6. PII Scrubber Fixes
+- Added context-aware lookahead: order numbers (`Order #...`), invoices (`Invoice #...`), transaction receipts, and prices (`Rs.`, `₹`, `$`, `INR`) are excluded from phone number regex matching.
+- Sorted PII spans by `(start, -length)` to safely discard overlapping candidate matches and prevent corrupted replacement string slicing.
+
+## 7. Idempotent Audits & In-Memory Execution
+- In `run_audit` and `run_image_audit`, existing findings for the targeted revision are automatically deleted via `delete(AuditFinding).where(AuditFinding.revision_id == revision.id)` prior to inserting new findings.
+- When `persist=False`, all analysis (palette, contrast, PII, guidelines retrieval, vision audit, scoring, and verdict) executes purely in-memory, returning a pure result dictionary without mutating `submission` or `revision` or committing DB records.
+
+

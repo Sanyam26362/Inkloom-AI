@@ -13,8 +13,8 @@
 |---|---|---|---|
 | **Phase 1** | Reliable AI calls (timeouts, retries, native async, fail-closed, single model) | ✅ Completed | `phase 1: reliable AI calls` (5626e74) |
 | **Phase 2** | Data-driven rules, no client hardcoding (Campaign & RuleSet tables, extraction, no festival branches) | ✅ Completed | `phase 2: data-driven rules` (e150ef4) |
-| **Phase 3** | Guideline ingestion & retrieval (PyMuPDF block chunker, markdown chunker, premade packs, deduplication) | ✅ Completed | `phase 3: ingestion and retrieval` |
-| **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | 🔄 In Progress | - |
+| **Phase 3** | Guideline ingestion & retrieval (PyMuPDF block chunker, markdown chunker, premade packs, deduplication) | ✅ Completed | `phase 3: ingestion and retrieval` (3248029) |
+| **Phase 4** | Verdict logic & detector fixes (rubric verdict, word-boundaries, event cues, CIELAB deltaE) | ✅ Completed | `phase 4: verdicts and detectors` |
 | **Phase 5** | Media pipelines (post upload, video frames + audio track, native audio, async polling) | ⏳ Pending | - |
 | **Phase 6** | Auth, roles, approval workflow (JWT, deadlock resolution, status matrix, admin queue) | ⏳ Pending | - |
 | **Phase 7** | Frontend flow (onboarding replacing marketing page, judge canvas, creator studio, admin queue) | ⏳ Pending | - |
@@ -72,5 +72,24 @@
   - Full backend test suite: 67/67 passed (100%).
   - Frontend typecheck (`tsc --noEmit`): 0 errors.
   - Frontend lint (`npm run lint`): 0 errors.
+
+### Phase 4: Verdict Logic and Detector Fixes
+- **Completed**:
+  - Authoritative verdict calculation via `AuditService.evaluate_verdict_and_dimensions`: computes per-dimension `PASS`/`NEEDS_REVIEW`/`FAIL` across 6 dimensions (`visual_identity`, `prohibited_content`, `campaign_event`, `voice_and_terminology`, `accessibility`, `claims_and_facts`), returning authoritative `verdict` (`PASS`, `NEEDS_REVIEW`, `FAIL`) while compliance score remains a derived metric.
+  - Word-boundary matching using `RuleEngine.build_boundary_pattern`: intelligently handles alphanumeric and punctuation-terminated terms (e.g. `100%`) without regex lookbehind crashes or missing symbol boundaries.
+  - Model summary/explanation exclusion: deterministic guards scan structured model outputs (`detected_subjects`, `prohibited_elements_found`, `has_prohibited_elements`) and extracted `visible_text`, never free-form model explanations, eliminating false positives on negated text ("no superheroes found").
+  - Generalised campaign cue evaluation: counts only structured `event_cues_detected` from model intersected with `campaign.required_cues`.
+  - Deterministic checks for exaggeration terms (`100%`, `instant`, `guaranteed`, `always`), required phrases (`Blinkit app`), terminology rules (`(?<!\bblinkit\s)\bapp\b`), accessibility alt-text minimums (missing = CRITICAL, <5 words = WARNING), and platform post specs.
+  - CIELAB DeltaE palette match: pixel-area weighted Euclidean CIE76 color distance in Lab color space without integer floor division (`//16*16`) bias; palette threshold dynamically sourced from RuleSet.
+  - WCAG 2.1 AA text contrast calculator: `RuleEngine.calculate_wcag_contrast` computes foreground vs background contrast on text contrast pairs extracted by vision model.
+  - PII scrubber enhancements: eliminates false-positive phone detections on order numbers (`Order #1002345678`), invoice numbers, and prices (`Rs. 999`, `₹1000`, `$1200`), and handles overlapping replacements safely.
+  - Idempotent re-audit: automatically cleans up existing findings for the same revision before re-inserting fresh findings.
+  - In-memory execution (`persist=False`): returns pure audit output without mutating submission or revision state.
+- **Test Results**:
+  - Regression and acceptance suite `test_phase4_verdicts_detectors.py`: 20/20 passed (covering BG-TC-01 through BG-TC-09, false positives, idempotency, and in-memory execution).
+  - Full backend test suite: 87/87 passed (100%).
+  - Frontend typecheck (`tsc --noEmit`): 0 errors.
+  - Frontend lint (`npm run lint`): 0 errors.
+
 
 

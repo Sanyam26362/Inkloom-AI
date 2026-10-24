@@ -229,13 +229,14 @@ async def test_model_negation_in_explanation_does_not_trigger_critical(db_sessio
         submission_id=submission.id,
         version_number=1,
         content_body="Summer product display",
+        alt_text="A clean product shot of a bottle on a wooden table",
         change_summary="Upload",
         created_by="Tester",
     )
     db_session.add(revision)
     await db_session.flush()
 
-    dummy_png = make_test_png()
+    dummy_png = make_test_png(color=(0, 0, 0))
 
     mock_vision = {
         "dominant_colors": ["#000000", "#FFFFFF"],

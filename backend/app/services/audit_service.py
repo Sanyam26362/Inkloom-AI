@@ -1,7 +1,7 @@
 import re
 import logging
 from typing import List, Dict, Any, Optional, Tuple
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.brand import BrandProfile
@@ -171,6 +171,80 @@ class AuditService:
                 score -= 3.0
         return max(0.0, round(score, 1))
 
+    @classmethod
+    def evaluate_verdict_and_dimensions(
+        cls,
+        findings: List[FindingDraft],
+        ruleset: Optional[RuleSet] = None,
+        campaign: Optional[Campaign] = None,
+        palette_match_pct: Optional[float] = None,
+        ai_status: str = "ok",
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Computes per-dimension PASS/NEEDS_REVIEW/FAIL and authoritative overall verdict:
+        - FAIL if any dimension FAILs or any CRITICAL finding exists.
+        - NEEDS_REVIEW if any dimension NEEDS_REVIEW, any WARNING finding exists, or ai_status != 'ok'.
+        - PASS if all dimensions PASS and no CRITICAL/WARNING findings exist.
+        """
+        dimension_map = {
+            "visual_identity": {"findings": [], "categories": ["VISUAL", "COLOR", "IMAGE"]},
+            "prohibited_content": {"findings": [], "categories": ["PROHIBITED", "SAFETY"]},
+            "campaign_event": {"findings": [], "categories": ["EVENT", "CAMPAIGN", "EVENT_FIT"]},
+            "voice_and_terminology": {"findings": [], "categories": ["TERMINOLOGY", "TONE", "VOICE"]},
+            "accessibility": {"findings": [], "categories": ["ACCESSIBILITY", "WCAG", "CONTRAST"]},
+            "claims_and_facts": {"findings": [], "categories": ["FACTUAL_CLAIM", "FACT", "CLAIM"]},
+        }
+
+        for f in findings:
+            cat = (f.category or "").upper()
+            matched = False
+            for dim_name, cfg in dimension_map.items():
+                if any(k in cat for k in cfg["categories"]):
+                    cfg["findings"].append(f)
+                    matched = True
+            if not matched:
+                dimension_map["voice_and_terminology"]["findings"].append(f)
+
+        dimension_results: Dict[str, Any] = {}
+        has_fail = False
+        has_review = False
+
+        for dim_name, cfg in dimension_map.items():
+            dim_findings = cfg["findings"]
+            crit_count = sum(1 for f in dim_findings if f.severity == "CRITICAL")
+            warn_count = sum(1 for f in dim_findings if f.severity == "WARNING")
+            sugg_count = sum(1 for f in dim_findings if f.severity == "SUGGESTION")
+
+            if crit_count > 0:
+                dim_status = "FAIL"
+                has_fail = True
+            elif warn_count > 0:
+                dim_status = "NEEDS_REVIEW"
+                has_review = True
+            else:
+                dim_status = "PASS"
+
+            dim_score = max(0.0, 100.0 - (crit_count * 30.0 + warn_count * 15.0 + sugg_count * 5.0))
+            dimension_results[dim_name] = {
+                "status": dim_status,
+                "score": round(dim_score, 1),
+                "critical_findings": crit_count,
+                "warning_findings": warn_count,
+                "suggestion_findings": sugg_count,
+            }
+
+        # Overall verdict
+        if ai_status == "failed":
+            verdict = "NEEDS_REVIEW"
+        elif has_fail or any(f.severity == "CRITICAL" for f in findings):
+            verdict = "FAIL"
+        elif has_review or any(f.severity == "WARNING" for f in findings):
+            verdict = "NEEDS_REVIEW"
+        else:
+            verdict = "PASS"
+
+        return verdict, dimension_results
+
     @staticmethod
     def calculate_palette_match(
         observed_colors: List[str], approved_colors: List[str], tolerance: float = 72
@@ -303,10 +377,17 @@ class AuditService:
         all_draft_findings: List[FindingDraft] = []
 
         # 1. Deterministic Rule Engine (in-memory, immediate)
+        effective_req_phrases = ruleset.required_phrases if ruleset and ruleset.required_phrases else []
+        effective_exagg_terms = ruleset.exaggeration_terms if ruleset and ruleset.exaggeration_terms else []
+
         deterministic_findings = RuleEngine.run_all_deterministic_checks(
             text=content,
             banned_terms=effective_banned,
             preferred_terminology=effective_pref,
+            required_phrases=effective_req_phrases,
+            exaggeration_terms=effective_exagg_terms,
+            caption=content,
+            platform=submission.platform,
         )
         all_draft_findings.extend(deterministic_findings)
 
@@ -440,8 +521,16 @@ class AuditService:
                 seen_keys.add(key)
                 deduped_findings.append(f)
 
-        # 6. Calculate score
+        # 6. Calculate score and authoritative verdict
         score = cls.calculate_compliance_score(deduped_findings)
+        verdict, dimension_results = cls.evaluate_verdict_and_dimensions(
+            findings=deduped_findings,
+            ruleset=ruleset,
+            campaign=campaign,
+            palette_match_pct=None,
+            ai_status=ai_status,
+        )
+
         revision.compliance_score = score
         revision.ai_governance_metadata = {
             "pii_disclosure": pii_disclosure,
@@ -449,6 +538,8 @@ class AuditService:
             "findings_count": len(deduped_findings),
             "ai_status": ai_status,
             "ai_error": ai_error,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
         }
         if additional_metadata:
             revision.ai_governance_metadata.update(additional_metadata)
@@ -457,16 +548,19 @@ class AuditService:
             if "ai_error" in additional_metadata:
                 ai_error = additional_metadata["ai_error"]
         submission.compliance_score = score
+        submission.verdict = verdict
 
         # Update submission status - fail closed to NEEDS_REVIEW if AI step failed
         if ai_status == "failed":
             submission.status = "NEEDS_REVIEW"
-        elif score == 100.0:
-            submission.status = "NEEDS_REVIEW"
+        elif verdict == "FAIL":
+            submission.status = "CHANGES_REQUESTED"
         else:
-            submission.status = "CHANGES_REQUESTED" if any(f.severity == "CRITICAL" for f in deduped_findings) else "NEEDS_REVIEW"
+            submission.status = "NEEDS_REVIEW"
 
-        # 7. Persist AuditFinding records
+        # 7. Persist AuditFinding records (idempotent: clean up existing findings for this revision first)
+        await session.execute(delete(AuditFinding).where(AuditFinding.revision_id == revision.id))
+
         created_finding_records: List[AuditFinding] = []
         for draft in deduped_findings:
             finding = AuditFinding(
@@ -494,11 +588,12 @@ class AuditService:
             event_type="AUDIT_COMPLETED",
             from_status="AUDITING",
             to_status=submission.status,
-            notes=f"Audit completed with compliance score {score}%. Generated {len(deduped_findings)} findings.",
+            notes=f"Audit completed with verdict {verdict} and compliance score {score}%. Generated {len(deduped_findings)} findings.",
             metadata_json={
                 "revision_id": revision.id,
                 "version_number": revision.version_number,
                 "compliance_score": score,
+                "verdict": verdict,
                 "total_findings": len(deduped_findings),
             },
         )
@@ -520,6 +615,8 @@ class AuditService:
             "version_number": revision.version_number,
             "compliance_score": score,
             "status": submission.status,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
             "total_findings": len(created_finding_records),
             "findings_by_severity": severity_counts,
             "findings": created_finding_records,
@@ -702,57 +799,57 @@ class AuditService:
         visible_text_list = vision_result.get("visible_text", [])
         local_dominant_colors = image_metadata.get("dominant_hex_colors", [])
         model_dominant_colors = vision_result.get("dominant_colors", []) or []
-        dominant_colors = local_dominant_colors or model_dominant_colors
 
-        model_palette_match: Optional[float] = None
-        raw_palette_match = vision_result.get("palette_match_pct")
-        if raw_palette_match is not None:
+        # ── 1. CIELAB DeltaE Palette Matching (Weighted by Pixel-Area) ───────────────
+        palette_threshold = 75.0
+        if ruleset and ruleset.decision_rules and "palette_threshold" in ruleset.decision_rules:
             try:
-                model_palette_match = float(raw_palette_match)
-            except (TypeError, ValueError):
-                model_palette_match = None
+                palette_threshold = float(ruleset.decision_rules["palette_threshold"])
+            except (ValueError, TypeError):
+                palette_threshold = 75.0
 
-        local_palette_match = cls.calculate_palette_match(
-            observed_colors=local_dominant_colors or model_dominant_colors,
-            approved_colors=effective_palette,
+        cielab_match_pct, cielab_dominant, cielab_palette_findings = RuleEngine.calculate_cielab_palette_match(
+            image_bytes=image_bytes,
+            approved_palette=effective_palette,
+            threshold=palette_threshold,
         )
+        if cielab_palette_findings:
+            all_draft_findings.extend(cielab_palette_findings)
 
-        if local_palette_match is not None and model_palette_match is not None:
-            palette_match_pct = min(local_palette_match, model_palette_match)
-        elif local_palette_match is not None:
-            palette_match_pct = local_palette_match
-        elif model_palette_match is not None:
-            palette_match_pct = model_palette_match
-        else:
-            palette_match_pct = 0.0
+        palette_match_pct = cielab_match_pct if effective_palette else 100.0
+        dominant_colors = cielab_dominant or local_dominant_colors or model_dominant_colors
 
-        if local_palette_match is not None and local_palette_match < 80:
-            palette_citation = None
-            if retrieved_chunks:
-                for c in retrieved_chunks:
-                    if "color" in c.section_reference.lower() or "palette" in c.section_reference.lower():
-                        palette_citation = f"{c.source_document} ({c.section_reference})"
-                        break
-            if not palette_citation:
-                palette_citation = f"{brand.name} Visual Identity Standards (Color Usage & Palette Compliance)"
+        # ── 2. WCAG Contrast Check on Extracted Contrast Pairs ────────────────────────
+        contrast_pairs = vision_result.get("text_contrast_pairs") or []
+        for pair in contrast_pairs:
+            pair_dict = pair if isinstance(pair, dict) else pair.model_dump()
+            fg = pair_dict.get("foreground_hex")
+            bg = pair_dict.get("background_hex")
+            text_str = pair_dict.get("text", "Text overlay")
+            if fg and bg:
+                try:
+                    ratio = RuleEngine.calculate_wcag_contrast(fg, bg)
+                    if ratio < 4.5:
+                        all_draft_findings.append(
+                            FindingDraft(
+                                category="ACCESSIBILITY",
+                                severity="CRITICAL" if ratio < 3.0 else "WARNING",
+                                detector_source="WCAG_CONTRAST_CALCULATOR",
+                                flagged_excerpt=f"Contrast {ratio}:1 on '{text_str}' ({fg} on {bg})",
+                                explanation=f"Text contrast ratio {ratio}:1 fails WCAG 2.1 AA minimum threshold of 4.5:1.",
+                                guideline_citation="WCAG 2.1 Contrast (Minimum) (Guideline 1.4.3)",
+                                suggested_correction=f"Increase contrast between foreground ({fg}) and background ({bg}) to at least 4.5:1.",
+                            )
+                        )
+                except Exception:
+                    pass
 
-            all_draft_findings.append(
-                FindingDraft(
-                    category="VISUAL",
-                    severity="WARNING",
-                    detector_source="DETERMINISTIC_RULE",
-                    flagged_excerpt=", ".join(dominant_colors[:3]),
-                    explanation=f"The extracted dominant colors are not sufficiently aligned with the approved {brand.name} palette.",
-                    guideline_citation=palette_citation,
-                    suggested_correction=(
-                        f"Rework the creative around approved {brand.name} brand colors: "
-                        f"{', '.join(effective_palette[:4]) if effective_palette else 'approved brand palette'}."
-                    ),
-                )
-            )
+        # ── 3. Visual Accessibility: Alt Text Verification ───────────────────────────
+        alt_findings = RuleEngine.check_alt_text(revision.alt_text)
+        all_draft_findings.extend(alt_findings)
+
+        # ── 4. Vision LLM Findings ───────────────────────────────────────────────────
         raw_findings = vision_result.get("findings", [])
-
-        # Add vision findings
         for vf in raw_findings:
             category = vf.get("category", "VISUAL").upper()
             severity = vf.get("severity", "WARNING").upper()
@@ -783,7 +880,7 @@ class AuditService:
                 )
             )
 
-        # ── Deterministic Post-Check on Structured Vision Results ────────────────────
+        # ── 5. Deterministic Post-Check on Structured Vision Results ─────────────────
         # Inspect structured detected_subjects, prohibited_elements_found, and visible_text.
         # DO NOT scan model summary or explanations to prevent false positives when the model
         # states "no prohibited elements found".
@@ -836,8 +933,8 @@ class AuditService:
                 )
             )
 
-        # ── Dynamic Campaign Minimum Cue Threshold Check ─────────────────────────────
-        # Only check if campaign defines required_cues and min_required_cues > 0
+        # ── 6. Dynamic Campaign Minimum Cue Threshold Check ──────────────────────────
+        # Count only structured event_cues_detected from the model intersected with required_cues
         if campaign and campaign.required_cues and campaign.min_required_cues > 0:
             event_cues = vision_result.get("event_cues_detected") or vision_result.get("diwali_cues_detected") or []
             matched_cues = set()
@@ -845,11 +942,9 @@ class AuditService:
                 for ec in event_cues:
                     if cls.matches_subject(req_cue, str(ec)):
                         matched_cues.add(req_cue)
-                for vt in visible_text_list:
-                    if cls.matches_subject(req_cue, vt):
-                        matched_cues.add(req_cue)
 
             if len(matched_cues) < campaign.min_required_cues:
+                cue_severity = "CRITICAL" if len(matched_cues) == 0 else "WARNING"
                 cue_citation = None
                 if retrieved_chunks:
                     for c in retrieved_chunks:
@@ -862,7 +957,7 @@ class AuditService:
                 all_draft_findings.append(
                     FindingDraft(
                         category="EVENT_FIT",
-                        severity="CRITICAL",
+                        severity=cue_severity,
                         detector_source="DETERMINISTIC_EVENT_GUARD",
                         flagged_excerpt=f"Insufficient Campaign Cues ({len(matched_cues)} found, {campaign.min_required_cues} required)",
                         explanation=(
@@ -878,13 +973,17 @@ class AuditService:
                     )
                 )
 
-        # Deterministic checks on visible text
+        # ── 7. Deterministic Checks on Extracted Visible Text ────────────────────────
         if visible_text_list:
             combined_visible_text = " ".join(visible_text_list)
             text_findings = RuleEngine.run_all_deterministic_checks(
                 text=combined_visible_text,
                 banned_terms=effective_banned_terms,
                 preferred_terminology=effective_pref_terms,
+                required_phrases=ruleset.required_phrases if ruleset else [],
+                exaggeration_terms=ruleset.exaggeration_terms if ruleset else [],
+                caption=revision.content_body or "",
+                platform=submission.platform,
             )
             all_draft_findings.extend(text_findings)
 
@@ -901,7 +1000,7 @@ class AuditService:
                 )
             )
 
-        # Deduplicate
+        # ── 8. Finding Deduplication ─────────────────────────────────────────────────
         seen_keys = set()
         deduped_findings: List[FindingDraft] = []
         for f in all_draft_findings:
@@ -910,8 +1009,15 @@ class AuditService:
                 seen_keys.add(key)
                 deduped_findings.append(f)
 
-        # Calculate score
+        # ── 9. Calculate Compliance Score and Authoritative Verdict ──────────────────
         score = cls.calculate_compliance_score(deduped_findings)
+        verdict, dimension_results = cls.evaluate_verdict_and_dimensions(
+            findings=deduped_findings,
+            ruleset=ruleset,
+            campaign=campaign,
+            palette_match_pct=palette_match_pct,
+            ai_status=vision_ai_status,
+        )
 
         # If persist=False: return pure in-memory result without mutating submission/revision
         if not persist:
@@ -924,6 +1030,8 @@ class AuditService:
                 "ai_status": vision_ai_status,
                 "ai_error": vision_ai_error,
                 "compliance_score": score,
+                "verdict": verdict,
+                "dimension_results": dimension_results,
             }
 
         # Mutate revision and submission only when persist=True
@@ -937,6 +1045,8 @@ class AuditService:
             "campaign_event": effective_event,
             "ai_status": vision_ai_status,
             "ai_error": vision_ai_error,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
         }
         if additional_metadata:
             revision.ai_governance_metadata.update(additional_metadata)
@@ -945,15 +1055,19 @@ class AuditService:
             if "ai_error" in additional_metadata:
                 vision_ai_error = additional_metadata["ai_error"]
         submission.compliance_score = score
+        submission.verdict = verdict
         submission.content_format = "IMAGE"
 
-        # Fail closed on AI failure
+        # Update status - fail closed on AI failure or CRITICAL findings
         if vision_ai_status == "failed":
             submission.status = "NEEDS_REVIEW"
-        elif score == 100.0:
-            submission.status = "NEEDS_REVIEW"
+        elif verdict == "FAIL":
+            submission.status = "CHANGES_REQUESTED"
         else:
-            submission.status = "CHANGES_REQUESTED" if any(f.severity == "CRITICAL" for f in deduped_findings) else "NEEDS_REVIEW"
+            submission.status = "NEEDS_REVIEW"
+
+        # Idempotent re-audit: clean up existing findings for this revision
+        await session.execute(delete(AuditFinding).where(AuditFinding.revision_id == revision.id))
 
         # Persist findings
         created_finding_records: List[AuditFinding] = []
@@ -983,11 +1097,12 @@ class AuditService:
             event_type="AUDIT_COMPLETED",
             from_status="AUDITING",
             to_status=submission.status,
-            notes=f"Image visual audit completed with compliance score {score}%. Generated {len(deduped_findings)} findings.",
+            notes=f"Image visual audit completed with verdict {verdict} and compliance score {score}%. Generated {len(deduped_findings)} findings.",
             metadata_json={
                 "revision_id": revision.id,
                 "version_number": revision.version_number,
                 "compliance_score": score,
+                "verdict": verdict,
                 "total_findings": len(deduped_findings),
                 "palette_match_pct": palette_match_pct,
             },
@@ -1009,6 +1124,8 @@ class AuditService:
             "version_number": revision.version_number,
             "compliance_score": score,
             "status": submission.status,
+            "verdict": verdict,
+            "dimension_results": dimension_results,
             "total_findings": len(created_finding_records),
             "findings_by_severity": severity_counts,
             "findings": created_finding_records,
