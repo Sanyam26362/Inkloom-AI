@@ -277,6 +277,38 @@ Phase 1 focuses exclusively on making the AI calling pipeline reliable, asynchro
 - Non-swallowed error handling: errors (e.g. HTTP 409 from unresolved critical findings) surface in visible toast banners with 8-second auto-dismiss.
 - Intelligence widgets: Top recurring policy violations progress bars and flagged ambiguous guidelines override rate table.
 
+---
 
+# Phase 8 Implementation Notes: Integration Tests, Documentation & Wrap-up
 
+## 1. Comprehensive End-to-End Governance Journey (`test_phase8_e2e_flow.py`)
+- Created full-lifecycle enterprise integration test suite verifying the complete brand governance workflow from cold-start to final publication:
+  1. **JWT Authentication & Tenant Scoping**: Authenticates `ADMIN` (`Jordan Vance`), `JUDGE` (`Sasha Bloom`), and `CREATOR` (`Alex Rivera`) via `POST /api/v1/auth/login`. Verifies claims via `GET /api/v1/auth/me`.
+  2. **1-Click Premade Pack Loading**: Idempotently loads the Blinkit Diwali 2026 pack via `POST /api/v1/packs/blinkit/load`, indexing guidelines into `guideline_chunks`, creating the `Diwali 2026` campaign, and extracting the authoritative `RuleSet`.
+  3. **Data-Driven RuleSet Inspection**: Asserts palette thresholds and rules are accessible without hardcoded client assumptions.
+  4. **Creator Submission Workflow**: Alex Rivera submits a new Instagram creative (`POST /api/v1/submissions`).
+  5. **Multimodal Post Creative Ingestion**: Alex uploads image bytes, caption, hashtags, and descriptive alt text (`POST /api/v1/submissions/{id}/upload-post`). Validates platform aspect ratios (1:1), caption length, hashtag quotas, CIELAB deltaE palette matching against Blinkit yellow (`#F8C200`), and campaign cue presence.
+  6. **Background Audit Polling**: Polls `GET /api/v1/submissions/{id}/audit-status`, verifying normalized progress and authoritative verdict.
+  7. **Role-Based Security & Creator Lockdown**: Asserts that `CREATOR` cannot approve submissions (HTTP 403) and cannot directly override audit findings (HTTP 403).
+  8. **Finding Override & Deadlock Recalculation**: Sasha Bloom (`JUDGE`) overrides an audit finding with a mandatory justification reason (`POST /api/v1/submissions/findings/{id}/override`), automatically recalculating the effective compliance score and clearing the approval deadlock.
+  9. **Admin Final Approval**: Jordan Vance (`ADMIN`) reviews and approves the submission (`POST /api/v1/submissions/{id}/status` -> `APPROVED`).
+  10. **Admin Governance Queue & Analytics**: Validates `GET /api/v1/admin/queue` and `GET /api/v1/admin/stats`, confirming approved items in queue and AI agreement metrics.
 
+## 2. Platform Architecture & Single-Model Verification
+- `test_single_model_configuration_and_tenant_isolation`:
+  - Enforces `PRIMARY_LLM_MODEL == "gemini-3.5-flash"` for all text, vision, audio, and video audits.
+  - Enforces `EMBEDDING_MODEL == "gemini-embedding-2"` with 768 vector dimensions.
+  - Asserts `/api/v1/health` reports client readiness and single-model configuration.
+  - Confirms multi-tenant brand scoping prevents cross-tenant access without admin privileges.
+
+## 3. Service Layer Refinements
+- `backend/app/schemas/pack.py`: Made `brand_id: Optional[int] = None` in `PackLoadRequest` to support effortless 1-click pack loading.
+- `backend/app/api/v1/packs.py`: Made `payload: Optional[PackLoadRequest] = None` in `load_pack`.
+- `backend/app/services/pack_service.py`: Auto-discovers or provisions target brand when `brand_id` is omitted; added safe attribute extraction supporting both dictionary and Pydantic models.
+- `backend/app/services/gemini_service.py`: Made `extract_rules` accept flexible keyword arguments (`guidelines_text`, `design_doc`, `campaign_context`).
+
+## 4. Verification Results
+- **Backend Test Suite**: 106 / 106 tests passing (100% pass rate).
+- **Frontend Typecheck**: `npx tsc --noEmit` returned 0 errors.
+- **Frontend Linter**: `npm run lint` returned 0 errors.
+- **Frontend Production Build**: `npm run build` succeeded with all 10 routes prerendered.

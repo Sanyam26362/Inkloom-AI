@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,7 @@ async def list_packs(
 @router.post("/{name}/load", response_model=PackLoadResponse, status_code=status.HTTP_200_OK)
 async def load_pack(
     name: str,
-    payload: PackLoadRequest,
+    payload: Optional[PackLoadRequest] = None,
     session: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ) -> PackLoadResponse:
@@ -35,8 +35,9 @@ async def load_pack(
     - Triggers RuleSet extraction and syncs deterministic fields to BrandProfile.
     """
     try:
+        target_brand_id = payload.brand_id if payload else None
         response = await PackService.load_pack(
-            pack_name=name, brand_id=payload.brand_id, session=session
+            pack_name=name, brand_id=target_brand_id, session=session
         )
         return response
     except FileNotFoundError as e:

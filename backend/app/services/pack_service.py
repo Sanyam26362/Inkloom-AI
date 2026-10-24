@@ -69,28 +69,46 @@ class PackService:
 
     @classmethod
     async def load_pack(
-        cls, pack_name: str, brand_id: int, session: AsyncSession
+        cls, pack_name: str, brand_id: Optional[int], session: AsyncSession
     ) -> PackLoadResponse:
         """
         Idempotently loads all documents from a premade pack:
-        1. Validates brand existence.
+        1. Validates or auto-discovers brand.
         2. Creates/updates Campaign from pack's campaign.json.
         3. Replaces previous premade chunks for this brand.
         4. Indexes all documents with concurrency-controlled embeddings.
         5. Extracts and confirms the RuleSet, syncing deterministic fields to BrandProfile.
         """
-        brand_stmt = select(BrandProfile).where(BrandProfile.id == brand_id)
-        brand_res = await session.execute(brand_stmt)
-        brand = brand_res.scalar_one_or_none()
-        if not brand:
-            raise ValueError(f"Brand with ID {brand_id} not found.")
-
         pack_dir = cls.get_packs_dir() / pack_name.lower().strip()
         manifest_file = pack_dir / "manifest.json"
         if not pack_dir.exists() or not manifest_file.exists():
             raise FileNotFoundError(f"Premade pack '{pack_name}' not found at {pack_dir}.")
 
         manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+
+        if brand_id is None:
+            client_name = manifest.get("client", pack_name.title())
+            brand_stmt = select(BrandProfile).where(BrandProfile.name.ilike(client_name))
+            brand = (await session.execute(brand_stmt)).scalar_one_or_none()
+            if not brand:
+                brand = BrandProfile(
+                    name=client_name,
+                    industry="Quick Commerce",
+                    tone_persona="Fast, reliable, friendly",
+                    approved_hex_palette=["#F8C200", "#00A36C", "#1C1C1E", "#FFFFFF"],
+                    banned_terms=["10-minute guarantee", "instant delivery guaranteed", "cheapest prices"],
+                    preferred_terminology={"delivery boy": "delivery partner"},
+                    min_wcag_contrast=4.5,
+                )
+                session.add(brand)
+                await session.flush()
+            brand_id = brand.id
+        else:
+            brand_stmt = select(BrandProfile).where(BrandProfile.id == brand_id)
+            brand_res = await session.execute(brand_stmt)
+            brand = brand_res.scalar_one_or_none()
+            if not brand:
+                raise ValueError(f"Brand with ID {brand_id} not found.")
 
         # 1. Load Campaign if campaign_file exists
         campaign = None
@@ -201,11 +219,13 @@ class PackService:
 
         # Overlay campaign extra_rules to guarantee determinism
         extra = campaign.extra_rules if campaign else {}
-        palette = extra.get("palette") or ruleset_draft.palette or ["#F8C200", "#1C1C1E", "#FFFFFF", "#00A36C", "#FF6B35"]
-        banned = list(dict.fromkeys((ruleset_draft.banned_terms or []) + (extra.get("banned_terms") or [])))
-        preferred = {**(ruleset_draft.preferred_terminology or {}), **(extra.get("approved_terminology") or {})}
-        required_phrases = list(dict.fromkeys((ruleset_draft.required_phrases or []) + (extra.get("required_phrases") or [])))
-        prohibited_visuals = list(dict.fromkeys((ruleset_draft.prohibited_visual_subjects or []) + (campaign.prohibited_items if campaign else [])))
+        draft_get = lambda k: ruleset_draft.get(k) if isinstance(ruleset_draft, dict) else getattr(ruleset_draft, k, None)
+
+        palette = extra.get("palette") or draft_get("palette") or ["#F8C200", "#1C1C1E", "#FFFFFF", "#00A36C", "#FF6B35"]
+        banned = list(dict.fromkeys((draft_get("banned_terms") or []) + (extra.get("banned_terms") or [])))
+        preferred = {**(draft_get("preferred_terminology") or {}), **(extra.get("approved_terminology") or {})}
+        required_phrases = list(dict.fromkeys((draft_get("required_phrases") or []) + (extra.get("required_phrases") or [])))
+        prohibited_visuals = list(dict.fromkeys((draft_get("prohibited_visual_subjects") or []) + (campaign.prohibited_items if campaign else [])))
 
         # Deactivate old rulesets for this campaign
         if campaign:
@@ -224,13 +244,13 @@ class PackService:
             palette=palette,
             banned_terms=banned,
             preferred_terminology=preferred,
-            approved_facts=[f.model_dump() if hasattr(f, "model_dump") else f for f in ruleset_draft.approved_facts],
+            approved_facts=[f.model_dump() if hasattr(f, "model_dump") else f for f in (draft_get("approved_facts") or [])],
             required_phrases=required_phrases,
-            exaggeration_terms=ruleset_draft.exaggeration_terms,
+            exaggeration_terms=draft_get("exaggeration_terms") or [],
             prohibited_visual_subjects=prohibited_visuals,
-            per_media_rules=ruleset_draft.per_media_rules,
-            decision_rules=ruleset_draft.decision_rules,
-            rubric=[r.model_dump() if hasattr(r, "model_dump") else r for r in ruleset_draft.rubric],
+            per_media_rules=draft_get("per_media_rules") or {},
+            decision_rules=draft_get("decision_rules") or {},
+            rubric=[r.model_dump() if hasattr(r, "model_dump") else r for r in (draft_get("rubric") or [])],
             is_active=True,
         )
         session.add(ruleset)
@@ -239,7 +259,7 @@ class PackService:
         brand.approved_hex_palette = palette
         brand.banned_terms = banned
         brand.preferred_terminology = preferred
-        brand.approved_facts = [f.model_dump() if hasattr(f, "model_dump") else f for f in ruleset_draft.approved_facts]
+        brand.approved_facts = [f.model_dump() if hasattr(f, "model_dump") else f for f in (draft_get("approved_facts") or [])]
 
         await session.commit()
         await session.refresh(ruleset)

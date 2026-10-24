@@ -18,7 +18,7 @@ class PackSummary(BaseModel):
 
 
 class PackLoadRequest(BaseModel):
-    brand_id: int
+    brand_id: Optional[int] = None
 
 
 class PackLoadResponse(BaseModel):

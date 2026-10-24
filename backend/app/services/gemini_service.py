@@ -715,15 +715,22 @@ INSTRUCTIONS:
 
     async def extract_rules(
         self,
-        brand_name: str,
-        guideline_text: str,
-        design_text: str,
+        brand_name: str = "Brand",
+        guideline_text: str = "",
+        design_text: str = "",
         campaign_info: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Sends indexed guideline text + design md + optional campaign to Gemini (async, structured JSON)
         and returns an extracted draft RuleSet.
         """
+        if not guideline_text and "guidelines_text" in kwargs:
+            guideline_text = str(kwargs["guidelines_text"])
+        if not design_text and "design_doc" in kwargs:
+            design_text = str(kwargs["design_doc"])
+        if not campaign_info and "campaign_context" in kwargs:
+            campaign_info = {"campaign_context": str(kwargs["campaign_context"])}
         if not self._client:
             return {
                 "palette": [],

@@ -1,140 +1,139 @@
-# Inkloom AI - 100% Free Production Deployment Guide
+# Inkloom AI - Production Deployment & Operation Guide
 
-This guide provides a step-by-step walkthrough to deploy the entire **Inkloom AI** platform (FastAPI backend + Next.js frontend + pgvector PostgreSQL + Gemini AI) completely **for free** with zero hosting costs.
+This guide provides a comprehensive walkthrough for deploying the entire **Inkloom AI** brand governance platform (FastAPI backend + Next.js frontend + pgvector PostgreSQL + Redis + Gemini AI) into production, including 100% free hosting recipes.
 
 ---
 
-## 🏗️ Free Cloud Architecture
+## 🏗️ Production Architecture
 
-| Component | Free Provider | Free Tier Limits | Purpose |
+| Component | Recommended Cloud / Free Tier | Specifications / Limits | Platform Role |
 | :--- | :--- | :--- | :--- |
-| **Database** | [Neon.tech](https://neon.tech) / [Supabase](https://supabase.com) | 0.5 GB storage, serverless pgvector | PostgreSQL database with vector embeddings |
-| **Backend API** | [Render.com](https://render.com) / [Koyeb.com](https://koyeb.com) | Free Web Service, 512 MB RAM, free SSL | FastAPI asynchronous governance engine |
-| **Frontend UI** | [Vercel.com](https://vercel.com) | Unlimited static/edge bandwidth, custom domains | Next.js 16 App Router platform |
-| **AI Auditing** | [Google AI Studio](https://aistudio.google.com/app/apikey) | Free Tier (Gemini 2.5 Flash & embeddings) | Vision, text, tone & semantic RAG auditing |
-| **Media CDN** | [Cloudinary](https://cloudinary.com) | 25 GB monthly bandwidth & storage | Public CDN URLs for posters, images & video |
+| **PostgreSQL DB** | [Neon.tech](https://neon.tech) / [Supabase](https://supabase.com) / Managed Postgres | Serverless PostgreSQL with `pgvector` | Relational tables, audit trails, and vector embeddings |
+| **Backend API** | [Render.com](https://render.com) / [Railway](https://railway.app) / [Koyeb](https://koyeb.com) | Python 3.12, FastAPI, Asyncpg | Asynchronous governance engine and REST API |
+| **Frontend UI** | [Vercel.com](https://vercel.com) / [Cloudflare Pages](https://pages.cloudflare.com) | Next.js 16 App Router | Responsive web application and judge studio |
+| **Cache / Queue** | [Upstash Redis](https://upstash.com) / Local Redis | Redis 7+ | Distributed rate limiting and audit cache |
+| **Primary AI Engine** | [Google AI Studio](https://aistudio.google.com/app/apikey) | `gemini-3.5-flash` | Text, image vision, native audio, and video audits |
+| **Embeddings** | [Google AI Studio](https://aistudio.google.com/app/apikey) | `gemini-embedding-2` | 768-dimensional L2-normalized vector search |
+| **Media CDN** | [Cloudinary](https://cloudinary.com) / Local Storage | Image, audio, video storage | Secure URLs for user uploads and media assets |
 
 ---
 
 ## 📋 Prerequisites
-Before starting, ensure you have:
-1. A **GitHub account** with the Inkloom AI repository pushed to your GitHub.
+1. A **GitHub account** containing the `hackathon-inkloomAI` repository.
 2. A free **Google Gemini API Key** from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).
-3. (Optional) Free **Cloudinary account** credentials for media hosting from [cloudinary.com](https://cloudinary.com).
+3. (Optional) Free **Cloudinary** credentials from [cloudinary.com](https://cloudinary.com).
 
 ---
 
-## Step 1: Deploy Free PostgreSQL with `pgvector` (Neon)
+## Step 1: Deploy PostgreSQL with `pgvector` (Neon)
 
-1. Go to [https://neon.tech](https://neon.tech) and sign up with GitHub or Google.
-2. Click **Create Project**:
+1. Sign up at [https://neon.tech](https://neon.tech).
+2. Create a new project:
    - **Name**: `inkloom-db`
-   - **Region**: Choose the region closest to your users (e.g., `AWS US East (N. Virginia)` or `EU Frankfurt`).
-3. Click **Create Project**.
-4. In your Neon Project Dashboard, click on **SQL Editor** on the left menu, paste this SQL command, and click **Run**:
+   - **Region**: Choose closest to your API (e.g. `AWS US East (N. Virginia)`).
+3. Open the **SQL Editor** in Neon and activate the vector extension:
    ```sql
    CREATE EXTENSION IF NOT EXISTS vector;
    ```
-5. On the **Dashboard**, locate the **Connection Details** box:
-   - Select **Connection string** format.
-   - Copy the string. It will look like:
-     ```text
-     postgres://neondb_owner:npg_xxxxxx@ep-cool-snowflake-a5xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
-     ```
-   *(Note: The Inkloom backend automatically converts `postgres://` to `postgresql+asyncpg://` and fixes `sslmode=require` for asyncpg compatibility).*
+4. Copy your database connection string from the Neon dashboard:
+   ```text
+   postgres://neondb_owner:npg_xxxxxx@ep-cool-snowflake-a5xxxxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+   *(Note: The Inkloom backend automatically adapts `postgres://` to `postgresql+asyncpg://` and sets compatible SSL parameters).*
 
 ---
 
-## Step 2: Deploy Free FastAPI Backend (Render)
+## Step 2: Deploy FastAPI Backend (Render / Cloud)
 
-1. Go to [https://render.com](https://render.com) and log in with GitHub.
-2. Click **New +** (top right) and select **Web Service**.
-3. Select **Build and deploy from a Git repository**, choose your `hackathon-inkloomAI` repository, and click **Connect**.
-4. Configure the service settings:
-   - **Name**: `inkloom-ai-backend` (or your choice)
-   - **Region**: Same or close to your Neon database region
-   - **Branch**: `main` (or your active branch)
+1. Log in to [https://render.com](https://render.com) and click **New +** -> **Web Service**.
+2. Connect your GitHub repository.
+3. Configure the service:
+   - **Name**: `inkloom-ai-backend`
    - **Root Directory**: `backend`
    - **Runtime**: `Python 3`
    - **Build Command**:
      ```bash
-     pip install -r requirements.txt
+     pip install -r requirements.txt && alembic upgrade head
      ```
    - **Start Command**:
      ```bash
      uvicorn app.main:app --host 0.0.0.0 --port $PORT
      ```
-   - **Instance Type**: Select **Free** ($0/month).
+   - **Instance Type**: `Free` ($0/month) or standard web service.
 
-5. Scroll down to **Environment Variables** and add the following keys:
-   | Key | Value | Description |
-   | :--- | :--- | :--- |
-   | `DATABASE_URL` | `<Your Neon Connection String from Step 1>` | Cloud PostgreSQL connection string |
-   | `GEMINI_API_KEY` | `<Your Google Gemini API Key>` | For multi-modal brand governance & RAG |
-   | `ENVIRONMENT` | `production` | Production environment flag |
-   | `PYTHON_VERSION` | `3.12.0` | Ensures Python 3.12 runtime |
-   | `CLOUDINARY_CLOUD_NAME` | *(Optional)* | Your Cloudinary cloud name |
-   | `CLOUDINARY_API_KEY` | *(Optional)* | Your Cloudinary API key |
-   | `CLOUDINARY_API_SECRET` | *(Optional)* | Your Cloudinary API secret |
+4. Add the following **Environment Variables**:
 
-6. Click **Create Web Service**.
-7. Render will build and deploy the backend.
-8. Once the build finishes and status shows **Live**, copy your public service URL:
-   `https://inkloom-ai-backend.onrender.com`
-9. **Verify Deployment**:
-   Open `https://<your-backend-subdomain>.onrender.com/api/v1/health` in your browser.
-   You should see:
+| Variable | Example Value | Description |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | `<Your Neon Connection String>` | PostgreSQL + pgvector connection string |
+| `GEMINI_API_KEY` | `<Your Gemini API Key>` | Google AI Studio API key |
+| `PRIMARY_LLM_MODEL` | `gemini-3.5-flash` | Standardized multimodal model for all text, vision, audio, video |
+| `EMBEDDING_MODEL` | `gemini-embedding-2` | Standardized 768-dim embedding model |
+| `EMBEDDING_DIMENSIONS` | `768` | Vector embedding dimension size |
+| `JWT_SECRET` | `<Random 32-char string>` | Secret key for signing HS256 auth tokens |
+| `ENVIRONMENT` | `production` | Environment flag |
+| `PYTHON_VERSION` | `3.12.0` | Python runtime version |
+| `CLOUDINARY_CLOUD_NAME` | *(Optional)* | Cloudinary cloud identifier |
+| `CLOUDINARY_API_KEY` | *(Optional)* | Cloudinary access key |
+| `CLOUDINARY_API_SECRET` | *(Optional)* | Cloudinary API secret |
+| `CORS_ORIGINS` | `https://<your-frontend>.vercel.app` | Allowed CORS origins for browser security |
+
+5. Deploy the web service. Once live, confirm health by browsing to:
+   `https://<your-backend-url>/api/v1/health`
+
+   Expected JSON response:
    ```json
    {
      "status": "healthy",
      "project": "Inkloom AI - Brand Governance Platform",
      "database": "healthy",
-     "pgvector": "pgvector v0.8.x active",
-     "ai_integration": { "configured": true, "client_ready": true }
+     "pgvector": "pgvector active",
+     "ai_integration": {
+       "configured": true,
+       "client_ready": true,
+       "primary_model": "gemini-3.5-flash"
+     }
    }
    ```
-   *(Note: The database automatically initializes all tables and seeds the Blinkit brand profile on startup).*
 
 ---
 
-## Step 3: Deploy Free Next.js Frontend (Vercel)
+## Step 3: Deploy Next.js Frontend (Vercel)
 
-1. Go to [https://vercel.com](https://vercel.com) and sign in with GitHub.
-2. Click **Add New...** -> **Project**.
-3. Select your `hackathon-inkloomAI` GitHub repository and click **Import**.
-4. In the **Configure Project** screen:
-   - **Project Name**: `inkloom-ai`
+1. Sign in to [https://vercel.com](https://vercel.com) and click **Add New...** -> **Project**.
+2. Select the `hackathon-inkloomAI` repository.
+3. Configure the project:
    - **Framework Preset**: `Next.js`
-   - **Root Directory**: Click **Edit** and select the `frontend` folder.
-5. Expand **Environment Variables** and add:
-   | Key | Value |
-   | :--- | :--- |
-   | `NEXT_PUBLIC_API_BASE_URL` | `https://<your-backend-subdomain>.onrender.com/api/v1` |
-
-   *(Important: Ensure the URL ends with `/api/v1` and uses `https://` without a trailing slash).*
-
-6. Click **Deploy**.
-7. In ~60 seconds, Vercel will build and assign a global production URL (e.g. `https://inkloom-ai.vercel.app`).
+   - **Root Directory**: `frontend`
+4. Add the **Environment Variable**:
+   - `NEXT_PUBLIC_API_BASE_URL` = `https://<your-backend-url>/api/v1`
+   *(Ensure no trailing slash)*
+5. Click **Deploy**. Vercel will build and assign a global production URL (e.g. `https://inkloom-ai.vercel.app`).
 
 ---
 
-## Step 4: Verification & Live Demo Flow
+## Step 4: Verification & 5-Minute Judge Demo Flow
 
-Now that both backend and frontend are live:
-1. Open your Vercel website: `https://<your-app>.vercel.app`
-2. **Setup Canvas (`/setup`)**:
-   - Verify Blinkit brand profile is pre-loaded.
-   - Click **"⚡ Load Diwali 2026 Guidelines Preset"** to sync guidelines.
-3. **Judge Canvas (`/judge`)**:
-   - Click **"Load Compliant Blinkit Poster"** -> Run AI Governance Audit -> Verify high compliance score (90%+).
-   - Click **"Load Spider-Man Violator"** -> Run AI Governance Audit -> Verify critical brand violation detection, WCAG contrast alerts, and automatic rejection recommendations.
-4. **Admin Dashboard (`/dashboard`)**:
-   - Review pending submissions and inline **✓ Approve** or **✕ Reject** workflows.
+Once both backend and frontend are live:
+
+1. **Open Onboarding Wizard (`/`)**:
+   - Step 1: Select **Blinkit** quick-commerce demo brand.
+   - Step 2: Click **"⚡ Load Premade Blinkit Diwali Pack"** to index all brand guidelines and campaign rules.
+   - Step 3: Review the extracted RuleSet (brand colors, zero-tolerance banned terms, preferred terminology).
+   - Step 4: Click **"Launch Judge Canvas as Sasha Bloom (Judge)"**.
+
+2. **Judge Canvas (`/judge`)**:
+   - **Test Off-Brand Detection**: Click **"🕷️ Spider-Man Test"** preset -> Click **"Run Brand Audit"** -> Observe **CRITICAL** off-brand violation, color palette rejection, and **`FAIL`** verdict.
+   - **Test Compliant Delivery**: Click **"🪔 Compliant Sweets"** preset -> Click **"Run Brand Audit"** -> Observe 95%+ score, festival cue verification, and **`PASS`** verdict.
+
+3. **Admin Dashboard (`/dashboard`)**:
+   - Switch persona in Header to **Jordan Vance (Admin)**.
+   - Navigate to `/dashboard` to inspect the live audit queue, agreement rates, and policy violation distributions.
 
 ---
 
-## 💡 Troubleshooting & Tips
+## 💡 Troubleshooting & Production Notes
 
-- **Render Cold Starts**: On Render's free tier, backend instances spin down after 15 minutes of inactivity. The first request after sleep may take ~30-50 seconds to wake up.
-- **CORS Errors**: The backend CORS middleware has been preconfigured with `allow_origin_regex=r"https?://.*"`, allowing requests from your Vercel domain, local machines, and custom domains without CORS issues.
-- **Database URL Formats**: The backend configuration dynamically converts both standard `postgres://` or `postgresql://` strings and handles SSL parameters automatically.
+- **Cold Starts**: Free hosting platforms spin down inactive instances. The initial wake-up request may take ~30 seconds.
+- **Fail-Closed Guarantee**: In the event of network disruption or Gemini quota exhaustion, the engine fails closed with structured `ai_status: "failed"` and blocks unverified approvals.
+- **Database Migrations**: Always execute `alembic upgrade head` before launching updated application instances. All schema migrations are additive.
