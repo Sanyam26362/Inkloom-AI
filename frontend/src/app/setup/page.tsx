@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
 import { PackSummary, UserRole } from "@/lib/types";
+import { OnboardingHeader } from "@/components/onboarding/OnboardingHeader";
+import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress";
+import { SelectClientHeading } from "@/components/onboarding/SelectClientHeading";
+import { ClientSelectionLayout } from "@/components/onboarding/ClientSelectionLayout";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -302,234 +306,75 @@ export default function OnboardingPage() {
 
   return (
     <div
-      className={`min-h-screen flex flex-col font-sans selection:bg-[#7c3aed] selection:text-white transition-colors duration-200 ${
-        isDark ? "bg-[#0d0e12] text-[#e3e2e6]" : "bg-[#f8fafc] text-[#0f172a]"
+      className={`onboarding-root min-h-screen flex flex-col font-sans selection:bg-[#635BFF] selection:text-white transition-colors duration-200 ${
+        isDark ? "bg-[#0d0e12] text-[#e3e2e6]" : "bg-[#FAF9FE] text-[#111827]"
       }`}
+      style={{
+        fontFamily:
+          'var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      }}
     >
-      {/* Top Bar */}
-      <header
-        className={`w-full h-16 border-b flex items-center justify-between px-6 backdrop-blur-md sticky top-0 z-30 ${
-          isDark ? "bg-[#13141a]/90 border-[#2b2c34]" : "bg-white/90 border-[#e2e8f0]"
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#7c3aed] to-[#3b82f6] flex items-center justify-center shadow-md">
-            <span className="font-black text-white text-base tracking-tighter">IK</span>
-          </div>
-          <div>
-            <h1 className="font-bold text-sm tracking-tight leading-none">Inkloom AI</h1>
-            <span className="text-[11px] text-[#94a3b8] font-medium leading-none">Enterprise Brand Governance</span>
-          </div>
-        </div>
+      {/* Redesigned Enterprise Top Bar */}
+      <OnboardingHeader theme={theme} toggleTheme={toggleTheme} />
 
-        <div className="flex items-center gap-3">
-          {/* Theme Switcher */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className={`h-9 w-9 rounded-lg border flex items-center justify-center transition-all ${
-              isDark ? "bg-[#1c1d24] border-[#2f303b] text-amber-400" : "bg-white border-[#e2e8f0] text-slate-600"
-            }`}
-            title="Toggle Dark/Light Mode"
-          >
-            {isDark ? "☀️" : "🌙"}
-          </button>
-        </div>
-      </header>
+      {/* Centered Wizard Progress Bar */}
+      <OnboardingProgress
+        currentStep={currentStep}
+        onStepClick={(step) => setCurrentStep(step)}
+      />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8 md:py-12 flex flex-col justify-center">
-        {/* Progress Tracker */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between max-w-2xl mx-auto relative">
-            <div
-              className={`absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 -z-0 ${
-                isDark ? "bg-[#252630]" : "bg-[#e2e8f0]"
-              }`}
-            />
-            {[
-              { num: 1, label: "Select Client" },
-              { num: 2, label: "Ingest Guidelines" },
-              { num: 3, label: "Review Rules" },
-              { num: 4, label: "Launch Persona" },
-            ].map((step) => {
-              const isActive = currentStep === step.num;
-              const isPast = currentStep > step.num;
-              return (
-                <div key={step.num} className="relative z-10 flex flex-col items-center">
-                  <div
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      isActive
-                        ? "bg-[#7c3aed] text-white ring-4 ring-[#7c3aed]/20 shadow-lg"
-                        : isPast
-                        ? "bg-emerald-500 text-white"
-                        : isDark
-                        ? "bg-[#1c1d24] border border-[#2f303b] text-[#94a3b8]"
-                        : "bg-white border border-[#cbd5e1] text-[#64748b]"
-                    }`}
-                  >
-                    {isPast ? "✓" : step.num}
-                  </div>
-                  <span
-                    className={`mt-2 text-[11px] font-semibold tracking-wide uppercase ${
-                      isActive
-                        ? isDark
-                          ? "text-white"
-                          : "text-[#0f172a]"
-                        : isDark
-                        ? "text-[#64748b]"
-                        : "text-[#94a3b8]"
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
+      <main className="flex-1 w-full mx-auto flex flex-col justify-start">
         {/* Error / Success Notifications */}
-        {errorMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center justify-between">
-            <span>{errorMessage}</span>
-            <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600 font-bold ml-4">
-              ×
-            </button>
-          </div>
-        )}
-        {successMessage && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm flex items-center justify-between">
-            <span>{successMessage}</span>
-            <button onClick={() => setSuccessMessage(null)} className="text-emerald-400 hover:text-emerald-600 font-bold ml-4">
-              ×
-            </button>
-          </div>
-        )}
-
-        {/* STEP 1: SELECT CLIENT */}
-        {currentStep === 1 && (
-          <div
-            className={`p-6 sm:p-8 rounded-2xl border shadow-xl transition-all ${
-              isDark ? "bg-[#14151c] border-[#2b2c36]" : "bg-white border-[#e2e8f0]"
-            }`}
-          >
-            <div className="text-center max-w-xl mx-auto mb-8">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 px-3 py-1 rounded-full">
-                Step 1 of 4
-              </span>
-              <h2 className="text-2xl font-black mt-3 mb-2 tracking-tight">Choose Your Enterprise Brand</h2>
-              <p className={`text-sm ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                Select our turnkey quick-commerce demonstration client or configure your custom brand parameters.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto mb-8">
-              {/* Blinkit Card */}
-              <div
-                onClick={() => setClientType("blinkit")}
-                className={`p-5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  clientType === "blinkit"
-                    ? "border-[#F8C200] bg-[#F8C200]/5 ring-4 ring-[#F8C200]/10"
-                    : isDark
-                    ? "border-[#2b2c36] hover:border-[#3b3c48] bg-[#1a1b24]/50"
-                    : "border-[#e2e8f0] hover:border-[#cbd5e1] bg-slate-50"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-[#F8C200] flex items-center justify-center font-black text-black text-base shadow-xs">
-                        b
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-base leading-tight">Blinkit</h3>
-                        <span className="text-[11px] text-[#94a3b8]">Quick Commerce Retail</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                      Recommended Demo
-                    </span>
-                  </div>
-                  <p className={`text-xs leading-relaxed mb-4 ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Pre-packaged with authentic Diwali 2026 campaign briefs, visual palette rules (#F8C200, #00A36C),
-                    banned terminology, and multi-modal compliance tests.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 pt-3 border-t border-dashed border-[#cbd5e1]/30">
-                  <span className="w-4 h-4 rounded-full bg-[#F8C200] inline-block shadow-2xs" />
-                  <span className="w-4 h-4 rounded-full bg-[#00A36C] inline-block shadow-2xs" />
-                  <span className="w-4 h-4 rounded-full bg-[#1C1C1E] inline-block shadow-2xs" />
-                  <span className="text-[11px] font-mono text-[#94a3b8] ml-auto">Diwali 2026 Pack</span>
-                </div>
-              </div>
-
-              {/* Custom Brand Card */}
-              <div
-                onClick={() => setClientType("custom")}
-                className={`p-5 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  clientType === "custom"
-                    ? "border-[#7c3aed] bg-[#7c3aed]/5 ring-4 ring-[#7c3aed]/10"
-                    : isDark
-                    ? "border-[#2b2c36] hover:border-[#3b3c48] bg-[#1a1b24]/50"
-                    : "border-[#e2e8f0] hover:border-[#cbd5e1] bg-slate-50"
-                }`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-white text-base shadow-xs">
-                        +
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-base leading-tight">New Brand</h3>
-                        <span className="text-[11px] text-[#94a3b8]">Custom Enterprise Tenant</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className={`text-xs leading-relaxed mb-4 ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Configure a brand from scratch. Upload any PDF or markdown brand book and let our AI pipeline
-                    extract and index governance rules automatically.
-                  </p>
-                </div>
-                {clientType === "custom" && (
-                  <div className="space-y-3 pt-3 border-t border-dashed border-[#cbd5e1]/30">
-                    <input
-                      type="text"
-                      placeholder="Brand Name (e.g. Acme Corp)"
-                      value={customBrandName}
-                      onChange={(e) => setCustomBrandName(e.target.value)}
-                      className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-[#7c3aed] ${
-                        isDark ? "bg-[#121319] border-[#2b2c36] text-white" : "bg-white border-[#cbd5e1]"
-                      }`}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Tone & Persona (e.g. Sophisticated, Modern)"
-                      value={customTone}
-                      onChange={(e) => setCustomTone(e.target.value)}
-                      className={`w-full px-3 py-1.5 rounded-lg text-xs border focus:outline-none focus:ring-1 focus:ring-[#7c3aed] ${
-                        isDark ? "bg-[#121319] border-[#2b2c36] text-white" : "bg-white border-[#cbd5e1]"
-                      }`}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end max-w-3xl mx-auto">
+        <div className="max-w-3xl w-full mx-auto px-4 mt-3">
+          {errorMessage && (
+            <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-center justify-between shadow-2xs">
+              <span>{errorMessage}</span>
               <button
                 type="button"
-                disabled={loading}
-                onClick={handleStep1Submit}
-                className="px-6 py-2.5 rounded-xl font-bold text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                onClick={() => setErrorMessage(null)}
+                className="text-red-500 hover:text-red-700 font-bold ml-4 cursor-pointer"
               >
-                {loading ? "Configuring..." : "Continue to Ingestion →"}
+                ×
               </button>
             </div>
-          </div>
+          )}
+          {successMessage && (
+            <div className="mb-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm flex items-center justify-between shadow-2xs">
+              <span>{successMessage}</span>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage(null)}
+                className="text-emerald-500 hover:text-emerald-700 font-bold ml-4 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* STEP 1: SELECT CLIENT (Redesigned Enterprise UI) */}
+        {currentStep === 1 && (
+          <section className="w-full flex flex-col items-center">
+            <SelectClientHeading />
+            <ClientSelectionLayout
+              clientType={clientType}
+              setClientType={setClientType}
+              customBrandName={customBrandName}
+              setCustomBrandName={setCustomBrandName}
+              customTone={customTone}
+              setCustomTone={setCustomTone}
+              guidelineFile={guidelineFile}
+              setGuidelineFile={setGuidelineFile}
+              onContinue={handleStep1Submit}
+              loading={loading}
+            />
+          </section>
         )}
 
+        {/* STEPS 2, 3, 4 CONTAINER */}
+        {currentStep > 1 && (
+          <div className="max-w-5xl w-full mx-auto px-4 py-8">
         {/* STEP 2: INGEST GUIDELINES */}
         {currentStep === 2 && (
           <div
@@ -1006,6 +851,8 @@ export default function OnboardingPage() {
               </button>
             </div>
           </div>
+        )}
+        </div>
         )}
       </main>
     </div>

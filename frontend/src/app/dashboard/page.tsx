@@ -19,6 +19,7 @@ import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
 import { GovernanceAnalytics, Submission, SubmissionStatus } from "@/lib/types";
 import TechText from "@/components/ui/TechText";
+import DriftWall from "@/components/ui/DriftWall";
 
 export default function GovernanceDashboardPage() {
   const { activeBrandId, currentRole, brands, theme, refreshKey } = useApp();
@@ -209,62 +210,62 @@ export default function GovernanceDashboardPage() {
         </div>
       )}
 
-            {/* 1. Dashboard Hero Section with TechText */}
-      <section className="mb-6">
-        <div
-          className={`relative w-full rounded-2xl border shadow-2xs overflow-hidden transition-colors ${
-            isDark
-              ? "bg-[#18191d]/90 border-[#2e2f38]"
-              : "bg-white border-[#cbd5e1]"
-          }`}
-        >
-          {/* Subtle Top Status Bar inside Hero */}
-          <div className={`px-4 sm:px-6 pt-3.5 pb-2.5 flex items-center justify-between border-b ${
-            isDark ? "border-[#2e2f38]/60 bg-[#141518]/50" : "border-[#e2e8f0]/80 bg-[#f8fafc]/50"
-          }`}>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#00A36C] animate-pulse" />
-              <span className={`text-[11px] font-mono tracking-wider uppercase font-bold ${
-                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-              }`}>
-                Governance Engine &bull; Active Node
-              </span>
-            </div>
-            <div className={`hidden sm:flex items-center gap-1.5 text-[10px] font-mono ${
-              isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-            }`}>
-              <span>Interactive Vector Canvas &bull; Click or drag letters</span>
-            </div>
-          </div>
-
-          {/* Interactive TechText Canvas Container */}
+            {/* 1. Dynamic Hero Section: Inkloom AI (Top-Left) layered with DriftWall (Right / Behind) */}
+      <section className="mb-6 relative w-full h-[290px] sm:h-[330px] lg:h-[360px] overflow-hidden rounded-3xl select-none">
+        {/* DriftWall: Positioned on the right side, extending partially underneath the text */}
+        <div className="absolute top-0 bottom-0 right-0 w-[62%] sm:w-[68%] lg:w-[72%] z-0 overflow-hidden pointer-events-auto">
+          <DriftWall
+            columns={4}
+            tileWidth={190}
+            tileHeight={125}
+            gap={16}
+            tilt={28}
+            turn={-14}
+            perspective={1100}
+            depth={110}
+            speed={35}
+            direction="up"
+            variance={0.45}
+            parallax={0.6}
+            lift={55}
+            fade={0.65}
+            dim={isDark ? 0.45 : 0.65}
+            overlayColor={isDark ? "#121316" : "#f8fafc"}
+          />
+          {/* Subtle gradient dissolution so the left edge of DriftWall fades smoothly under the text */}
           <div
-            className="w-full relative"
-            style={{ width: "100%", height: "240px", position: "relative" }}
-          >
-            <TechText
-              text="Inkloom AI"
-              align="left"
-              fontWeight={600}
-              fontSize={110}
-              reveal="letter"
-              dashLength={4}
-              dashGap={2}
-              specks={6}
-              intro="metrics"
-              introDuration={2.8}
-              clickKick
-              guides
-              fontFamily="Georgia, serif"
-              letterSpacing={-0.02}
-              lineStyle="solid"
-              strokeWidth={1.5}
-              bounce={0.75}
-              color={isDark ? "#f8fafc" : "#0f172a"}
-              accentColor={isDark ? "#a78bfa" : "#005797"}
-              style={{ width: "100%", height: "240px" }}
-            />
-          </div>
+            className={`absolute inset-y-0 left-0 w-32 pointer-events-none bg-gradient-to-r ${
+              isDark
+                ? "from-[#121316] via-[#121316]/60 to-transparent"
+                : "from-[#f8fafc] via-[#f8fafc]/60 to-transparent"
+            }`}
+          />
+        </div>
+
+        {/* TechText: Positioned at the top-left (z-10), with its right letters slightly overlapping the DriftWall */}
+        <div className="absolute top-0 left-0 w-full sm:w-[76%] md:w-[68%] lg:w-[62%] h-full z-10 pointer-events-auto">
+          <TechText
+            text="Inkloom AI"
+            align="left"
+            fontWeight={600}
+            fontSize={162}
+            reveal="letter"
+            dashLength={4}
+            dashGap={2}
+            specks={8}
+            intro="metrics"
+            introDuration={2.8}
+            clickKick
+            guides
+            fontFamily="Georgia, serif"
+            letterSpacing={-0.02}
+            lineStyle="solid"
+            strokeWidth={1.5}
+            bounce={0.75}
+            color={isDark ? "#f8fafc" : "#0f172a"}
+            accentColor={isDark ? "#a78bfa" : "#005797"}
+            style={{ width: "100%", height: "100%" }}
+          />
         </div>
       </section>
 
