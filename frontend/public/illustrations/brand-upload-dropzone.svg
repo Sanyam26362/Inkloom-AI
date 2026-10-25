@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 230" role="img" aria-labelledby="title">
+<title id="title">Brand book upload dropzone</title>
+<defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#6f63d9" flood-opacity=".12"/></filter></defs>
+<g filter="url(#shadow)"><rect x="20" y="36" width="320" height="172" rx="20" fill="#fff" stroke="#e5e8f5"/>
+<rect x="40" y="56" width="280" height="132" rx="13" fill="#fbfcff" stroke="#cfd6ee" stroke-width="2" stroke-dasharray="7 6"/>
+<path d="M165 119v-17a20 20 0 0 1 40 0v4" fill="none" stroke="#7c82a5" stroke-width="3" stroke-linecap="round"/>
+<path d="M153 118l32-28 32 28M185 90v49" fill="none" stroke="#7c82a5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="180" y="159" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="14" fill="#53617c">Drag &amp; drop brand book</text><text x="180" y="178" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="13" fill="#53617c">or click to upload</text>
+</g><g><path d="M255 18h48l24 24v73h-72z" fill="#fee2e2" stroke="#fecaca"/><path d="M303 18v25h24" fill="#fecaca"/><rect x="263" y="53" width="62" height="27" rx="6" fill="#ef4444"/><text x="294" y="71" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#fff">PDF</text>
+<path d="M302 82h44l14 14v56h-58z" fill="#dbeafe" stroke="#bfdbfe"/><rect x="308" y="103" width="48" height="25" rx="5" fill="#3b82f6"/><text x="332" y="120" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#fff">MD</text></g></svg>

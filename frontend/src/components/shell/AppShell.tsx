@@ -13,7 +13,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isSetupPage = pathname?.startsWith("/setup");
   const isDark = theme === "dark";
 
-  if (isLandingPage || isSetupPage) {
+  if (isSetupPage) {
+    return (
+      <div className="min-h-screen w-full overflow-x-hidden transition-colors duration-200">
+        {children}
+      </div>
+    );
+  }
+
+  if (isLandingPage) {
     return (
       <div
         className="landing-scope min-h-screen w-full overflow-x-hidden selection:bg-accent selection:text-equally-action-color transition-colors duration-200 bg-background text-text-primary"

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 420" role="img" aria-labelledby="title desc">
+<title id="title">Brand guidelines illustration</title><desc id="desc">Floating brand guideline sheet with palette and typography.</desc>
+<defs><filter id="s" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#6d5ae8" flood-opacity=".14"/></filter></defs>
+<g filter="url(#s)" transform="rotate(-8 160 210)">
+<rect x="30" y="18" width="250" height="384" rx="24" fill="#fff" stroke="#e8eaf6"/>
+<text x="58" y="65" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="700" fill="#17233b">Brand</text><text x="58" y="90" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="700" fill="#17233b">Guidelines</text>
+<rect x="58" y="111" width="165" height="10" rx="5" fill="#e9e7ff"/><rect x="58" y="131" width="135" height="10" rx="5" fill="#e9e7ff"/><rect x="58" y="151" width="105" height="10" rx="5" fill="#e9e7ff"/>
+<text x="58" y="205" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#17233b">Color Palette</text>
+<circle cx="80" cy="244" r="25" fill="#f8c200"/><circle cx="143" cy="244" r="25" fill="#00a36c"/><circle cx="206" cy="244" r="25" fill="#17191c"/>
+<path d="M48 285H260" stroke="#edf0f7"/>
+<text x="58" y="324" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" fill="#17233b">Typography</text><text x="58" y="372" font-family="Georgia,serif" font-size="42" font-weight="700" fill="#52617c">Aa</text>
+</g></svg>

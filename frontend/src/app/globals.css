@@ -403,3 +403,26 @@ h1, h2, h3, h4, h5, h6,
 .landing-scope h6 {
   font-family: var(--font-sniglet), 'Sniglet', sans-serif !important;
 }
+
+/* =====================================================================
+   Onboarding Flow Scoped Typography & Layout Tokens
+   ===================================================================== */
+.onboarding-root,
+.onboarding-root h1,
+.onboarding-root h2,
+.onboarding-root h3,
+.onboarding-root h4,
+.onboarding-root h5,
+.onboarding-root h6,
+.onboarding-root p,
+.onboarding-root span,
+.onboarding-root button,
+.onboarding-root input,
+.landing-scope .onboarding-root h1,
+.landing-scope .onboarding-root h2,
+.landing-scope .onboarding-root h3,
+.landing-scope .onboarding-root h4,
+.landing-scope .onboarding-root h5,
+.landing-scope .onboarding-root h6 {
+  font-family: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
