@@ -2,7 +2,8 @@ import asyncio
 import json
 import logging
 import math
-from typing import List, Dict, Any, Optional
+import time
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential, retry_if_exception
 from google import genai
@@ -39,12 +40,17 @@ def is_retryable_exception(exc: Exception) -> bool:
 
 
 class GeminiAuditFindingItem(BaseModel):
-    category: str = Field(description="One of: TONE, FACTUAL_CLAIM, TERMINOLOGY, VISUAL, ACCESSIBILITY, EVENT_FIT")
-    severity: str = Field(description="One of: CRITICAL, WARNING, SUGGESTION")
+    category: Literal["TONE", "FACTUAL_CLAIM", "TERMINOLOGY", "VISUAL", "ACCESSIBILITY", "EVENT_FIT"] = Field(
+        description="One of: TONE, FACTUAL_CLAIM, TERMINOLOGY, VISUAL, ACCESSIBILITY, EVENT_FIT"
+    )
+    severity: Literal["CRITICAL", "WARNING", "SUGGESTION"] = Field(description="One of: CRITICAL, WARNING, SUGGESTION")
     flagged_excerpt: str = Field(description="The exact word or phrase from the submitted content violating guidelines")
     explanation: str = Field(description="Why this violates the brand guideline or tone")
     suggested_correction: str = Field(description="Clear, brand-compliant revision for the flagged excerpt")
     cited_guideline_id: Optional[int] = Field(None, description="Integer ID of the matched retrieved guideline chunk if applicable")
+    claim_status: Optional[Literal["SUPPORTED", "CONTRADICTED", "UNSUPPORTED", "NOT_A_CLAIM"]] = Field(
+        None, description="Claim verification against approved facts"
+    )
 
 
 class GeminiAuditOutput(BaseModel):
@@ -74,7 +80,7 @@ class GeminiImageAuditOutput(BaseModel):
 
 class TimestampedAudioFinding(BaseModel):
     category: str = Field(description="One of: TONE, TERMINOLOGY, AUDIO_SFX, CAMPAIGN_FIT, ACCESSIBILITY, FACTUAL_CLAIM")
-    severity: str = Field(description="One of: CRITICAL, WARNING, SUGGESTION")
+    severity: Literal["CRITICAL", "WARNING", "SUGGESTION"] = Field(description="One of: CRITICAL, WARNING, SUGGESTION")
     flagged_excerpt: str = Field(description="The timestamped spoken phrase, sound effect description, or music element")
     timestamp_start_sec: Optional[float] = Field(None, description="Start timestamp in seconds e.g. 1.5")
     timestamp_end_sec: Optional[float] = Field(None, description="End timestamp in seconds e.g. 3.8")
@@ -122,6 +128,8 @@ class GeminiService:
         self._client: Optional[genai.Client] = None
         self.embedding_failure_count: int = 0
         self.last_embedding_error: Optional[str] = None
+        self._embedding_quota_exhausted_at: Optional[float] = None
+        self._generate_quota_exhausted_at: Optional[float] = None
         self.model_validation_status: Dict[str, Dict[str, bool]] = {
             settings.PRIMARY_LLM_MODEL: {"valid": False},
             settings.EMBEDDING_MODEL: {"valid": False},
@@ -137,6 +145,38 @@ class GeminiService:
             except Exception as e:
                 logger.error(f"Failed to initialize Google GenAI Client: {e}")
                 self._client = None
+
+    @property
+    def embedding_quota_exhausted(self) -> bool:
+        if self._embedding_quota_exhausted_at is None:
+            return False
+        if time.monotonic() - self._embedding_quota_exhausted_at > 600:
+            self._embedding_quota_exhausted_at = None
+            return False
+        return True
+
+    @embedding_quota_exhausted.setter
+    def embedding_quota_exhausted(self, val: bool) -> None:
+        if val:
+            self._embedding_quota_exhausted_at = time.monotonic()
+        else:
+            self._embedding_quota_exhausted_at = None
+
+    @property
+    def generate_quota_exhausted(self) -> bool:
+        if self._generate_quota_exhausted_at is None:
+            return False
+        if time.monotonic() - self._generate_quota_exhausted_at > 600:
+            self._generate_quota_exhausted_at = None
+            return False
+        return True
+
+    @generate_quota_exhausted.setter
+    def generate_quota_exhausted(self, val: bool) -> None:
+        if val:
+            self._generate_quota_exhausted_at = time.monotonic()
+        else:
+            self._generate_quota_exhausted_at = None
 
     @property
     def is_available(self) -> bool:
@@ -235,30 +275,18 @@ class GeminiService:
                     raise
         raise last_error
 
-    @staticmethod
-    def _generate_fallback_embedding(text: str, dim: int = 768) -> List[float]:
-        """Generates a deterministic, normalized 768-dim float vector from text hash and character frequencies."""
-        import hashlib
-        import random
-        h = hashlib.sha256(text.encode("utf-8")).digest()
-        seed = int.from_bytes(h[:8], "big")
-        rng = random.Random(seed)
-        vec = [rng.gauss(0, 1) for _ in range(dim)]
-        norm = math.sqrt(sum(x * x for x in vec))
-        return [x / norm for x in vec] if norm > 0 else [0.0] * dim
-
     async def generate_embedding(
         self, text: str, task_type: str = "RETRIEVAL_DOCUMENT"
     ) -> Optional[List[float]]:
         """
         Generates 768-dimensional vector embedding for text using configured embedding model.
         Explicitly requests output_dimensionality=768 to match PostgreSQL pgvector dimension.
-        Applies L2-normalization if truncated. Falls back to deterministic embedding if API quota is reached.
+        Applies L2-normalization if truncated. Never returns a fake vector: returns None on failure.
         """
         if not text.strip():
             return None
-        if not self._client or getattr(self, "embedding_quota_exhausted", False):
-            return self._generate_fallback_embedding(text)
+        if not self._client or self.embedding_quota_exhausted:
+            return None
 
         try:
             config = types.EmbedContentConfig(
@@ -287,17 +315,17 @@ class GeminiService:
                 return values
             else:
                 self.embedding_failure_count += 1
-                logger.error("Embedding API returned empty response without embeddings; using fallback vector.")
-                return self._generate_fallback_embedding(text)
+                logger.error("Embedding API returned empty response without embeddings.")
+                return None
         except Exception as e:
             self.embedding_failure_count += 1
             self.last_embedding_error = str(e)
-            if "resource_exhausted" in str(e).lower() or "limit exceeded" in str(e).lower():
+            if "resource_exhausted" in str(e).lower() or "limit exceeded" in str(e).lower() or "429" in str(e).lower():
                 self.embedding_quota_exhausted = True
-                logger.warning("Gemini embedding quota exhausted; enabled fast circuit-breaker fallback.")
+                logger.warning("Gemini embedding quota exhausted; enabled fast circuit-breaker.")
             else:
-                logger.warning(f"Error for Gemini embedding API ({e}); using deterministic vector.")
-            return self._generate_fallback_embedding(text)
+                logger.warning(f"Error for Gemini embedding API: {e}")
+            return None
 
     async def audit_content_semantic(
         self,
@@ -308,6 +336,7 @@ class GeminiService:
         campaign: Optional[Dict[str, Any]] = None,
         ruleset: Optional[Dict[str, Any]] = None,
         campaign_event: Optional[str] = None,
+        confirmed_deterministic_findings: Optional[List[Any]] = None,
     ) -> Dict[str, Any]:
         """
         Performs semantic audit of copy using Gemini structured outputs.
@@ -367,6 +396,23 @@ class GeminiService:
             if ruleset.get("exaggeration_terms"):
                 ruleset_context_str += f"- Exaggeration Terms to Flag: {', '.join(ruleset['exaggeration_terms'])}\n"
 
+        deterministic_section = ""
+        if confirmed_deterministic_findings:
+            det_items = []
+            for df in confirmed_deterministic_findings:
+                exc = df.get("flagged_excerpt") if isinstance(df, dict) else getattr(df, "flagged_excerpt", "")
+                exp = df.get("explanation") if isinstance(df, dict) else getattr(df, "explanation", "")
+                if exc:
+                    det_items.append(f"- Excerpt: \"{exc}\" | Issue: {exp}")
+            if det_items:
+                deterministic_section = (
+                    "ALREADY DETECTED BY DETERMINISTIC RULES - do not report these again:\n"
+                    + "\n".join(det_items)
+                    + "\n\n"
+                )
+
+        safe_scrubbed_text = scrubbed_text.replace("<<<", "< < <").replace(">>>", "> > >")
+
         prompt = f"""You are Inkloom AI, an impartial and rigorous enterprise brand governance auditor.
 Your job is to audit submitted text against the organization's official brand guidelines, tone persona, verified facts, and active campaign.
 
@@ -384,16 +430,18 @@ OFFICIAL APPROVED FACTS:
 RELEVANT RETRIEVED GUIDELINES:
 {guidelines_str if guidelines_str else "Standard company tone guidelines apply."}
 
-AUDITING RULES:
+{deterministic_section}AUDITING RULES:
 1. Detect unverified superlatives, arrogant/hyped tone, unbacked claims, or contradictions of approved facts.
-2. Flag unsupported factual claims where approved facts cannot be found.
+2. Classify every factual or promotional claim as SUPPORTED, CONTRADICTED or UNSUPPORTED against the approved facts and set claim_status. Report only CONTRADICTED (CRITICAL) and UNSUPPORTED (WARNING). Never report SUPPORTED claims or ordinary sentences.
 3. Check for relevance and compliance with active campaign context, required phrases, and prohibited items if provided.
 4. For each violation, specify the exact flagged_excerpt from the text, explain why it violates the tone or guideline, and provide a clear suggested_correction.
-5. If a finding links directly to one of the retrieved guidelines, cite its integer ID in cited_guideline_id.
-6. If the copy is brand-compliant, return an empty findings list.
+5. flagged_excerpt must be copied verbatim from the submitted copy.
+6. suggested_correction must be a MINIMAL edit that keeps the author's meaning and intent and must never introduce a claim, number or promise that is not in the approved facts (if no approved fact fits, soften or remove the claim).
+7. Cite an integer guideline ID in cited_guideline_id only if that guideline directly supports the finding, otherwise null.
+8. If the copy is brand-compliant, return an empty findings list.
 
 <<<BEGIN SUBMITTED COPY FOR AUDIT>>>
-{scrubbed_text}
+{safe_scrubbed_text}
 <<<END SUBMITTED COPY FOR AUDIT>>>
 """
 
@@ -401,7 +449,8 @@ AUDITING RULES:
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GeminiAuditOutput,
-                temperature=0.1,
+                temperature=0.0,
+                seed=7,
                 http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_TEXT * 1000),
             )
             response = await self._generate_with_retry(
@@ -412,10 +461,10 @@ AUDITING RULES:
 
             if not response.text:
                 return {
-                    "ai_status": "ok",
+                    "ai_status": "failed",
                     "findings": [],
-                    "ai_error": None,
-                    "overall_summary": "Empty response from AI auditor.",
+                    "ai_error": "Empty or blocked response",
+                    "overall_summary": "Empty or blocked response from AI auditor.",
                 }
 
             parsed = json.loads(response.text)
@@ -447,6 +496,7 @@ AUDITING RULES:
         campaign_event: Optional[str] = None,
         campaign: Optional[Dict[str, Any]] = None,
         ruleset: Optional[Dict[str, Any]] = None,
+        deterministic_telemetry: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Audits an uploaded image using Gemini multimodal vision against brand identity and campaign:
@@ -518,6 +568,22 @@ AUDITING RULES:
         else:
             event_rules = "General brand governance audit. No campaign-specific event restrictions configured.\n"
 
+        telemetry_section = ""
+        if deterministic_telemetry:
+            t_match = deterministic_telemetry.get("cielab_match_pct")
+            if t_match is None:
+                t_match = deterministic_telemetry.get("palette_match_pct")
+            match_str = f"{t_match}%" if t_match is not None else "Not measured"
+            dom_colors = deterministic_telemetry.get("dominant_hex_colors") or []
+            w = deterministic_telemetry.get("width", "unknown")
+            h = deterministic_telemetry.get("height", "unknown")
+            telemetry_section = (
+                "MEASURED TELEMETRY (authoritative, do not contradict):\n"
+                f"- CIELAB Palette Match: {match_str}\n"
+                f"- Dominant Hex Colors: {', '.join(dom_colors) if dom_colors else 'None'}\n"
+                f"- Dimensions: {w}x{h}\n\n"
+            )
+
         prompt = f"""You are Inkloom AI, an enterprise brand identity and visual governance auditor.
 Audit the attached image against the brand's approved identity guidelines and active campaign:
 
@@ -531,7 +597,7 @@ BRAND IDENTITY CONTEXT:
 - Retrieved Brand Guidelines:
 {guidelines_str or 'Standard corporate design and visual guidelines apply.'}
 
-AUDIT OBJECTIVES:
+{telemetry_section}AUDIT OBJECTIVES:
 1. Extract ALL visible text, headlines, slogans, numbers, and badges in the image into `visible_text`.
 2. Extract the primary dominant colors as approximate hex codes (e.g. #0C831F, #F8CB46) into `dominant_colors`.
 3. Compute `palette_match_pct`: percentage (0.0 to 100.0) of visual real estate and colors that align with the approved brand palette.
@@ -548,7 +614,7 @@ AUDIT OBJECTIVES:
    - severity: 'CRITICAL', 'WARNING', or 'SUGGESTION'
    - flagged_excerpt: exact text, color code, or visual element
    - explanation: why this violates brand guidelines
-   - suggested_correction: actionable correction or approved alternative
+   - suggested_correction: actionable correction or approved alternative; must be a MINIMAL edit that keeps meaning and intent and never introduces unverified claims, numbers, or promises.
    - cited_guideline_id: integer ID of relevant retrieved guideline if applicable, or null.
 8. Extract text and background color pairs for visible copy into `text_contrast_pairs` (e.g. [{"text": "Deliveries", "foreground_hex": "#FFFFFF", "background_hex": "#F8C200"}]).
 """
@@ -558,7 +624,8 @@ AUDIT OBJECTIVES:
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GeminiImageAuditOutput,
-                temperature=0.1,
+                temperature=0.0,
+                seed=7,
                 http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_IMAGE * 1000),
             )
             response = await self._generate_with_retry(
@@ -569,13 +636,13 @@ AUDIT OBJECTIVES:
 
             if not response.text:
                 return {
-                    "overall_summary": "No audit output returned.",
+                    "overall_summary": "Empty or blocked response from AI auditor.",
                     "visible_text": [],
                     "dominant_colors": [],
                     "palette_match_pct": None,
                     "findings": [],
-                    "ai_status": "ok",
-                    "ai_error": None,
+                    "ai_status": "failed",
+                    "ai_error": "Empty or blocked response",
                 }
 
             parsed = json.loads(response.text)
@@ -640,13 +707,15 @@ INSTRUCTIONS:
 5. Check if mandatory brand phrases (e.g. '{brand_name} app') were spoken. List detected in `required_phrases_found` and missing in `required_phrases_missing`.
 6. Evaluate background music volume balance and brand fit into `background_music_assessment` (music must not overpower speech).
 7. Return timestamped findings (with `timestamp_start_sec` and `timestamp_end_sec`) for any violations.
+8. Each suggested_correction must be a MINIMAL edit that preserves author meaning and intent and never introduces unverified facts, claims, or promises.
 """
         try:
             audio_part = types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=GeminiAudioAuditOutput,
-                temperature=0.1,
+                temperature=0.0,
+                seed=7,
                 http_options=types.HttpOptions(timeout=settings.GEMINI_TIMEOUT_MEDIA * 1000),
             )
             response = await self._generate_with_retry(
@@ -657,16 +726,16 @@ INSTRUCTIONS:
             if not response.text:
                 return {
                     "transcript": "",
-                    "voiceover_tone": "Unknown",
-                    "voiceover_tone_acceptable": True,
+                    "voiceover_tone": "Error",
+                    "voiceover_tone_acceptable": False,
                     "detected_sound_effects": [],
                     "prohibited_sfx_found": [],
-                    "background_music_assessment": "None",
+                    "background_music_assessment": "Error",
                     "required_phrases_found": [],
                     "required_phrases_missing": [],
                     "findings": [],
-                    "ai_status": "ok",
-                    "ai_error": None,
+                    "ai_status": "failed",
+                    "ai_error": "Empty or blocked response",
                 }
             parsed = json.loads(response.text)
             parsed["ai_status"] = "ok"
