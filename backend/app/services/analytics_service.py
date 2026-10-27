@@ -40,6 +40,9 @@ class AnalyticsService:
         resolution_counts: Dict[str, int] = {}
         total_findings = 0
 
+        chunk_flagged: Dict[int, int] = {}
+        chunk_overridden: Dict[int, int] = {}
+
         if submission_ids:
             findings_stmt = select(AuditFinding).where(AuditFinding.submission_id.in_(submission_ids))
             f_res = await session.execute(findings_stmt)
@@ -48,23 +51,38 @@ class AnalyticsService:
 
             for f in findings:
                 severity_counts[f.severity] = severity_counts.get(f.severity, 0) + 1
-                category_counts[f.category] = category_counts.get(f.category, 0) + 1
+                # Exclude SYSTEM findings from category distribution so infra issues don't pollute content insights
+                if f.category != "SYSTEM":
+                    category_counts[f.category] = category_counts.get(f.category, 0) + 1
                 source_counts[f.detector_source] = source_counts.get(f.detector_source, 0) + 1
                 resolution_counts[f.resolution_state] = resolution_counts.get(f.resolution_state, 0) + 1
 
-        # 3. Ambiguous Guideline Detection (Overridden rules indicator)
+                if f.cited_chunk_id:
+                    chunk_flagged[f.cited_chunk_id] = chunk_flagged.get(f.cited_chunk_id, 0) + 1
+                    if f.resolution_state == "OVERRIDDEN":
+                        chunk_overridden[f.cited_chunk_id] = chunk_overridden.get(f.cited_chunk_id, 0) + 1
+
+        # 3. Ambiguous Guideline Detection (Overridden rules indicator based on flagged citations)
         guidelines_stmt = (
             select(GuidelineChunk)
             .where(GuidelineChunk.brand_id == brand_id)
-            .where(GuidelineChunk.times_triggered > 0)
         )
         g_res = await session.execute(guidelines_stmt)
-        active_chunks = list(g_res.scalars().all())
+        all_chunks = list(g_res.scalars().all())
 
         ambiguous_metrics: List[AmbiguousGuidelineMetric] = []
-        for c in active_chunks:
-            override_rate = round(c.times_overridden / max(1, c.times_triggered), 2)
-            is_ambiguous = override_rate >= settings.AMBIGUITY_OVERRIDE_THRESHOLD
+        min_samples = getattr(settings, "AMBIGUITY_MIN_SAMPLES", 3)
+        override_threshold = getattr(settings, "AMBIGUITY_OVERRIDE_THRESHOLD", 0.5)
+
+        for c in all_chunks:
+            flagged = chunk_flagged.get(c.id, 0)
+            overridden = chunk_overridden.get(c.id, 0)
+
+            if flagged == 0 and c.times_triggered == 0:
+                continue
+
+            override_rate = round(overridden / flagged, 2) if flagged > 0 else 0.0
+            is_ambiguous = (flagged >= min_samples) and (override_rate >= override_threshold)
 
             ambiguous_metrics.append(
                 AmbiguousGuidelineMetric(
@@ -73,8 +91,8 @@ class AnalyticsService:
                     section_reference=c.section_reference,
                     rule_category=c.rule_category,
                     content_excerpt=c.content_text[:120] + "..." if len(c.content_text) > 120 else c.content_text,
-                    times_triggered=c.times_triggered,
-                    times_overridden=c.times_overridden,
+                    times_triggered=flagged,
+                    times_overridden=overridden,
                     override_rate=override_rate,
                     ambiguity_flag=is_ambiguous,
                 )
