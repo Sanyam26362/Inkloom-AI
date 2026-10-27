@@ -6,8 +6,23 @@
   "goals": "Drive awareness and quick-commerce orders for Diwali festive essentials, sweets, diyas, and gifts with warm festive visual storytelling.",
   "platforms": ["instagram", "facebook", "youtube", "print"],
   "content_types": ["image", "video", "audio", "poster"],
-  "required_cues": ["diya", "diyas", "rangoli", "marigold", "sweets", "mithai", "gift box", "festive lights", "lantern", "toran"],
   "min_required_cues": 2,
+  "required_cues": [
+    "diya",
+    "diyas",
+    "rangoli",
+    "marigold",
+    "sweets",
+    "mithai",
+    "gift box",
+    "gift boxes",
+    "festive lights",
+    "lantern",
+    "lanterns",
+    "toran",
+    "shubh diwali",
+    "happy diwali"
+  ],
   "prohibited_items": [
     "firecrackers",
     "crackers",
@@ -18,8 +33,10 @@
     "chakri",
     "weapons",
     "firearms",
+    "knives",
     "violence",
     "smoke",
+    "explosions",
     "spider-man",
     "spiderman",
     "marvel",
@@ -36,8 +53,25 @@
       "delivery": "10-minute delivery",
       "store": "Blinkit dark store"
     },
-    "banned_terms": ["100%", "instant", "guaranteed", "always", "cheapest", "fastest in India"],
-    "required_phrases": ["Blinkit app"],
-    "palette": ["#F8C200", "#1C1C1E", "#FFFFFF", "#00A36C", "#FF6B35"]
+    "banned_terms": [
+      "100%",
+      "instant",
+      "guaranteed",
+      "always",
+      "cheapest",
+      "fastest in India",
+      "crack speed",
+      "unlimited delivery"
+    ],
+    "required_phrases": [
+      "Blinkit app"
+    ],
+    "palette": [
+      "#F8C200",
+      "#1C1C1E",
+      "#FFFFFF",
+      "#00A36C",
+      "#FF6B35"
+    ]
   }
 }
