@@ -1,0 +1,124 @@
+{
+  "brand_name": "Blinkit",
+  "campaign_name": "Diwali 2026",
+  "version": 1,
+  "palette": [
+    "#F8C200",
+    "#1C1C1E",
+    "#FFFFFF",
+    "#00A36C",
+    "#FF6B35"
+  ],
+  "banned_terms": [
+    "100%",
+    "instant",
+    "guaranteed",
+    "always",
+    "cheapest",
+    "fastest in India",
+    "crack speed",
+    "unlimited delivery",
+    "grofers",
+    "patakha",
+    "firecracker",
+    "smoke bomb"
+  ],
+  "preferred_terminology": {
+    "app": "Blinkit app",
+    "on the app": "on the Blinkit app",
+    "our app": "the Blinkit app",
+    "grofers": "Blinkit",
+    "instant delivery": "reliable 10-minute delivery",
+    "cheapest sweets": "best value festive mithai",
+    "crack speed": "reliably fast in 10 minutes",
+    "unlimited deliveries": "deliveries across multiple orders"
+  },
+  "approved_facts": [
+    {
+      "claim": "Delivery in 10 minutes from your neighborhood Blinkit dark store.",
+      "source": "Blinkit Operations SLA 2026",
+      "verified": true
+    },
+    {
+      "claim": "Over 50,000 festive essentials, sweets, and gifts in stock.",
+      "source": "Blinkit Inventory Catalog 2026",
+      "verified": true
+    },
+    {
+      "claim": "100% paper delivery bags used across all festive deliveries.",
+      "source": "Blinkit Sustainability Initiative 2026",
+      "verified": true
+    },
+    {
+      "claim": "All sweets and mithai sourced exclusively from certified FSSAI vendors.",
+      "source": "Vendor Quality Compliance 2026",
+      "verified": true
+    }
+  ],
+  "required_phrases": [
+    "Blinkit app"
+  ],
+  "exaggeration_terms": [
+    "fastest in the world",
+    "100% free forever",
+    "zero seconds delivery",
+    "miracle cure",
+    "unbeatable",
+    "zero delay guarantee"
+  ],
+  "prohibited_visual_subjects": [
+    "firecracker",
+    "firecrackers",
+    "fireworks",
+    "sparklers",
+    "rockets",
+    "anar",
+    "chakri",
+    "smoke",
+    "explosions",
+    "spider-man",
+    "spiderman",
+    "superheroes",
+    "weapons",
+    "knives",
+    "political figures",
+    "cigarettes",
+    "alcohol"
+  ],
+  "per_media_rules": {
+    "text": {
+      "max_caption_length": 2200,
+      "max_hashtags": 30,
+      "require_blinkit_prefix_for_app": true,
+      "prohibit_unverified_time_claims": true
+    },
+    "image": {
+      "palette_threshold": 75.0,
+      "min_wcag_contrast": 4.5,
+      "prohibit_white_on_yellow": true,
+      "prohibit_orange_on_yellow": true,
+      "min_required_cues": 2,
+      "approved_aspect_ratios": [1.0, 0.8, 0.5625, 1.7778, 2.0]
+    },
+    "audio": {
+      "target_wpm_min": 130,
+      "target_wpm_max": 150,
+      "prohibited_sfx": ["sirens", "explosions", "firecrackers", "horns", "whistles"],
+      "require_spoken_brand_name": true
+    },
+    "video": {
+      "end_card_palette_match_min": 70.0,
+      "subtitles_required": true,
+      "hook_cues_required_sec": 2.0,
+      "prohibit_explosion_transitions": true
+    }
+  },
+  "decision_rules": {
+    "palette_threshold": 75.0,
+    "min_diwali_cues": 2,
+    "fail_on_critical": true,
+    "pass_score_threshold": 90.0,
+    "needs_review_score_threshold": 60.0
+  },
+  "summary": "Deterministic brand governance matrix for Blinkit Diwali 2026 Campaign."
+}
