@@ -272,7 +272,7 @@ class AuditService:
                 .where(RuleSet.brand_id == brand_id, RuleSet.campaign_id == campaign.id, RuleSet.is_active == True)
                 .order_by(RuleSet.version.desc())
             )
-            ruleset = rs_res.scalar_one_or_none()
+            ruleset = rs_res.scalars().first()
 
         if not ruleset:
             rs_res = await session.execute(
@@ -280,7 +280,7 @@ class AuditService:
                 .where(RuleSet.brand_id == brand_id, RuleSet.is_active == True)
                 .order_by(RuleSet.version.desc())
             )
-            ruleset = rs_res.scalar_one_or_none()
+            ruleset = rs_res.scalars().first()
 
         return campaign, ruleset
 
@@ -354,7 +354,7 @@ class AuditService:
             fallback_res = await session.execute(fallback_stmt)
             semantic_chunks = list(fallback_res.scalars().all())
 
-        mode = "semantic" if semantic_chunks and any(c.embedding is not None for c in semantic_chunks) else "degraded"
+        mode = "semantic" if (embedding and semantic_chunks) else "degraded"
         if retrieval_meta is not None:
             retrieval_meta["mode"] = mode
 
