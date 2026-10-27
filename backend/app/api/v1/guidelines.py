@@ -57,11 +57,6 @@ async def create_guideline_chunk(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Brand profile not found")
 
     embedding = await gemini_service.generate_embedding(payload.content_text, task_type="RETRIEVAL_DOCUMENT")
-    if not embedding:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to generate embedding for guideline chunk: {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
-        )
 
     chunk = GuidelineChunk(
         brand_id=payload.brand_id,
@@ -75,7 +70,7 @@ async def create_guideline_chunk(
         rule_category=payload.rule_category,
         content_text=payload.content_text,
         embedding=embedding,
-        embedding_status="completed",
+        embedding_status="completed" if embedding else "failed",
     )
     session.add(chunk)
     await session.commit()
@@ -143,13 +138,6 @@ async def upload_guideline(
             )
 
     saved_chunks: List[GuidelineChunk] = await asyncio.gather(*(embed_and_build(rc) for rc in raw_chunks))
-
-    failed_count = sum(1 for sc in saved_chunks if sc.embedding_status == "failed")
-    if failed_count == len(saved_chunks) and len(saved_chunks) > 0:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to generate embeddings for all {len(saved_chunks)} chunks: {gemini_service.last_embedding_error or 'Gemini embedding service unavailable'}",
-        )
 
     for sc in saved_chunks:
         session.add(sc)
