@@ -3,6 +3,7 @@
   "display_name": "Blinkit - Diwali 2026 Quick-Commerce Campaign",
   "description": "Official brand governance pack for Blinkit Diwali 2026 campaign including visual identity, deterministic color palette, prohibited items, tone of voice, and accessibility rules.",
   "client": "Blinkit",
+  "version": "1.0.0",
   "documents": [
     {
       "filename": "blinkit_guidelines.pdf",
@@ -20,5 +21,6 @@
       "title": "Blinkit Diwali 2026 Design System"
     }
   ],
-  "campaign_file": "campaign.json"
+  "campaign_file": "campaign.json",
+  "ruleset_file": "ruleset.json"
 }
