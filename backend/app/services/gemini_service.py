@@ -616,7 +616,7 @@ BRAND IDENTITY CONTEXT:
    - explanation: why this violates brand guidelines
    - suggested_correction: actionable correction or approved alternative; must be a MINIMAL edit that keeps meaning and intent and never introduces unverified claims, numbers, or promises.
    - cited_guideline_id: integer ID of relevant retrieved guideline if applicable, or null.
-8. Extract text and background color pairs for visible copy into `text_contrast_pairs` (e.g. [{"text": "Deliveries", "foreground_hex": "#FFFFFF", "background_hex": "#F8C200"}]).
+8. Extract text and background color pairs for visible copy into `text_contrast_pairs` (e.g. [{{"text": "Deliveries", "foreground_hex": "#FFFFFF", "background_hex": "#F8C200"}}]).
 """
 
         try:
