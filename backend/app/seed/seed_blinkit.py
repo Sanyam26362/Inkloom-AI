@@ -227,6 +227,7 @@ async def seed_blinkit() -> None:
                 rule_category=g["rule_category"],
                 content_text=g["content_text"],
                 embedding=emb,
+                embedding_status="completed" if emb else "failed",
             )
             session.add(chunk)
 
