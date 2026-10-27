@@ -1,10 +1,21 @@
 import io
 import re
 import math
+import unicodedata
 from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 from PIL import Image
 import numpy as np
+
+ZERO_WIDTH_CHARS = re.compile(r"[​‌‍⁠﻿­]")
+
+
+def normalize_for_matching(text: Optional[str]) -> str:
+    """Applies unicodedata NFKC and strips zero-width characters for evasion-proof matching."""
+    if not text:
+        return ""
+    norm = unicodedata.normalize("NFKC", str(text))
+    return ZERO_WIDTH_CHARS.sub("", norm)
 
 
 @dataclass
@@ -96,23 +107,25 @@ class RuleEngine:
         approved_palette: List[str],
         threshold: float = 75.0,
         tolerance_delta_e: float = 20.0,
-    ) -> Tuple[float, List[str], List[FindingDraft]]:
+    ) -> Tuple[Optional[float], List[str], List[FindingDraft]]:
         """
         Calculates palette match percentage by pixel-area share in CIELAB DeltaE.
-        Avoids integer floor division (//16*16) bias.
+        Avoids integer floor division (//16*16) bias. Vectorized with numpy.
+        Returns (None, [], []) when image bytes are empty/undecodable, palette is empty,
+        or no palette colour parses.
         """
         if not image_bytes or not approved_palette:
-            return 100.0, [], []
+            return None, [], []
 
         try:
             image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         except Exception:
-            return 100.0, [], []
+            return None, [], []
 
         # Resize for fast, accurate pixel-area clustering
         thumb = image.resize((64, 64))
         arr = np.array(thumb)
-        pixels = arr.reshape(-1, 3)
+        pixels = arr.reshape(-1, 3).astype(np.float64)
 
         # Approved palette in Lab
         palette_labs: List[Tuple[float, float, float]] = []
@@ -126,10 +139,9 @@ class RuleEngine:
                 pass
 
         if not palette_labs:
-            return 100.0, [], []
+            return None, [], []
 
         # Find top 5 dominant colors
-        # Cluster via rounding to 8 to group near-identical pixels without harsh 16-floor bias
         smooth_clusters = np.round(pixels / 8.0) * 8.0
         unique_colors, counts = np.unique(smooth_clusters, axis=0, return_counts=True)
         sorted_indices = np.argsort(-counts)
@@ -140,16 +152,32 @@ class RuleEngine:
             r, g, b = max(0, min(255, int(r))), max(0, min(255, int(g))), max(0, min(255, int(b)))
             dominant_hex.append(f"#{r:02X}{g:02X}{b:02X}")
 
-        # Measure pixel-area match
-        matching_pixels = 0
-        total_pixels = len(pixels)
+        # Vectorized sRGB to CIELAB conversion for all pixels
+        c = pixels / 255.0
+        lin = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+        X = lin[:, 0] * 0.4124564 + lin[:, 1] * 0.3575761 + lin[:, 2] * 0.1804375
+        Y = lin[:, 0] * 0.2126729 + lin[:, 1] * 0.7151522 + lin[:, 2] * 0.0721750
+        Z = lin[:, 0] * 0.0193339 + lin[:, 1] * 0.1191920 + lin[:, 2] * 0.9503041
 
-        # Cache pixel labs
-        for p in pixels:
-            p_lab = cls.rgb_to_lab(int(p[0]), int(p[1]), int(p[2]))
-            min_dist = min(cls.delta_e(p_lab, plab) for plab in palette_labs)
-            if min_dist <= tolerance_delta_e:
-                matching_pixels += 1
+        x, y, z = X / 0.95047, Y / 1.0, Z / 1.08883
+        f_x = np.where(x > 0.008856, x ** (1.0 / 3.0), (7.787 * x) + (16.0 / 116.0))
+        f_y = np.where(y > 0.008856, y ** (1.0 / 3.0), (7.787 * y) + (16.0 / 116.0))
+        f_z = np.where(z > 0.008856, z ** (1.0 / 3.0), (7.787 * z) + (16.0 / 116.0))
+
+        L = (116.0 * f_y) - 16.0
+        a = 500.0 * (f_x - f_y)
+        b = 200.0 * (f_y - f_z)
+        pixel_labs = np.column_stack([L, a, b])
+
+        palette_labs_arr = np.array(palette_labs, dtype=np.float64)
+
+        # Vectorized Euclidean Delta E distance
+        diffs = pixel_labs[:, np.newaxis, :] - palette_labs_arr[np.newaxis, :, :]
+        dists = np.sqrt(np.sum(diffs ** 2, axis=-1))
+        min_dists = np.min(dists, axis=-1)
+
+        total_pixels = len(pixels)
+        matching_pixels = int(np.sum(min_dists <= tolerance_delta_e))
 
         match_pct = round((matching_pixels / total_pixels) * 100.0, 1)
 
@@ -183,6 +211,7 @@ class RuleEngine:
     @classmethod
     def check_banned_terms(cls, text: str, banned_terms: List[str]) -> List[FindingDraft]:
         """Detects exact prohibited phrases using word boundaries and Unicode safety."""
+        text = normalize_for_matching(text)
         findings: List[FindingDraft] = []
         if not text or not banned_terms:
             return findings
@@ -211,6 +240,7 @@ class RuleEngine:
         cls, text: str, terminology_map: Dict[str, str]
     ) -> List[FindingDraft]:
         """Detects deprecated or discouraged phrases and suggests approved brand replacements."""
+        text = normalize_for_matching(text)
         findings: List[FindingDraft] = []
         if not text or not terminology_map:
             return findings
@@ -220,9 +250,11 @@ class RuleEngine:
             if not dep_str:
                 continue
 
-            # Special case: "app" -> "Blinkit app" (do not flag if preceded by brand name)
+            # Standalone "app" rule: derive brand prefix from approved replacement (e.g. "Acme app" -> "acme")
             if dep_str.lower() == "app" and "app" in approved.lower():
-                pattern = re.compile(r"(?<!\bblinkit\s)\bapp\b", re.IGNORECASE | re.UNICODE)
+                brand_prefix = re.sub(r"(?i)\s*app.*", "", approved).strip()
+                prefix_escaped = re.escape(brand_prefix.lower()) if brand_prefix else r"\w+"
+                pattern = re.compile(rf"(?<!\b{prefix_escaped}\s)\bapp\b", re.IGNORECASE | re.UNICODE)
                 for match in pattern.finditer(text):
                     findings.append(
                         FindingDraft(
@@ -257,6 +289,7 @@ class RuleEngine:
         cls, text: str, exaggeration_terms: List[str]
     ) -> List[FindingDraft]:
         """Detects exaggerated, unsubstantiated superlative or speed claims."""
+        text = normalize_for_matching(text)
         findings: List[FindingDraft] = []
         if not text or not exaggeration_terms:
             return findings
@@ -285,6 +318,7 @@ class RuleEngine:
         cls, text: str, required_phrases: List[str]
     ) -> List[FindingDraft]:
         """Ensures mandatory brand phrases appear in campaign content."""
+        text = normalize_for_matching(text)
         findings: List[FindingDraft] = []
         if not text or not required_phrases:
             return findings
@@ -326,19 +360,55 @@ class RuleEngine:
             )
             return findings
 
-        words = alt_text.strip().split()
+        clean_alt = alt_text.strip()
+        lower_alt = clean_alt.lower()
+
+        # Check for generic placeholders or filenames
+        placeholders = {"image", "photo", "picture", "graphic", "banner", "poster", "logo", "thumbnail", "placeholder", "icon"}
+        is_filename = bool(re.search(r"^(?:img|dsc|photo|pic|image)[-_0-9]*\.(?:jpg|jpeg|png|webp|gif)$", lower_alt, re.IGNORECASE)) or bool(re.search(r"^[\w\-]+\.(?:jpg|jpeg|png|webp|gif|svg)$", lower_alt, re.IGNORECASE))
+        if lower_alt in placeholders or is_filename:
+            findings.append(
+                FindingDraft(
+                    category="ACCESSIBILITY",
+                    severity="WARNING",
+                    detector_source="ACCESSIBILITY_RULE",
+                    flagged_excerpt=clean_alt,
+                    explanation=f"Alt text '{clean_alt}' is a generic placeholder or filename, failing WCAG 2.1 accessibility requirements for meaningful description.",
+                    guideline_citation="WCAG 2.1 Non-Text Content Guidelines (Guideline 1.1.1)",
+                    suggested_correction="Replace filename/placeholder with descriptive text summarizing visual subjects and key information.",
+                )
+            )
+            return findings
+
+        words = clean_alt.split()
         if len(words) < 5:
             findings.append(
                 FindingDraft(
                     category="ACCESSIBILITY",
                     severity="WARNING",
                     detector_source="ACCESSIBILITY_RULE",
-                    flagged_excerpt=alt_text.strip(),
-                    explanation=f"Alt text '{alt_text.strip()}' has only {len(words)} words. Brand accessibility requires at least 5 words.",
+                    flagged_excerpt=clean_alt,
+                    explanation=f"Alt text '{clean_alt}' has only {len(words)} words. Brand accessibility requires at least 5 words.",
                     guideline_citation="WCAG 2.1 Non-Text Content Guidelines (Guideline 1.1.1)",
                     suggested_correction="Expand alt text to describe visual context, subjects, and key text visibly communicating the asset.",
                 )
             )
+            return findings
+
+        distinct_words = {w.lower() for w in words}
+        if len(words) >= 5 and len(distinct_words) < 3:
+            findings.append(
+                FindingDraft(
+                    category="ACCESSIBILITY",
+                    severity="WARNING",
+                    detector_source="ACCESSIBILITY_RULE",
+                    flagged_excerpt=clean_alt,
+                    explanation=f"Alt text '{clean_alt}' has insufficient descriptive variety ({len(distinct_words)} distinct words across {len(words)} words).",
+                    guideline_citation="WCAG 2.1 Non-Text Content Guidelines (Guideline 1.1.1)",
+                    suggested_correction="Provide meaningful, varied descriptive alt text detailing the visual elements.",
+                )
+            )
+
         return findings
 
     @classmethod
