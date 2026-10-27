@@ -1194,7 +1194,7 @@ class AuditService:
 
         # ── 6. Dynamic Campaign Minimum Cue Threshold Check ──────────────────────────
         # Count only structured event_cues_detected from the model intersected with required_cues
-        if campaign and campaign.required_cues and campaign.min_required_cues > 0:
+        if vision_ai_status == 'ok' and campaign and campaign.required_cues and campaign.min_required_cues > 0:
             event_cues = vision_result.get("event_cues_detected") or vision_result.get("diwali_cues_detected") or []
             matched_cues = set()
             for req_cue in campaign.required_cues:
