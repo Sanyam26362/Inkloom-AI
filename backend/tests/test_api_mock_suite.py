@@ -393,11 +393,17 @@ async def test_endpoint_submissions_full_workflow(client: AsyncClient):
     assert res_override.status_code == 200
     assert res_override.json()["resolution_state"] == "OVERRIDDEN"
 
-    # 9. POST /api/v1/submissions/findings/{finding_id}/resolve -> Accept correction
-    res_resolve = await client.post(
+    # 9. Closing a finding changes the approval gate: creators are refused, reviewers may accept.
+    res_creator = await client.post(
         f"/api/v1/submissions/findings/{first_finding_id}/resolve",
         json={"resolution_state": "ACCEPTED"},
         headers=CREATOR_HEADERS,
+    )
+    assert res_creator.status_code == 403
+    res_resolve = await client.post(
+        f"/api/v1/submissions/findings/{first_finding_id}/resolve",
+        json={"resolution_state": "ACCEPTED"},
+        headers=REVIEWER_HEADERS,
     )
     assert res_resolve.status_code == 200
     assert res_resolve.json()["resolution_state"] == "ACCEPTED"
