@@ -15,10 +15,30 @@ class ConfidentialityScrubber:
         ),
         "SECRET_KEY": re.compile(r"\b(?:sk-[a-zA-Z0-9]{16,}|AIza[0-9A-Za-z-_]{35})\b"),
         "INTERNAL_PROJECT": re.compile(r"\bPROJECT-[A-Z0-9_-]{3,}\b"),
+        "AADHAAR": re.compile(r"\b[2-9]\d{3}[ -]?\d{4}[ -]?\d{4}\b"),
+        "PAN": re.compile(r"\b[A-Z]{5}\d{4}[A-Z]\b"),
+        "CARD": re.compile(r"\b(?:\d[ -]?){13,19}\b"),
     }
 
+    NUMERIC_LABELS = ("PHONE", "AADHAAR", "CARD")
+
+    @staticmethod
+    def _luhn_ok(value: str) -> bool:
+        digits = [int(c) for c in value if c.isdigit()]
+        if not 13 <= len(digits) <= 19:
+            return False
+        total = 0
+        for i, d in enumerate(reversed(digits)):
+            if i % 2 == 1:
+                d *= 2
+                if d > 9:
+                    d -= 9
+            total += d
+        return total % 10 == 0
+
+    # \b prevents suffix collisions such as "numbeRS 98765..." or "paID 98765..." suppressing redaction.
     IGNORE_PHONE_PREFIX_RE = re.compile(
-        r"(?:order|invoice|transaction|receipt|id|rs\.?|inr|price|₹|\$|#)\s*#?$", re.IGNORECASE
+        r"(?:\b(?:order|invoice|transaction|receipt|id|rs\.?|inr|price)|[₹$#])\s*#?$", re.IGNORECASE
     )
 
     @classmethod
@@ -39,7 +59,9 @@ class ConfidentialityScrubber:
                 val = m.group(0)
 
                 # Contextual validation for PHONE to avoid false positives on order IDs and prices
-                if label == "PHONE":
+                if label == "CARD" and not cls._luhn_ok(val):
+                    continue
+                if label in cls.NUMERIC_LABELS:
                     prefix = text[max(0, start - 25) : start].strip()
                     if cls.IGNORE_PHONE_PREFIX_RE.search(prefix):
                         continue
