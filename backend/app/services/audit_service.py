@@ -1,9 +1,37 @@
 import re
 import logging
 import asyncio
+import unicodedata
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+
+VALID_CATEGORIES = {
+    "TONE",
+    "FACTUAL_CLAIM",
+    "TERMINOLOGY",
+    "VISUAL",
+    "ACCESSIBILITY",
+    "EVENT_FIT",
+    "EVENT",
+    "PROHIBITED",
+    "CAMPAIGN",
+    "SYSTEM",
+    "GENERAL",
+    "PROMOTIONAL_CLAIMS",
+    "VOICE_TERMINOLOGY",
+}
+VALID_SEVERITIES = {"CRITICAL", "WARNING", "SUGGESTION"}
+
+
+def _norm_ws(text: Optional[str]) -> str:
+    """Applies NFKC normalization, collapses whitespace, and lowercases."""
+    if not text:
+        return ""
+    norm = unicodedata.normalize("NFKC", str(text))
+    return " ".join(norm.split()).lower()
 
 from app.models.brand import BrandProfile
 from app.models.campaign import Campaign
@@ -23,6 +51,188 @@ logger = logging.getLogger(__name__)
 
 class AuditService:
     """Orchestrates deterministic rule execution, RAG guideline retrieval, and semantic AI auditing."""
+
+    @staticmethod
+    def _norm_ws(text: Optional[str]) -> str:
+        return _norm_ws(text)
+
+    @staticmethod
+    def normalize_ai_finding(
+        raw: Any,
+        source_text: str,
+        retrieved_ids: set,
+    ) -> Optional[dict]:
+        """
+        Coerce null/unknown category -> 'TONE' and severity -> 'WARNING' (never crash on None);
+        return None for claim_status SUPPORTED or NOT_A_CLAIM;
+        if excerpt is not found in source_text (using _norm_ws) downgrade to SUGGESTION and prefix explanation;
+        if cited_guideline_id not in retrieved_ids, set to None and cap CRITICAL to WARNING unless claim_status == 'CONTRADICTED'.
+        """
+        if not raw:
+            return None
+
+        if isinstance(raw, dict):
+            raw_cat = raw.get("category")
+            raw_sev = raw.get("severity")
+            excerpt = raw.get("flagged_excerpt", "") or ""
+            explanation = raw.get("explanation", "") or ""
+            correction = raw.get("suggested_correction", "") or ""
+            cited_id = raw.get("cited_guideline_id")
+            claim_status = raw.get("claim_status")
+        else:
+            raw_cat = getattr(raw, "category", None)
+            raw_sev = getattr(raw, "severity", None)
+            excerpt = getattr(raw, "flagged_excerpt", "") or ""
+            explanation = getattr(raw, "explanation", "") or ""
+            correction = getattr(raw, "suggested_correction", "") or ""
+            cited_id = getattr(raw, "cited_guideline_id", None)
+            claim_status = getattr(raw, "claim_status", None)
+
+        if claim_status in ("SUPPORTED", "NOT_A_CLAIM"):
+            return None
+
+        cat_str = str(raw_cat).upper() if raw_cat else ""
+        category = cat_str if cat_str in VALID_CATEGORIES else "TONE"
+
+        sev_str = str(raw_sev).upper() if raw_sev else ""
+        severity = sev_str if sev_str in VALID_SEVERITIES else "WARNING"
+
+        norm_exc = _norm_ws(excerpt)
+        norm_src = _norm_ws(source_text)
+
+        if norm_exc and norm_exc not in norm_src:
+            severity = "SUGGESTION"
+            unverified_tag = "[Unverified: excerpt not found verbatim in submission]"
+            if not explanation.startswith(unverified_tag):
+                explanation = f"{unverified_tag} {explanation}".strip()
+
+        if cited_id not in retrieved_ids:
+            cited_id = None
+            if severity == "CRITICAL" and claim_status != "CONTRADICTED":
+                severity = "WARNING"
+
+        return {
+            "category": category,
+            "severity": severity,
+            "flagged_excerpt": excerpt,
+            "explanation": explanation,
+            "suggested_correction": correction,
+            "cited_guideline_id": cited_id,
+            "claim_status": claim_status,
+        }
+
+    @classmethod
+    def dedupe_findings(cls, findings: List[FindingDraft]) -> List[FindingDraft]:
+        """
+        Drop exact duplicates by (category, _norm_ws(excerpt)) and drop any detector_source 'RAG_LLM'
+        finding whose excerpt overlaps (substring either way) a non-LLM finding.
+        """
+        non_llm_excerpts = [
+            _norm_ws(f.flagged_excerpt)
+            for f in findings
+            if f.detector_source not in ("RAG_LLM", "SEMANTIC_LLM") and _norm_ws(f.flagged_excerpt)
+        ]
+
+        seen_keys = set()
+        deduped: List[FindingDraft] = []
+
+        for f in findings:
+            norm_f = _norm_ws(f.flagged_excerpt)
+            if f.detector_source == "RAG_LLM" and norm_f:
+                overlaps = False
+                for non_llm in non_llm_excerpts:
+                    if norm_f in non_llm or non_llm in norm_f:
+                        overlaps = True
+                        break
+                if overlaps:
+                    continue
+
+            key = (f.category, norm_f)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                deduped.append(f)
+
+        return deduped
+
+    @classmethod
+    def verify_and_filter_findings(
+        cls,
+        raw_findings: List[Any],
+        source_text: str,
+        retrieved_map: Dict[int, Any],
+        brand: Optional[BrandProfile] = None,
+        restore_map: Optional[Dict[str, str]] = None,
+    ) -> List[FindingDraft]:
+        """
+        Grounding check + drop hallucinated + normalize category/severity/citation.
+        """
+        retrieved_ids = set(retrieved_map.keys())
+        norm_source = _norm_ws(source_text)
+        results: List[FindingDraft] = []
+
+        for raw in raw_findings:
+            if isinstance(raw, dict):
+                excerpt = raw.get("flagged_excerpt", "") or ""
+            else:
+                excerpt = getattr(raw, "flagged_excerpt", "") or ""
+
+            norm_exc = _norm_ws(excerpt)
+            if not norm_exc:
+                continue
+
+            # Substring + fuzzy grounding: drop completely invented excerpts
+            is_grounded = False
+            if norm_exc in norm_source:
+                is_grounded = True
+            else:
+                exc_tokens = [t for t in re.findall(r"\w+", norm_exc) if len(t) > 1]
+                if exc_tokens:
+                    src_tokens = set(re.findall(r"\w+", norm_source))
+                    if sum(1 for t in exc_tokens if t in src_tokens) / len(exc_tokens) >= 0.5:
+                        is_grounded = True
+
+            if not is_grounded:
+                continue
+
+            normalized = cls.normalize_ai_finding(raw, source_text=source_text, retrieved_ids=retrieved_ids)
+            if not normalized:
+                continue
+
+            category = normalized["category"]
+            severity = normalized["severity"]
+            explanation = normalized["explanation"]
+            suggested_correction = normalized["suggested_correction"]
+            cited_id = normalized["cited_guideline_id"]
+            claim_status = normalized["claim_status"]
+
+            if cited_id and cited_id in retrieved_map:
+                chunk = retrieved_map[cited_id]
+                citation = f"{chunk.source_document} ({chunk.section_reference})"
+                cited_chunk_id = cited_id
+            else:
+                cited_chunk_id = None
+                if claim_status in ("CONTRADICTED", "UNSUPPORTED"):
+                    citation = "Approved Facts Register"
+                else:
+                    citation = "No specific guideline matched (model judgement - needs human review)"
+
+            final_flagged = ConfidentialityScrubber.restore(normalized["flagged_excerpt"], restore_map or {})
+            final_correction = ConfidentialityScrubber.restore(suggested_correction, restore_map or {})
+
+            results.append(
+                FindingDraft(
+                    category=category,
+                    severity=severity,
+                    detector_source="RAG_LLM",
+                    flagged_excerpt=final_flagged,
+                    explanation=explanation,
+                    guideline_citation=citation,
+                    suggested_correction=final_correction,
+                    cited_chunk_id=cited_chunk_id,
+                )
+            )
+
+        return results
 
     @staticmethod
     def matches_subject(subject: str, text: str) -> bool:
@@ -83,6 +293,7 @@ class AuditService:
         limit: int = 8,
         media_type: str = "text",
         campaign_name: str = "",
+        retrieval_meta: Optional[Dict[str, Any]] = None,
     ) -> List[GuidelineChunk]:
         """
         Retrieves relevant guidelines:
@@ -143,6 +354,10 @@ class AuditService:
             fallback_res = await session.execute(fallback_stmt)
             semantic_chunks = list(fallback_res.scalars().all())
 
+        mode = "semantic" if semantic_chunks and any(c.embedding is not None for c in semantic_chunks) else "degraded"
+        if retrieval_meta is not None:
+            retrieval_meta["mode"] = mode
+
         combined_chunks = hard_chunks + semantic_chunks
 
         # Increment times_triggered once per audit
@@ -195,6 +410,7 @@ class AuditService:
             "voice_and_terminology": {"findings": [], "categories": ["TERMINOLOGY", "TONE", "VOICE"]},
             "accessibility": {"findings": [], "categories": ["ACCESSIBILITY", "WCAG", "CONTRAST"]},
             "claims_and_facts": {"findings": [], "categories": ["FACTUAL_CLAIM", "FACT", "CLAIM"]},
+            "system_integrity": {"findings": [], "categories": ["SYSTEM"]},
         }
 
         for f in findings:
@@ -236,11 +452,9 @@ class AuditService:
             }
 
         # Overall verdict
-        if ai_status == "failed":
-            verdict = "NEEDS_REVIEW"
-        elif has_fail or any(f.severity == "CRITICAL" for f in findings):
+        if has_fail or any(f.severity == "CRITICAL" for f in findings):
             verdict = "FAIL"
-        elif has_review or any(f.severity == "WARNING" for f in findings):
+        elif ai_status in ("failed", "partial") or has_review or any(f.severity == "WARNING" for f in findings):
             verdict = "NEEDS_REVIEW"
         else:
             verdict = "PASS"
@@ -396,15 +610,29 @@ class AuditService:
         # 2. PII / Confidentiality Scrubbing before external calls
         scrubbed_text, restore_map, pii_disclosure = ConfidentialityScrubber.scrub(content)
 
-        # 3. Retrieve relevant guidelines via pgvector
+        # 3. Retrieve relevant guidelines via pgvector (privacy: query built from scrubbed_text)
+        retrieval_meta: Dict[str, Any] = {}
         retrieved_chunks = await cls.retrieve_relevant_guidelines(
             session=session,
             brand_id=brand.id,
-            query_text=content[:500] if content else "general guidelines",
+            query_text=scrubbed_text[:500] if scrubbed_text else "general guidelines",
             limit=8,
             media_type="text",
             campaign_name=campaign.name if campaign else (event or ""),
+            retrieval_meta=retrieval_meta,
         )
+        if retrieval_meta.get("mode") == "degraded":
+            all_draft_findings.append(
+                FindingDraft(
+                    category="SYSTEM",
+                    severity="WARNING",
+                    detector_source="AI_GOVERNANCE_ENGINE",
+                    flagged_excerpt="Guideline retrieval degraded",
+                    explanation="Semantic vector retrieval unavailable; operating in degraded deterministic guideline retrieval mode.",
+                    guideline_citation="System Reliability Guardrail",
+                    suggested_correction="Verify embedding service credentials or run /guidelines/reindex.",
+                )
+            )
 
         guidelines_context = [
             {
@@ -450,6 +678,7 @@ class AuditService:
                         campaign=campaign_dict,
                         ruleset=ruleset_dict,
                         campaign_event=campaign.name if campaign else campaign_event,
+                        confirmed_deterministic_findings=deterministic_findings,
                     )
                 except Exception as exc:
                     ai_result = {
@@ -461,34 +690,14 @@ class AuditService:
                 ai_error = ai_result.get("ai_error")
                 ai_findings_raw = ai_result.get("findings", [])
 
-                for af in ai_findings_raw:
-                    flagged = af.get("flagged_excerpt", "")
-                    suggestion = af.get("suggested_correction", "")
-                    explanation = af.get("explanation", "")
-                    category = af.get("category", "TONE").upper()
-                    severity = af.get("severity", "WARNING").upper()
-                    cited_id = af.get("cited_guideline_id")
-
-                    # Restore any scrubbed tokens in suggestions
-                    restored_flagged = ConfidentialityScrubber.restore(flagged, restore_map)
-                    restored_suggestion = ConfidentialityScrubber.restore(suggestion, restore_map)
-
-                    citation = f"{brand.name} Tone & Style Guidelines"
-                    if cited_id and cited_id in retrieved_map:
-                        citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
-
-                    all_draft_findings.append(
-                        FindingDraft(
-                            category=category,
-                            severity=severity,
-                            detector_source="RAG_LLM",
-                            flagged_excerpt=restored_flagged,
-                            explanation=explanation,
-                            guideline_citation=citation,
-                            suggested_correction=restored_suggestion,
-                            cited_chunk_id=cited_id if cited_id in retrieved_map else None,
-                        )
-                    )
+                verified_findings = cls.verify_and_filter_findings(
+                    raw_findings=ai_findings_raw,
+                    source_text=scrubbed_text,
+                    retrieved_map=retrieved_map,
+                    brand=brand,
+                    restore_map=restore_map,
+                )
+                all_draft_findings.extend(verified_findings)
             else:
                 ai_status = "failed"
                 ai_error = "Gemini AI service is offline or unconfigured."
@@ -498,7 +707,7 @@ class AuditService:
         if ai_status == "failed":
             all_draft_findings.append(
                 FindingDraft(
-                    category="ACCESSIBILITY",
+                    category="SYSTEM",
                     severity="WARNING",
                     detector_source="AI_GOVERNANCE_ENGINE",
                     flagged_excerpt="AI Governance Audit Incomplete",
@@ -514,14 +723,8 @@ class AuditService:
         if additional_findings:
             all_draft_findings.extend(additional_findings)
 
-        # 5. Deduplicate findings (avoid duplicate reports for identical excerpt & category)
-        seen_keys = set()
-        deduped_findings: List[FindingDraft] = []
-        for f in all_draft_findings:
-            key = (f.category, f.flagged_excerpt.strip().lower())
-            if key not in seen_keys:
-                seen_keys.add(key)
-                deduped_findings.append(f)
+        # 5. Deduplicate findings
+        deduped_findings = cls.dedupe_findings(all_draft_findings)
 
         # 6. Calculate score and authoritative verdict
         score = cls.calculate_compliance_score(deduped_findings)
@@ -542,6 +745,13 @@ class AuditService:
             "ai_error": ai_error,
             "verdict": verdict,
             "dimension_results": dimension_results,
+            "retrieval_mode": retrieval_meta.get("mode", "degraded"),
+            "responsible_ai": {
+                "model": settings.PRIMARY_LLM_MODEL,
+                "grounding_verified": (ai_status == "ok"),
+                "pii_categories_redacted": list(pii_disclosure.get("categories_redacted", {}).keys()) if isinstance(pii_disclosure, dict) else [],
+                "content_sent_to_external_ai": bool(scrubbed_text.strip()),
+            },
         }
         if additional_metadata:
             revision.ai_governance_metadata.update(additional_metadata)
@@ -687,6 +897,7 @@ class AuditService:
         image_metadata = DocumentService.analyze_image(image_bytes)
 
         # Retrieve visual and accessibility guidelines
+        img_retrieval_meta: Dict[str, Any] = {}
         retrieved_chunks = await cls.retrieve_relevant_guidelines(
             session=session,
             brand_id=brand.id,
@@ -697,7 +908,20 @@ class AuditService:
             limit=8,
             media_type="image",
             campaign_name=campaign.name if campaign else (effective_event or ""),
+            retrieval_meta=img_retrieval_meta,
         )
+        if img_retrieval_meta.get("mode") == "degraded":
+            all_draft_findings.append(
+                FindingDraft(
+                    category="SYSTEM",
+                    severity="WARNING",
+                    detector_source="AI_GOVERNANCE_ENGINE",
+                    flagged_excerpt="Guideline retrieval degraded",
+                    explanation="Semantic vector retrieval unavailable; operating in degraded deterministic guideline retrieval mode.",
+                    guideline_citation="System Reliability Guardrail",
+                    suggested_correction="Verify embedding service credentials or run /guidelines/reindex.",
+                )
+            )
 
         guidelines_context = [
             {
@@ -763,6 +987,11 @@ class AuditService:
             "prohibited_visual_subjects": ruleset.prohibited_visual_subjects,
         } if ruleset else None
 
+        cielab_match_pct_pre, cielab_dominant_pre, _ = RuleEngine.calculate_cielab_palette_match(
+            image_bytes=image_bytes,
+            approved_palette=effective_palette,
+        )
+
         try:
             vision_result = await gemini_service.audit_image_semantic(
                 image_bytes=image_bytes,
@@ -775,6 +1004,12 @@ class AuditService:
                 campaign_event=effective_event,
                 campaign=campaign_dict,
                 ruleset=ruleset_dict,
+                deterministic_telemetry={
+                    "cielab_match_pct": cielab_match_pct_pre,
+                    "dominant_hex_colors": cielab_dominant_pre,
+                    "width": image_metadata.get("width"),
+                    "height": image_metadata.get("height"),
+                },
             )
         except Exception as exc:
             vision_result = {
@@ -785,16 +1020,16 @@ class AuditService:
             }
         vision_ai_status = vision_result.get("ai_status", "ok")
         vision_ai_error = vision_result.get("ai_error")
-        if vision_ai_status == "failed":
+        if vision_ai_status != "ok":
             all_draft_findings.append(
                 FindingDraft(
-                    category="VISUAL",
+                    category="SYSTEM",
                     severity="WARNING",
                     detector_source="AI_VISION_ENGINE",
                     flagged_excerpt="AI Visual Analysis Incomplete",
-                    explanation=f"AI analysis incomplete: {vision_ai_error or 'Vision service unavailable'}",
+                    explanation=f"AI visual analysis incomplete: {vision_ai_error or 'Vision service unavailable'}",
                     guideline_citation=f"{brand.name} Visual Reliability Policy",
-                    suggested_correction="Ensure visual asset is accessible and retry the audit.",
+                    suggested_correction="Ensure visual asset is accessible and retry the audit once service is operational.",
                 )
             )
 
@@ -818,7 +1053,19 @@ class AuditService:
         if cielab_palette_findings:
             all_draft_findings.extend(cielab_palette_findings)
 
-        palette_match_pct = cielab_match_pct if effective_palette else 100.0
+        palette_match_pct = cielab_match_pct if (effective_palette and cielab_match_pct is not None) else None
+        if effective_palette and cielab_match_pct is None:
+            all_draft_findings.append(
+                FindingDraft(
+                    category="SYSTEM",
+                    severity="WARNING",
+                    detector_source="CIELAB_DELTA_E",
+                    flagged_excerpt="Palette check not performed",
+                    explanation="A brand palette is configured, but pixel-area CIELAB palette matching could not be executed.",
+                    guideline_citation="Brand Visual Identity - Approved Color Palette",
+                    suggested_correction="Ensure visual asset has valid decodable image pixels.",
+                )
+            )
         dominant_colors = cielab_dominant or local_dominant_colors or model_dominant_colors
 
         # ── 2. WCAG Contrast Check on Extracted Contrast Pairs ────────────────────────
@@ -853,21 +1100,31 @@ class AuditService:
         # ── 4. Vision LLM Findings ───────────────────────────────────────────────────
         raw_findings = vision_result.get("findings", [])
         for vf in raw_findings:
-            category = vf.get("category", "VISUAL").upper()
-            severity = vf.get("severity", "WARNING").upper()
-            flagged = vf.get("flagged_excerpt", "Visual element")
-            explanation = vf.get("explanation", "")
-            suggestion = vf.get("suggested_correction", "")
-            cited_id = vf.get("cited_guideline_id")
+            raw_c = vf.get("category") if isinstance(vf, dict) else getattr(vf, "category", None)
+            raw_s = vf.get("severity") if isinstance(vf, dict) else getattr(vf, "severity", None)
+            flagged = (vf.get("flagged_excerpt") if isinstance(vf, dict) else getattr(vf, "flagged_excerpt", "")) or "Visual element"
+            explanation = (vf.get("explanation") if isinstance(vf, dict) else getattr(vf, "explanation", "")) or ""
+            suggestion = (vf.get("suggested_correction") if isinstance(vf, dict) else getattr(vf, "suggested_correction", "")) or ""
+            cited_id = vf.get("cited_guideline_id") if isinstance(vf, dict) else getattr(vf, "cited_guideline_id", None)
+
+            cat_str = str(raw_c).upper() if raw_c else ""
+            category = cat_str if cat_str in VALID_CATEGORIES else "VISUAL"
+            sev_str = str(raw_s).upper() if raw_s else ""
+            severity = sev_str if sev_str in VALID_SEVERITIES else "WARNING"
+
+            if cited_id and cited_id in retrieved_map:
+                citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
+                valid_cited_id = cited_id
+            else:
+                valid_cited_id = None
+                citation = "No specific guideline matched (model judgement - needs human review)"
+                if severity == "CRITICAL":
+                    severity = "WARNING"
 
             # Force CRITICAL severity only if flagged excerpt matches prohibited visual subjects
             if any(cls.matches_subject(s, flagged) for s in effective_prohibited_subjects):
                 category = "EVENT_FIT"
                 severity = "CRITICAL"
-
-            citation = f"{brand.name} Visual Identity Guidelines"
-            if cited_id and cited_id in retrieved_map:
-                citation = f"{retrieved_map[cited_id].source_document} ({retrieved_map[cited_id].section_reference})"
 
             all_draft_findings.append(
                 FindingDraft(
@@ -878,7 +1135,7 @@ class AuditService:
                     explanation=explanation,
                     guideline_citation=citation,
                     suggested_correction=suggestion,
-                    cited_chunk_id=cited_id if cited_id in retrieved_map else None,
+                    cited_chunk_id=valid_cited_id,
                 )
             )
 
@@ -1003,13 +1260,7 @@ class AuditService:
             )
 
         # ── 8. Finding Deduplication ─────────────────────────────────────────────────
-        seen_keys = set()
-        deduped_findings: List[FindingDraft] = []
-        for f in all_draft_findings:
-            key = (f.category, f.flagged_excerpt.strip().lower())
-            if key not in seen_keys:
-                seen_keys.add(key)
-                deduped_findings.append(f)
+        deduped_findings = cls.dedupe_findings(all_draft_findings)
 
         # ── 9. Calculate Compliance Score and Authoritative Verdict ──────────────────
         score = cls.calculate_compliance_score(deduped_findings)
@@ -1351,13 +1602,7 @@ class AuditService:
                     ai_error = f"Copy semantic analysis skipped: {e}"
 
         # 6. Deduplication
-        seen_keys = set()
-        deduped_findings: List[FindingDraft] = []
-        for f in all_draft_findings:
-            key = (f.category, f.flagged_excerpt.strip().lower())
-            if key not in seen_keys:
-                seen_keys.add(key)
-                deduped_findings.append(f)
+        deduped_findings = cls.dedupe_findings(all_draft_findings)
 
         # 7. Verdict and Dimension Evaluation
         score = cls.calculate_compliance_score(deduped_findings)
@@ -1536,10 +1781,10 @@ class AuditService:
         ai_error = audio_output.get("ai_error")
         transcript = audio_output.get("transcript", "")
 
-        if ai_status == "failed":
+        if ai_status != "ok":
             all_draft_findings.append(
                 FindingDraft(
-                    category="ACCESSIBILITY",
+                    category="SYSTEM",
                     severity="WARNING",
                     detector_source="AI_AUDIO_ENGINE",
                     flagged_excerpt="Audio Analysis Incomplete",
@@ -1551,18 +1796,36 @@ class AuditService:
         else:
             # 1. Timestamped findings from Gemini
             for f in audio_output.get("findings", []):
-                t_start = f.get("timestamp_start_sec")
-                t_end = f.get("timestamp_end_sec")
+                t_start = f.get("timestamp_start_sec") if isinstance(f, dict) else getattr(f, "timestamp_start_sec", None)
+                t_end = f.get("timestamp_end_sec") if isinstance(f, dict) else getattr(f, "timestamp_end_sec", None)
                 time_str = f"[{t_start:.1f}s - {t_end:.1f}s] " if (t_start is not None and t_end is not None) else ""
+                
+                raw_c = (f.get("category") if isinstance(f, dict) else getattr(f, "category", None)) or ""
+                raw_cat = str(raw_c).upper()
+                if raw_cat in ("AUDIO_SFX", "CAMPAIGN_FIT"):
+                    audio_cat = "EVENT_FIT"
+                elif raw_cat in VALID_CATEGORIES:
+                    audio_cat = raw_cat
+                else:
+                    audio_cat = "TONE"
+
+                raw_s = (f.get("severity") if isinstance(f, dict) else getattr(f, "severity", None)) or ""
+                raw_sev = str(raw_s).upper()
+                audio_sev = raw_sev if raw_sev in VALID_SEVERITIES else "WARNING"
+
+                f_exc = (f.get("flagged_excerpt") if isinstance(f, dict) else getattr(f, "flagged_excerpt", "")) or ""
+                f_exp = (f.get("explanation") if isinstance(f, dict) else getattr(f, "explanation", "")) or ""
+                f_sug = (f.get("suggested_correction") if isinstance(f, dict) else getattr(f, "suggested_correction", "")) or ""
+
                 all_draft_findings.append(
                     FindingDraft(
-                        category=f.get("category", "TONE"),
-                        severity=f.get("severity", "WARNING"),
+                        category=audio_cat,
+                        severity=audio_sev,
                         detector_source="NATIVE_AUDIO_GEMINI",
-                        flagged_excerpt=f"{time_str}{f.get('flagged_excerpt', '')}",
-                        explanation=f.get("explanation", ""),
+                        flagged_excerpt=f"{time_str}{f_exc}",
+                        explanation=f_exp,
                         guideline_citation=f"{brand_name} Brand Audio Guidelines",
-                        suggested_correction=f.get("suggested_correction", ""),
+                        suggested_correction=f_sug,
                     )
                 )
 
@@ -1620,13 +1883,7 @@ class AuditService:
                 all_draft_findings.extend(text_findings)
 
         # Deduplication
-        seen_keys = set()
-        deduped_findings: List[FindingDraft] = []
-        for f in all_draft_findings:
-            key = (f.category, f.flagged_excerpt.strip().lower())
-            if key not in seen_keys:
-                seen_keys.add(key)
-                deduped_findings.append(f)
+        deduped_findings = cls.dedupe_findings(all_draft_findings)
 
         score = cls.calculate_compliance_score(deduped_findings)
         verdict, dimension_results = cls.evaluate_verdict_and_dimensions(
@@ -1921,13 +2178,7 @@ class AuditService:
             all_draft_findings.extend(dialogue_findings)
 
         # Deduplication
-        seen_keys = set()
-        deduped_findings: List[FindingDraft] = []
-        for f in all_draft_findings:
-            key = (f.category, f.flagged_excerpt.strip().lower())
-            if key not in seen_keys:
-                seen_keys.add(key)
-                deduped_findings.append(f)
+        deduped_findings = cls.dedupe_findings(all_draft_findings)
 
         avg_palette = (sum(palette_match_scores) / len(palette_match_scores)) if palette_match_scores else None
         score = cls.calculate_compliance_score(deduped_findings)
