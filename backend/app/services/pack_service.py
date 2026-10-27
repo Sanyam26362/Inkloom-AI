@@ -225,17 +225,25 @@ class PackService:
             campaign_context = f"Campaign: {campaign.name}. Prohibited: {', '.join(campaign.prohibited_items)}. Required cues: {', '.join(campaign.required_cues)}."
 
         ruleset_draft = None
-        try:
-            ruleset_draft = await asyncio.wait_for(
-                gemini_service.extract_rules(
-                    guidelines_text=guideline_sample,
-                    campaign_context=campaign_context,
-                ),
-                timeout=12.0,
-            )
-        except Exception as e:
-            logger.warning(f"Fast rule extraction fallback using campaign extra_rules: {e}")
-            ruleset_draft = None
+        ruleset_file = manifest.get("ruleset_file")
+        if ruleset_file and (pack_dir / ruleset_file).exists():
+            try:
+                ruleset_draft = json.loads((pack_dir / ruleset_file).read_text(encoding="utf-8"))
+            except Exception as e:
+                logger.warning(f"Failed to load pack ruleset_file {ruleset_file}: {e}")
+
+        if not ruleset_draft:
+            try:
+                ruleset_draft = await asyncio.wait_for(
+                    gemini_service.extract_rules(
+                        guidelines_text=guideline_sample,
+                        campaign_context=campaign_context,
+                    ),
+                    timeout=12.0,
+                )
+            except Exception as e:
+                logger.warning(f"Fast rule extraction fallback using campaign extra_rules: {e}")
+                ruleset_draft = None
 
         # Overlay campaign extra_rules to guarantee determinism
         extra = campaign.extra_rules if campaign else {}
