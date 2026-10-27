@@ -14,6 +14,8 @@ from app.core.security import CurrentUser, UserRole, is_reviewer_or_above, is_ad
 
 logger = logging.getLogger(__name__)
 
+_BACKGROUND_TASKS: set = set()
+
 
 async def _trigger_background_revision_audit(submission_id: int, revision_id: int) -> None:
     """Runs a background re-audit for a newly created submission revision."""
@@ -33,12 +35,30 @@ async def _trigger_background_revision_audit(submission_id: int, revision_id: in
                 return
 
             if sub.content_format == "TEXT" and rev.content_body:
-                await AuditService.run_audit(
-                    session=bg_session,
-                    submission_id=submission_id,
-                    revision_id=revision_id,
-                    persist=True,
-                )
+                sub.status = "AUDITING"
+                await bg_session.commit()
+                try:
+                    await AuditService.run_audit(
+                        session=bg_session,
+                        submission=sub,
+                        revision=rev,
+                    )
+                except Exception as audit_err:
+                    logger.error(f"Background revision re-audit failed: {audit_err}")
+                    rev.ai_governance_metadata = {
+                        "ai_status": "failed",
+                        "ai_error": str(audit_err),
+                        "source": "user_revision",
+                    }
+                    sub.status = "DRAFT"
+                    await bg_session.commit()
+            else:
+                rev.ai_governance_metadata = {
+                    "ai_status": "not_audited",
+                    "ai_error": f"Automated background re-audit not available for {sub.content_format} content format without media bytes.",
+                    "source": "user_revision",
+                }
+                await bg_session.commit()
     except Exception as bg_err:
         logger.warning(f"Background revision re-audit skipped or encountered error: {bg_err}")
 
@@ -174,7 +194,9 @@ class WorkflowService:
         await session.refresh(revision)
 
         # Automatically schedule background re-audit on new revision
-        asyncio.create_task(_trigger_background_revision_audit(submission.id, revision.id))
+        bg_task = asyncio.create_task(_trigger_background_revision_audit(submission.id, revision.id))
+        _BACKGROUND_TASKS.add(bg_task)
+        bg_task.add_done_callback(_BACKGROUND_TASKS.discard)
 
         return revision
 
@@ -207,6 +229,19 @@ class WorkflowService:
         finding = res.scalar_one_or_none()
         if not finding:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
+
+        if not is_admin(user.role):
+            sub_res = await session.execute(select(Submission).where(Submission.id == finding.submission_id))
+            sub = sub_res.scalar_one_or_none()
+            if sub:
+                from app.models.brand import BrandProfile
+                b_res = await session.execute(select(BrandProfile).where(BrandProfile.id == sub.brand_id))
+                brand = b_res.scalar_one_or_none()
+                if brand and brand.tenant_id and brand.tenant_id != "tenant_default" and user.tenant_id != brand.tenant_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access forbidden: content belongs to another tenant.",
+                    )
 
         finding.resolution_state = "OVERRIDDEN"
         finding.override_reason = reason.strip()
@@ -270,7 +305,7 @@ class WorkflowService:
                 detail=f"Invalid resolution_state: {resolution_state}. Must be one of {valid_states}",
             )
 
-        if resolution_state != "ACCEPTED" and not is_reviewer_or_above(user.role):
+        if not is_reviewer_or_above(user.role):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only REVIEWER or MANAGER (or JUDGE/ADMIN) role can resolve audit findings.",
@@ -287,6 +322,19 @@ class WorkflowService:
         finding = res.scalar_one_or_none()
         if not finding:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Finding not found")
+
+        if not is_admin(user.role):
+            sub_res = await session.execute(select(Submission).where(Submission.id == finding.submission_id))
+            sub = sub_res.scalar_one_or_none()
+            if sub:
+                from app.models.brand import BrandProfile
+                b_res = await session.execute(select(BrandProfile).where(BrandProfile.id == sub.brand_id))
+                brand = b_res.scalar_one_or_none()
+                if brand and brand.tenant_id and brand.tenant_id != "tenant_default" and user.tenant_id != brand.tenant_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access forbidden: content belongs to another tenant.",
+                    )
 
         finding.resolution_state = resolution_state
         finding.resolved_by = user.user_name
@@ -365,12 +413,20 @@ class WorkflowService:
         if not submission:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
 
+        if not is_admin(user.role):
+            from app.models.brand import BrandProfile
+            b_res = await session.execute(select(BrandProfile).where(BrandProfile.id == submission.brand_id))
+            brand = b_res.scalar_one_or_none()
+            if brand and brand.tenant_id and brand.tenant_id != "tenant_default" and user.tenant_id != brand.tenant_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access forbidden: submission belongs to another tenant.",
+                )
+
         # Status transition matrix verification
         allowed_next = cls.VALID_TRANSITIONS.get(submission.status, set())
-        # Permissive for initial states or re-audits
         if target_status not in allowed_next and target_status != submission.status:
-            # Allow admin overrides or direct transitions if auditing completed
-            if not (is_admin(user.role) or submission.status in ("DRAFT", "AUDITING")):
+            if not is_admin(user.role):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=f"Invalid status transition from {submission.status} to {target_status}.",
