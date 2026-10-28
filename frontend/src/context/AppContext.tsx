@@ -3,7 +3,7 @@
 import { useUser } from "@clerk/nextjs";
 import { SignUpModal } from "@/components/auth/SignUpModal";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { BrandProfile, HealthCheckResponse, UserRole, UserProfileResponse, Campaign } from "@/lib/types";
 import { api } from "@/lib/api";
 
@@ -63,6 +63,11 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalRole, setAuthModalRole] = useState<UserRole | undefined>(undefined);
 
+  const brandsRef = useRef<BrandProfile[]>([]);
+  brandsRef.current = brands;
+  const syncedClerkIdRef = useRef<string | null>(null);
+  const hasInitializedRef = useRef<boolean>(false);
+
   const openAuthModal = useCallback((role?: UserRole) => {
     setAuthModalRole(role);
     setIsAuthModalOpen(true);
@@ -75,6 +80,9 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   // Synchronize Clerk user identity with backend & local AppContext
   useEffect(() => {
     if (!isClerkLoaded || !clerkUser) return;
+    if (syncedClerkIdRef.current === clerkUser.id) return;
+    syncedClerkIdRef.current = clerkUser.id;
+
     const rawRole = (clerkUser.unsafeMetadata?.role as string) || (clerkUser.publicMetadata?.role as string) || "CREATOR";
     const mappedRole = (rawRole.toUpperCase() === "REVIEWER" || rawRole.toUpperCase() === "BRAND") ? "REVIEWER" : (rawRole.toUpperCase() === "ADMIN" ? "ADMIN" : "CREATOR") as UserRole;
 
@@ -87,7 +95,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       setUser(res.user);
       setCurrentRoleState(mappedRole);
       if (mappedRole === "CREATOR") {
-        const brandList = brands.length > 0 ? brands : await api.listBrands().catch(() => []);
+        const brandList = brandsRef.current.length > 0 ? brandsRef.current : await api.listBrands().catch(() => []);
         const blinkit = brandList.find((b) => b.name.toLowerCase() === "blinkit");
         if (blinkit) {
           setActiveBrandId(blinkit.id);
@@ -155,7 +163,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       setUser(res.user);
       setCurrentRoleState(role);
       if (role === "CREATOR") {
-        const brandList = brands.length > 0 ? brands : await api.listBrands().catch(() => []);
+        const brandList = brandsRef.current.length > 0 ? brandsRef.current : await api.listBrands().catch(() => []);
         const blinkit = brandList.find((b) => b.name.toLowerCase() === "blinkit");
         if (blinkit) {
           setActiveBrandId(blinkit.id);
@@ -164,7 +172,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     } catch (err) {
       console.error("Failed to login as demo user:", err);
     }
-  }, [brands]);
+  }, []);
 
   const setCurrentRole = useCallback((role: UserRole) => {
     setCurrentRoleState(role);
@@ -190,14 +198,17 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     try {
       const list = await api.listCampaigns(activeBrandId);
       setCampaigns(list);
-      if (list.length > 0 && !activeCampaignId) {
-        const active = list.find((c) => c.is_active);
-        setActiveCampaignId(active ? active.id : list[0].id);
+      if (list.length > 0) {
+        setActiveCampaignId((prev) => {
+          if (prev && list.some((c) => c.id === prev)) return prev;
+          const active = list.find((c) => c.is_active);
+          return active ? active.id : list[0].id;
+        });
       }
     } catch {
       setCampaigns([]);
     }
-  }, [activeBrandId, activeCampaignId]);
+  }, [activeBrandId]);
 
   const fetchBrands = useCallback(async () => {
     setIsLoadingBrands(true);
@@ -209,12 +220,15 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       }
       const data = await api.listBrands();
       setBrands(data);
+      brandsRef.current = data;
       if (data.length > 0) {
-        const found = data.find((b) => b.id === activeBrandId);
-        if (!found) {
+        setActiveBrandId((prev) => {
+          if (prev > 0 && data.some((b) => b.id === prev)) {
+            return prev;
+          }
           const blinkit = data.find((b) => b.name.toLowerCase() === "blinkit");
-          setActiveBrandId(blinkit?.id ?? data[0].id);
-        }
+          return blinkit?.id ?? data[0].id;
+        });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -222,9 +236,12 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setIsLoadingBrands(false);
     }
-  }, [currentRole, activeBrandId, loginAsDemoUser]);
+  }, [currentRole, loginAsDemoUser]);
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     let ignore = false;
     async function init() {
       try {
@@ -243,12 +260,15 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         const data = await api.listBrands();
         if (!ignore) {
           setBrands(data);
+          brandsRef.current = data;
           if (data.length > 0) {
-            const found = data.find((b) => b.id === activeBrandId);
-            if (!found) {
+            setActiveBrandId((prev) => {
+              if (prev > 0 && data.some((b) => b.id === prev)) {
+                return prev;
+              }
               const blinkit = data.find((b) => b.name.toLowerCase() === "blinkit");
-              setActiveBrandId(blinkit?.id ?? data[0].id);
-            }
+              return blinkit?.id ?? data[0].id;
+            });
           }
         }
       } catch (err: unknown) {
@@ -266,7 +286,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     return () => {
       ignore = true;
     };
-  }, [activeBrandId, currentRole, loginAsDemoUser]);
+  }, [currentRole, loginAsDemoUser]);
 
   useEffect(() => {
     if (activeBrandId) {
