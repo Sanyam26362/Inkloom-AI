@@ -2,9 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
+import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 
 export function Section12_DemoConsultation() {
+  const { openAuthModal } = useApp();
   const perks = [
     "Personal analysis of your existing approval process and guideline rules",
     "Live insight into the Inkloom AI platform and its pgvector RAG pipeline",
@@ -43,12 +45,13 @@ export function Section12_DemoConsultation() {
             </ul>
 
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Link
-                href="/dashboard"
+              <button
+                type="button"
+                onClick={() => openAuthModal()}
                 className="w-full sm:w-auto flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-background bg-primary hover:bg-[#004578] rounded-full cursor-pointer transition-all duration-300 shadow-sm"
               >
                 Start Now
-              </Link>
+              </button>
               <Link
                 href="/audit"
                 className="w-full sm:w-auto flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-primary border-2 border-primary rounded-full hover:bg-blue-50/60 transition-all duration-300 cursor-pointer"
