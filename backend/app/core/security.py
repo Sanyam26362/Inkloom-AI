@@ -33,7 +33,13 @@ def is_admin(role: Union[UserRole, str]) -> bool:
 
 def normalize_role(role: Union[UserRole, str]) -> UserRole:
     """Normalizes role strings to UserRole enum."""
-    val = role.value if isinstance(role, UserRole) else str(role)
+    val = role.value if isinstance(role, UserRole) else str(role).upper()
+    if val in ("BRAND", "REVIEWER"):
+        return UserRole.REVIEWER
+    if val in ("ADMIN", "MANAGER"):
+        return UserRole.ADMIN
+    if val in ("JUDGE",):
+        return UserRole.JUDGE
     try:
         return UserRole(val)
     except ValueError:
