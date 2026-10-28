@@ -121,6 +121,7 @@ export interface AuditFinding {
   flagged_excerpt: string;
   explanation: string;
   suggested_correction?: string | null;
+  guideline_citation?: string | null;
   guideline_chunk_id?: number | null;
   resolution_state: FindingResolution;
   resolved_by?: string | null;
