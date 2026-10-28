@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Database & Redis (Port 5433)
     DATABASE_URL: str = "postgresql+asyncpg://inkloom:inkloom_password@localhost:5433/inkloom_db"
-    SYNC_DATABASE_URL: str = "postgresql+psycopg2://inkloom:inkloom_password@localhost:5433/inkloom_db"
+    SYNC_DATABASE_URL: Optional[str] = None
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # AI Keys
