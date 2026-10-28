@@ -17,7 +17,7 @@ from app.core.security import (
     normalize_role,
 )
 from app.models.user import UserAccount
-from app.schemas.auth import LoginRequest, TokenResponse, UserProfileResponse, DemoUserItem
+from app.schemas.auth import LoginRequest, TokenResponse, UserProfileResponse, DemoUserItem, ClerkSyncRequest
 
 router = APIRouter(prefix="/auth", tags=["Authentication & Roles"])
 
@@ -128,6 +128,45 @@ async def get_my_profile(
         email=user.email,
         role=user.role.value,
         tenant_id=user.tenant_id,
+    )
+
+
+@router.post("/clerk-sync", response_model=TokenResponse)
+async def clerk_sync(
+    payload: ClerkSyncRequest,
+    session: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """
+    Synchronizes an authenticated Clerk user session into Inkloom:
+    1. Normalizes the requested role (CREATOR, BRAND/REVIEWER, JUDGE, ADMIN).
+    2. Issues a signed Inkloom JWT access token with role and tenant claims.
+    """
+    normalized_role = normalize_role(payload.role or "CREATOR")
+    user_name = payload.user_name or payload.email.split("@")[0].title()
+    tenant_id = payload.tenant_id or "tenant_default"
+
+    user_data = {
+        "user_id": f"usr_clerk_{payload.clerk_id}",
+        "user_name": user_name,
+        "role": normalized_role.value,
+        "email": payload.email.strip().lower(),
+        "tenant_id": tenant_id,
+    }
+
+    token = create_access_token({
+        "sub": user_data["email"],
+        "user_id": user_data["user_id"],
+        "user_name": user_data["user_name"],
+        "role": user_data["role"],
+        "email": user_data["email"],
+        "tenant_id": user_data["tenant_id"],
+    })
+
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        user=UserProfileResponse(**user_data),
     )
 
 
