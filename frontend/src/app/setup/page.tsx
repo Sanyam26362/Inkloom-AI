@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { PackSummary, UserRole } from "@/lib/types";
+import { PackSummary, UserRole, BrandProfile } from "@/lib/types";
 import { OnboardingHeader } from "@/components/onboarding/OnboardingHeader";
 import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress";
 import { SelectClientHeading } from "@/components/onboarding/SelectClientHeading";
@@ -108,40 +108,85 @@ export default function OnboardingPage() {
   }, []);
 
   // Handlers
+  const ensureBlinkitBrand = async (): Promise<BrandProfile> => {
+    let blinkit = brands.find((b) => b.name.toLowerCase() === "blinkit");
+    if (blinkit) return blinkit;
+
+    // Check directly from backend if state was still empty
+    const currentList = await api.listBrands().catch(() => []);
+    blinkit = currentList.find((b) => b.name.toLowerCase() === "blinkit");
+    if (blinkit) {
+      await refreshBrands();
+      return blinkit;
+    }
+
+    try {
+      const created = await api.createBrand({
+        name: "Blinkit",
+        industry: "Quick Commerce",
+        tone_persona: "Energetic, fast, friendly, culturally connected, reliable",
+        approved_hex_palette: ["#F8C200", "#00A36C", "#1C1C1E", "#FFFFFF"],
+        banned_terms: ["10-minute guarantee", "instant delivery guaranteed", "cheapest prices"],
+        preferred_terminology: { "delivery boy": "delivery partner", "hyperlocal": "quick commerce" },
+        min_wcag_contrast: 4.5,
+      });
+      await refreshBrands();
+      return created;
+    } catch {
+      // If brand already exists or created concurrently, retrieve it safely
+      const retryList = await api.listBrands().catch(() => []);
+      const found = retryList.find((b) => b.name.toLowerCase() === "blinkit");
+      if (found) {
+        await refreshBrands();
+        return found;
+      }
+      throw new Error("Unable to locate or connect to Blinkit workspace.");
+    }
+  };
+
   const handleStep1Submit = async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
       if (clientType === "blinkit") {
-        let blinkit = brands.find((b) => b.name.toLowerCase() === "blinkit");
-        if (!blinkit) {
-          blinkit = await api.createBrand({
-            name: "Blinkit",
-            industry: "Quick Commerce",
-            tone_persona: "Energetic, fast, friendly, culturally connected, reliable",
-            approved_hex_palette: ["#F8C200", "#00A36C", "#1C1C1E", "#FFFFFF"],
-            banned_terms: ["10-minute guarantee", "instant delivery guaranteed", "cheapest prices"],
-            preferred_terminology: { "delivery boy": "delivery partner", "hyperlocal": "quick commerce" },
-            min_wcag_contrast: 4.5,
-          });
-          await refreshBrands();
-        }
+        const blinkit = await ensureBlinkitBrand();
         setActiveBrandId(blinkit.id);
       } else {
-        if (!customBrandName.trim()) {
+        const brandName = customBrandName.trim();
+        if (!brandName) {
           throw new Error("Please enter a brand name.");
         }
-        const created = await api.createBrand({
-          name: customBrandName.trim(),
-          industry: customIndustry,
-          tone_persona: customTone,
-          approved_hex_palette: ["#2563EB", "#1E293B", "#F8FAFC"],
-          banned_terms: ["unbeatable guarantee"],
-          preferred_terminology: {},
-          min_wcag_contrast: 4.5,
-        });
-        await refreshBrands();
-        setActiveBrandId(created.id);
+        let existing = brands.find((b) => b.name.toLowerCase() === brandName.toLowerCase());
+        if (!existing) {
+          const currentList = await api.listBrands().catch(() => []);
+          existing = currentList.find((b) => b.name.toLowerCase() === brandName.toLowerCase());
+        }
+        if (existing) {
+          setActiveBrandId(existing.id);
+        } else {
+          try {
+            const created = await api.createBrand({
+              name: brandName,
+              industry: customIndustry,
+              tone_persona: customTone,
+              approved_hex_palette: ["#2563EB", "#1E293B", "#F8FAFC"],
+              banned_terms: ["unbeatable guarantee"],
+              preferred_terminology: {},
+              min_wcag_contrast: 4.5,
+            });
+            await refreshBrands();
+            setActiveBrandId(created.id);
+          } catch {
+            const retryList = await api.listBrands().catch(() => []);
+            const found = retryList.find((b) => b.name.toLowerCase() === brandName.toLowerCase());
+            if (found) {
+              await refreshBrands();
+              setActiveBrandId(found.id);
+            } else {
+              throw new Error(`Failed to configure brand '${brandName}'.`);
+            }
+          }
+        }
       }
       setCurrentStep(2);
     } catch (err: unknown) {
@@ -158,19 +203,7 @@ export default function OnboardingPage() {
     try {
       let brandId = activeBrandId;
       if (!brandId) {
-        let blinkit = brands.find((b) => b.name.toLowerCase() === "blinkit");
-        if (!blinkit) {
-          blinkit = await api.createBrand({
-            name: "Blinkit",
-            industry: "Quick Commerce",
-            tone_persona: "Energetic, fast, friendly, culturally connected, reliable",
-            approved_hex_palette: ["#F8C200", "#00A36C", "#1C1C1E", "#FFFFFF"],
-            banned_terms: ["10-minute guarantee", "instant delivery guaranteed", "cheapest prices"],
-            preferred_terminology: { "delivery boy": "delivery partner", "hyperlocal": "quick commerce" },
-            min_wcag_contrast: 4.5,
-          });
-          await refreshBrands();
-        }
+        const blinkit = await ensureBlinkitBrand();
         brandId = blinkit.id;
         setActiveBrandId(blinkit.id);
       }
