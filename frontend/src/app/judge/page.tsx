@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
 import { AuditExecutionResponse, AuditFinding } from "@/lib/types";
@@ -35,7 +36,14 @@ function formatBytes(bytes: number): string {
 }
 
 export default function JudgeCanvasPage() {
+  const router = useRouter();
   const { brands, activeBrandId, setActiveBrandId, currentRole } = useApp();
+
+  useEffect(() => {
+    if (currentRole === "CREATOR") {
+      router.replace("/dashboard");
+    }
+  }, [currentRole, router]);
 
   const [guidelinesSource, setGuidelinesSource] = useState<"preloaded" | "uploaded">("preloaded");
   const currentBrand = brands.find((b) => b.id === activeBrandId) || brands[0];
