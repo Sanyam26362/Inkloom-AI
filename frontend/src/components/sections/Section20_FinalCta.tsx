@@ -2,8 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
+import { useApp } from "@/context/AppContext";
 
 export function Section20_FinalCta() {
+  const { openAuthModal } = useApp();
   return (
     <section className="py-24 bg-background text-center font-sans text-base leading-[1.4] text-text-primary">
       <div className="max-w-[800px] mx-auto px-4 sm:px-6">
@@ -16,12 +18,13 @@ export function Section20_FinalCta() {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
-          <Link
-            href="/dashboard"
+          <button
+            type="button"
+            onClick={() => openAuthModal()}
             className="w-full sm:w-auto flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-background bg-primary hover:bg-[#004578] rounded-full cursor-pointer transition-all duration-300 shadow-sm"
           >
             Start Now
-          </Link>
+          </button>
 
           <Link
             href="/audit"
