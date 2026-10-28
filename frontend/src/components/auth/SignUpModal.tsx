@@ -33,7 +33,13 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
     try {
       await loginAsDemoUser(role);
       onClose();
-      router.push("/dashboard");
+      if (role === "REVIEWER") {
+        router.push("/setup");
+      } else if (role === "CREATOR") {
+        router.push("/content");
+      } else {
+        router.push("/judge");
+      }
     } catch (err) {
       console.error("Fast signup failed:", err);
     } finally {
@@ -277,6 +283,13 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                   unsafeMetadata={{
                     role: selectedRole || "CREATOR",
                   }}
+                  fallbackRedirectUrl={
+                    selectedRole === "REVIEWER"
+                      ? "/setup"
+                      : selectedRole === "CREATOR"
+                      ? "/content"
+                      : "/judge"
+                  }
                   signInUrl="#signin"
                 />
               </div>
