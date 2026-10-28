@@ -318,6 +318,9 @@ export default function OnboardingPage() {
         });
         await refreshBrands();
       }
+      try {
+        localStorage.setItem("inkloom_setup_completed", "true");
+      } catch {}
       router.push(destination);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to save rule set.");
