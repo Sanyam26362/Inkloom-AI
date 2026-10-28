@@ -15,29 +15,29 @@ interface SignUpModalProps {
 export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) {
   const router = useRouter();
   const { loginAsDemoUser, theme } = useAppContext();
-  const [selectedRole, setSelectedRole] = useState<"REVIEWER" | "CREATOR" | null>(
-    initialRole === "CREATOR" ? "CREATOR" : initialRole === "REVIEWER" || initialRole === "ADMIN" ? "REVIEWER" : null
+  const [selectedRole, setSelectedRole] = useState<"REVIEWER" | "CREATOR" | "ADMIN" | null>(
+    initialRole === "CREATOR" ? "CREATOR" : initialRole === "ADMIN" ? "ADMIN" : initialRole === "REVIEWER" ? "REVIEWER" : null
   );
   const [authMode, setAuthMode] = useState<"choose_role" | "signup" | "signin">("choose_role");
-  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState<UserRole | null>(null);
 
   if (!isOpen) return null;
 
-  const handleSelectRole = (role: "REVIEWER" | "CREATOR") => {
+  const handleSelectRole = (role: "REVIEWER" | "CREATOR" | "ADMIN") => {
     setSelectedRole(role);
     setAuthMode("signup");
   };
 
-  const handleJudgeSandbox = async () => {
-    setIsDemoLoading(true);
+  const handleFastSignup = async (role: UserRole) => {
+    setLoadingRole(role);
     try {
-      await loginAsDemoUser("ADMIN");
+      await loginAsDemoUser(role);
       onClose();
       router.push("/dashboard");
     } catch (err) {
-      console.error("Judge sandbox login failed:", err);
+      console.error("Fast signup failed:", err);
     } finally {
-      setIsDemoLoading(false);
+      setLoadingRole(null);
     }
   };
 
@@ -83,82 +83,135 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
               </div>
 
               {/* 3 Role Options */}
-              <div className="grid grid-cols-1 gap-3.5 pt-2">
+              <div className="grid grid-cols-1 gap-4 pt-2">
                 {/* 1. As Brand */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectRole("REVIEWER")}
-                  className="group relative flex items-start gap-4 p-4.5 rounded-2xl border-2 border-border hover:border-primary bg-palette-7/20 hover:bg-primary/5 transition-all duration-200 text-left cursor-pointer shadow-xs hover:shadow-md"
-                >
-                  <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
-                    <span className="material-symbols-outlined text-[26px]">shield</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-bold text-sm font-sans text-on-surface">
-                        Sign up as Brand / Compliance Officer
-                      </span>
-                      <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
-                        Brand Manager
-                      </span>
+                <div className="group relative p-4.5 rounded-2xl border-2 border-border hover:border-primary/80 bg-palette-7/20 transition-all duration-200 text-left shadow-xs">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors shrink-0">
+                      <span className="material-symbols-outlined text-[26px]">shield</span>
                     </div>
-                    <p className="text-xs text-text-muted leading-relaxed">
-                      Upload brand guidelines, configure rulesets, override model findings, and approve/reject marketing collateral across channels.
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-bold text-sm font-sans text-on-surface">
+                          Brand / Compliance Officer
+                        </span>
+                        <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                          Brand Manager
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-muted leading-relaxed mb-3">
+                        Upload brand guidelines, configure rulesets, override model findings, and approve/reject creator submissions.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFastSignup("REVIEWER")}
+                          disabled={loadingRole !== null}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold font-sans shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">bolt</span>
+                          Fast Signup for Hackathon
+                          {loadingRole === "REVIEWER" && (
+                            <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRole("REVIEWER")}
+                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-border hover:border-primary/60 text-on-surface hover:text-primary text-xs font-semibold font-sans transition-colors cursor-pointer"
+                        >
+                          Sign Up with Clerk
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </button>
+                </div>
 
                 {/* 2. As Creator */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectRole("CREATOR")}
-                  className="group relative flex items-start gap-4 p-4.5 rounded-2xl border-2 border-border hover:border-primary bg-palette-7/20 hover:bg-primary/5 transition-all duration-200 text-left cursor-pointer shadow-xs hover:shadow-md"
-                >
-                  <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
-                    <span className="material-symbols-outlined text-[26px]">auto_awesome</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-bold text-sm font-sans text-on-surface">
-                        Sign up as Content Creator / Agency
-                      </span>
-                      <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
-                        Creator
-                      </span>
+                <div className="group relative p-4.5 rounded-2xl border-2 border-border hover:border-emerald-500/80 bg-palette-7/20 transition-all duration-200 text-left shadow-xs">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                      <span className="material-symbols-outlined text-[26px]">auto_awesome</span>
                     </div>
-                    <p className="text-xs text-text-muted leading-relaxed">
-                      Upload copy, social creatives, audio voiceovers, and video reels for real-time compliance audits before publishing.
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-bold text-sm font-sans text-on-surface">
+                          Content Creator (Blinkit Demo)
+                        </span>
+                        <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                          Creator Studio
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-muted leading-relaxed mb-3">
+                        Upload copy, banners, audio voiceovers, and video reels for Blinkit Diwali campaign with pre-flight policy verification.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFastSignup("CREATOR")}
+                          disabled={loadingRole !== null}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold font-sans shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">bolt</span>
+                          Fast Signup for Hackathon
+                          {loadingRole === "CREATOR" && (
+                            <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRole("CREATOR")}
+                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-border hover:border-emerald-500/60 text-on-surface hover:text-emerald-600 text-xs font-semibold font-sans transition-colors cursor-pointer"
+                        >
+                          Sign Up with Clerk
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </button>
+                </div>
 
-                {/* 3. As Admin / Judge Sandbox */}
-                <button
-                  type="button"
-                  onClick={handleJudgeSandbox}
-                  disabled={isDemoLoading}
-                  className="group relative flex items-start gap-4 p-4.5 rounded-2xl border-2 border-amber-500/40 hover:border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-all duration-200 text-left cursor-pointer shadow-xs hover:shadow-md"
-                >
-                  <div className="p-3 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
-                    <span className="material-symbols-outlined text-[26px]">gavel</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-bold text-sm font-sans text-on-surface flex items-center gap-1.5">
-                        Judge / Admin Sandbox (1-Click)
-                        {isDemoLoading && (
-                          <span className="inline-block w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
-                        )}
-                      </span>
-                      <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-300">
-                        Zero Friction
-                      </span>
+                {/* 3. As Admin / Judge */}
+                <div className="group relative p-4.5 rounded-2xl border-2 border-amber-500/40 hover:border-amber-500 bg-amber-50/30 dark:bg-amber-950/20 transition-all duration-200 text-left shadow-xs">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition-colors shrink-0">
+                      <span className="material-symbols-outlined text-[26px]">gavel</span>
                     </div>
-                    <p className="text-xs text-text-muted leading-relaxed">
-                      Instant evaluation access pre-loaded with the Blinkit Diwali 2026 guidelines pack and superuser override authority. No password needed.
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-bold text-sm font-sans text-on-surface">
+                          Judge / Admin Sandbox (1-Click)
+                        </span>
+                        <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/70 dark:text-amber-300">
+                          Zero Friction
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-muted leading-relaxed mb-3">
+                        Instant evaluation access pre-loaded with Blinkit Diwali 2026 guidelines, full override authority, and Judge Canvas.
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleFastSignup("ADMIN")}
+                          disabled={loadingRole !== null}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold font-sans shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">bolt</span>
+                          Fast Signup for Hackathon
+                          {loadingRole === "ADMIN" && (
+                            <span className="inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectRole("ADMIN")}
+                          className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-border hover:border-amber-500/60 text-on-surface hover:text-amber-600 text-xs font-semibold font-sans transition-colors cursor-pointer"
+                        >
+                          Sign Up with Clerk
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </button>
+                </div>
               </div>
 
               {/* Existing Account Footer */}
@@ -181,14 +234,25 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
               <div className="flex items-center justify-between pb-2 border-b border-border">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-[20px]">
-                    {selectedRole === "REVIEWER" ? "shield" : "auto_awesome"}
+                    {selectedRole === "REVIEWER" ? "shield" : selectedRole === "ADMIN" ? "gavel" : "auto_awesome"}
                   </span>
                   <div>
                     <h3 className="font-bold text-sm text-on-surface">
-                      {selectedRole === "REVIEWER" ? "Brand Manager Sign Up" : "Content Creator Sign Up"}
+                      {selectedRole === "REVIEWER"
+                        ? "Brand Manager Sign Up"
+                        : selectedRole === "ADMIN"
+                        ? "Judge / Admin Sign Up"
+                        : "Content Creator Sign Up"}
                     </h3>
                     <p className="text-[11px] text-text-muted">
-                      Role: <span className="font-semibold text-primary">{selectedRole === "REVIEWER" ? "Brand Reviewer" : "Content Creator"}</span>
+                      Role:{" "}
+                      <span className="font-semibold text-primary">
+                        {selectedRole === "REVIEWER"
+                          ? "Brand Reviewer"
+                          : selectedRole === "ADMIN"
+                          ? "Judge / Admin"
+                          : "Content Creator"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -262,3 +326,4 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
     </div>
   );
 }
+
