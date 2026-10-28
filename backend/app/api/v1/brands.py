@@ -151,7 +151,7 @@ async def extract_brand_rules(
     chunks_stmt = (
         select(GuidelineChunk)
         .where(GuidelineChunk.brand_id == brand_id)
-        .order_by(GuidelineChunk.source_document, GuidelineChunk.chunk_index)
+        .order_by(GuidelineChunk.source_document, GuidelineChunk.id)
     )
     chunks_res = await session.execute(chunks_stmt)
     chunks = list(chunks_res.scalars().all())
@@ -178,8 +178,8 @@ async def extract_brand_rules(
 
     extra_instructions = payload.extra_instructions if payload else None
 
-    extracted = await gemini_service.extract_rules(
-        guidelines_text=guidelines_text,
+    extracted = await gemini_service.extract_rules(brand_name=brand.name, guidelines_text=guidelines_text,
+
         design_doc="",
         campaign_info=campaign_info,
         additional_instructions=extra_instructions,
@@ -200,7 +200,7 @@ async def extract_brand_rules(
         palette=extracted.get("palette") or brand.approved_hex_palette or [],
         banned_terms=extracted.get("banned_terms") or brand.banned_terms or [],
         preferred_terminology=extracted.get("preferred_terminology") or brand.preferred_terminology or {},
-        approved_facts=extracted.get("approved_facts") or brand.approved_facts or [],
+        approved_facts=[{"claim": str(f.get("claim") if isinstance(f, dict) else f), "source": str(f.get("source", "Brand Guidelines") if isinstance(f, dict) else "Brand Guidelines"), "verified": bool(f.get("verified", True) if isinstance(f, dict) else True)} for f in (extracted.get("approved_facts") or brand.approved_facts or []) if (f.get("claim") if isinstance(f, dict) else f)],
         required_phrases=extracted.get("required_phrases") or [],
         exaggeration_terms=extracted.get("exaggeration_terms") or [],
         prohibited_visual_subjects=extracted.get("prohibited_visual_subjects") or [],
