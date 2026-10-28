@@ -32,7 +32,7 @@ export default function OnboardingPage() {
 
   const isDark = theme === "dark";
 
-  // Wizard state: 1: Client -> 2: Ingestion -> 3: Rules -> 4: Persona & Launch
+  // Wizard state: 1: Client -> 2: Ingestion -> 3: Rules
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,8 +81,7 @@ export default function OnboardingPage() {
   const [newPrefKey, setNewPrefKey] = useState("");
   const [newPrefVal, setNewPrefVal] = useState("");
 
-  // Step 4: Persona Selection
-  const [selectedPersona, setSelectedPersona] = useState<UserRole>("CREATOR");
+
 
   // Load available packs on mount
   useEffect(() => {
@@ -279,7 +278,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleSaveRulesAndProceed = async () => {
+  const handleSaveRulesAndProceed = async (destination: string = "/dashboard") => {
     setLoading(true);
     setErrorMessage(null);
     try {
@@ -319,27 +318,10 @@ export default function OnboardingPage() {
         });
         await refreshBrands();
       }
-      setCurrentStep(4);
+      router.push(destination);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to save rule set.");
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePersonaLaunch = async (persona: UserRole) => {
-    setLoading(true);
-    try {
-      await loginAsDemoUser(persona);
-      if (persona === "CREATOR") {
-        router.push("/content");
-      } else if (persona === "JUDGE") {
-        router.push("/judge");
-      } else {
-        router.push("/dashboard");
-      }
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to initialize persona session.");
       setLoading(false);
     }
   };
@@ -424,7 +406,7 @@ export default function OnboardingPage() {
           >
             <div className="text-center max-w-xl mx-auto mb-8">
               <span className="text-xs font-bold uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 px-3 py-1 rounded-full">
-                Step 2 of 4
+                Step 2 of 3
               </span>
               <h2 className="text-2xl font-black mt-3 mb-2 tracking-tight">Ingest Brand Guidelines</h2>
               <p className={`text-sm ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
@@ -543,7 +525,7 @@ export default function OnboardingPage() {
           >
             <div className="text-center max-w-xl mx-auto mb-6">
               <span className="text-xs font-bold uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 px-3 py-1 rounded-full">
-                Step 3 of 4
+                Step 3 of 3
               </span>
               <h2 className="text-2xl font-black mt-3 mb-2 tracking-tight">Review Extracted RuleSet</h2>
               <p className={`text-sm ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
@@ -747,7 +729,7 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <div className="flex justify-between max-w-3xl mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-3xl mx-auto">
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
@@ -757,142 +739,33 @@ export default function OnboardingPage() {
               >
                 ← Back
               </button>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleSaveRulesAndProceed}
-                className="px-6 py-2.5 rounded-xl font-bold text-xs bg-[#7c3aed] text-white hover:bg-[#6d28d9] transition-all shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-              >
-                {loading ? "Saving Rules..." : "Confirm & Continue to Personas →"}
-              </button>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleSaveRulesAndProceed("/guidelines")}
+                  className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                    isDark
+                      ? "border-[#3b3c44] text-[#d2bbff] hover:bg-[#20212a]"
+                      : "border-[#cbd5e1] text-[#7c3aed] hover:bg-[#f3f0ff]"
+                  }`}
+                >
+                  Save & Open Brand Guidelines →
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => handleSaveRulesAndProceed("/dashboard")}
+                  className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#635BFF] to-[#7c3aed] text-white hover:opacity-95 transition-all shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {loading ? "Saving Rules..." : "Finish Setup & Launch Workspace →"}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* STEP 4: PERSONA SELECTION & LAUNCH */}
-        {currentStep === 4 && (
-          <div
-            className={`p-6 sm:p-8 rounded-2xl border shadow-xl transition-all ${
-              isDark ? "bg-[#14151c] border-[#2b2c36]" : "bg-white border-[#e2e8f0]"
-            }`}
-          >
-            <div className="text-center max-w-xl mx-auto mb-8">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 px-3 py-1 rounded-full">
-                Step 4 of 4
-              </span>
-              <h2 className="text-2xl font-black mt-3 mb-2 tracking-tight">Select Demo Persona & Launch</h2>
-              <p className={`text-sm ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                Choose how you wish to experience Inkloom. Each persona authenticates with real JWT credentials and opens
-                its specialized governance interface.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-8">
-              {/* Creator Studio Card */}
-              <div
-                onClick={() => setSelectedPersona("CREATOR")}
-                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  selectedPersona === "CREATOR"
-                    ? "border-emerald-500 bg-emerald-500/5 ring-4 ring-emerald-500/10"
-                    : isDark
-                    ? "border-[#2b2c36] hover:border-[#3b3c48] bg-[#1a1b24]/50"
-                    : "border-[#e2e8f0] hover:border-[#cbd5e1] bg-slate-50"
-                }`}
-              >
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg mb-3 shadow-xs">
-                    🎨
-                  </div>
-                  <h3 className="font-bold text-base leading-tight">Alex Rivera</h3>
-                  <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">Creator Role</span>
-                  <p className={`text-xs mt-3 leading-relaxed ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Submit Instagram posts, posters, audio, or video. Get instant multi-modal compliance feedback,
-                    confidence scores, and one-click fixes.
-                  </p>
                 </div>
-                <div className="pt-4 border-t border-dashed border-[#cbd5e1]/30 mt-4">
-                  <span className="text-[11px] font-semibold text-emerald-400">Opens Creator Studio →</span>
-                </div>
-              </div>
-
-              {/* Judge Canvas Card */}
-              <div
-                onClick={() => setSelectedPersona("JUDGE")}
-                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  selectedPersona === "JUDGE"
-                    ? "border-amber-500 bg-amber-500/5 ring-4 ring-amber-500/10"
-                    : isDark
-                    ? "border-[#2b2c36] hover:border-[#3b3c48] bg-[#1a1b24]/50"
-                    : "border-[#e2e8f0] hover:border-[#cbd5e1] bg-slate-50"
-                }`}
-              >
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg mb-3 shadow-xs">
-                    ⚖️
-                  </div>
-                  <h3 className="font-bold text-base leading-tight">Sasha Bloom</h3>
-                  <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">Judge Role</span>
-                  <p className={`text-xs mt-3 leading-relaxed ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Interactive evaluation canvas. Inspect live indexed state, test sample assets (Spider-Man poster, audio ads,
-                    promos), and verify strictness.
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-dashed border-[#cbd5e1]/30 mt-4">
-                  <span className="text-[11px] font-semibold text-amber-400">Opens Judge Canvas →</span>
-                </div>
-              </div>
-
-              {/* Admin Dashboard Card */}
-              <div
-                onClick={() => setSelectedPersona("ADMIN")}
-                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                  selectedPersona === "ADMIN"
-                    ? "border-purple-500 bg-purple-500/5 ring-4 ring-purple-500/10"
-                    : isDark
-                    ? "border-[#2b2c36] hover:border-[#3b3c48] bg-[#1a1b24]/50"
-                    : "border-[#e2e8f0] hover:border-[#cbd5e1] bg-slate-50"
-                }`}
-              >
-                <div>
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-lg mb-3 shadow-xs">
-                    🛡️
-                  </div>
-                  <h3 className="font-bold text-base leading-tight">Jordan Vance</h3>
-                  <span className="text-[11px] font-semibold text-purple-400 uppercase tracking-wider">Admin Role</span>
-                  <p className={`text-xs mt-3 leading-relaxed ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Enterprise review queue. View submissions, approve/reject with mandatory reasons, override false
-                    positives, and monitor AI agreement metrics.
-                  </p>
-                </div>
-                <div className="pt-4 border-t border-dashed border-[#cbd5e1]/30 mt-4">
-                  <span className="text-[11px] font-semibold text-purple-400">Opens Admin Queue →</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center max-w-4xl mx-auto">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(3)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold ${
-                  isDark ? "text-[#94a3b8] hover:text-white" : "text-[#64748b] hover:text-black"
-                }`}
-              >
-                ← Back
-              </button>
-
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => handlePersonaLaunch(selectedPersona)}
-                className="px-8 py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-[#7c3aed] to-[#3b82f6] text-white hover:opacity-95 transition-all shadow-lg flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {loading ? "Authenticating Session..." : `Launch as ${selectedPersona} 🚀`}
-              </button>
-            </div>
-          </div>
-        )}
-        </div>
         )}
       </main>
     </div>
