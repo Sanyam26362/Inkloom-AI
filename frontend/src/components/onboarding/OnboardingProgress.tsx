@@ -21,7 +21,7 @@ export function OnboardingProgress({
     { num: 1, label: "Select Client" },
     { num: 2, label: "Ingest Guidelines" },
     { num: 3, label: "Review Rules" },
-    { num: 4, label: "Launch Persona" },
+
   ];
 
   return (
