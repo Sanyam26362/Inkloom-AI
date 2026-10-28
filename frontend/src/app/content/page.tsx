@@ -250,10 +250,12 @@ export default function ContentSetupPage() {
               <span className="font-bold text-[#005797] dark:text-[#d2bbff]">{activeBrand?.name ?? "Blinkit"}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#111827] dark:text-white">
-              Set up the Blinkit Diwali campaign.
+              {currentRole === "CREATOR" ? "Creator Studio — Upload Blinkit Creative" : "Set up the Blinkit Diwali campaign."}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[#4b5563] dark:text-[#ccc3d8]">
-              Choose the client and event first. Judges can start with Inkloom&apos;s premade Blinkit pack or upload their own brand guidelines before testing a poster.
+              {currentRole === "CREATOR" 
+                ? "Upload your copy, festive banners, audio voiceovers, and video reels. Inkloom verifies adherence against Blinkit Diwali 2026 rules."
+                : "Choose the client and event first. Judges can start with Inkloom's premade Blinkit pack or upload their own brand guidelines before testing a poster."}
             </p>
           </div>
           <Link
@@ -363,6 +365,8 @@ export default function ContentSetupPage() {
                 </div>
               </div>
 
+              {currentRole !== "CREATOR" && (
+                <>
               {/* Source Selector: Premade Pack vs Custom Upload */}
               <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
                 <button
@@ -534,6 +538,8 @@ export default function ContentSetupPage() {
                   )}
                 </div>
               </div>
+                </>
+              )}
             </section>
 
             <section className="rounded-2xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] p-5 shadow-xs sm:p-6 transition-colors">
