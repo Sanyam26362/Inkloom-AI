@@ -2,9 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
+import { useApp } from "@/context/AppContext";
 import Image from "next/image";
 
 export function Section11_Checkpoint() {
+  const { openAuthModal } = useApp();
   return (
     <section className="py-16 bg-background text-center font-sans text-base leading-[1.4] text-text-primary">
       <div className="max-w-[1164px] mx-auto px-4 sm:px-6 flex flex-col items-center">
@@ -28,12 +30,13 @@ export function Section11_Checkpoint() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4">
-          <Link
-            href="/dashboard"
+          <button
+            type="button"
+            onClick={() => openAuthModal()}
             className="flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-background bg-primary hover:bg-[#004578] rounded-full cursor-pointer transition-all duration-300 shadow-sm"
           >
             Start Now
-          </Link>
+          </button>
           <Link
             href="/guidelines"
             className="flex justify-center items-center px-12 py-3.5 font-sans text-base font-bold leading-[1.4] text-center text-primary border-2 border-primary rounded-full hover:bg-blue-50/60 transition-all duration-300 cursor-pointer"
