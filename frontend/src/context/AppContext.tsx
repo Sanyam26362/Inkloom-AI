@@ -1,5 +1,8 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
+import { SignUpModal } from "@/components/auth/SignUpModal";
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { BrandProfile, HealthCheckResponse, UserRole, UserProfileResponse, Campaign } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -35,6 +38,9 @@ interface AppContextType {
   isSidebarCollapsed: boolean;
   setIsSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
+  isAuthModalOpen: boolean;
+  openAuthModal: (role?: UserRole) => void;
+  closeAuthModal: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -53,6 +59,37 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [theme, setThemeState] = useState<ThemeMode>("light");
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalRole, setAuthModalRole] = useState<UserRole | undefined>(undefined);
+
+  const openAuthModal = useCallback((role?: UserRole) => {
+    setAuthModalRole(role);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setIsAuthModalOpen(false);
+  }, []);
+
+  // Synchronize Clerk user identity with backend & local AppContext
+  useEffect(() => {
+    if (!isClerkLoaded || !clerkUser) return;
+    const rawRole = (clerkUser.unsafeMetadata?.role as string) || (clerkUser.publicMetadata?.role as string) || "CREATOR";
+    const mappedRole = (rawRole.toUpperCase() === "REVIEWER" || rawRole.toUpperCase() === "BRAND") ? "REVIEWER" : (rawRole.toUpperCase() === "ADMIN" ? "ADMIN" : "CREATOR") as UserRole;
+
+    api.clerkSync({
+      clerk_id: clerkUser.id,
+      email: clerkUser.primaryEmailAddress?.emailAddress || `${clerkUser.id}@inkloom.user`,
+      user_name: clerkUser.fullName || clerkUser.firstName || "Inkloom User",
+      role: mappedRole,
+    }).then((res) => {
+      setUser(res.user);
+      setCurrentRoleState(mappedRole);
+    }).catch((err) => {
+      console.warn("Clerk backend sync failed, using client session:", err);
+    });
+  }, [isClerkLoaded, clerkUser]);
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarCollapsed((prev) => !prev);
@@ -257,13 +294,18 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         isSidebarCollapsed,
         setIsSidebarCollapsed,
         toggleSidebar,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
       }}
     >
       {children}
+      <SignUpModal isOpen={isAuthModalOpen} onClose={closeAuthModal} initialRole={authModalRole} />
     </AppContext.Provider>
   );
 }
 
+export const useAppContext = useApp;
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) {
