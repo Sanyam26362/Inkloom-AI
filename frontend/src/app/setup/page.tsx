@@ -21,7 +21,14 @@ export default function OnboardingPage() {
     loginAsDemoUser,
     theme,
     toggleTheme,
+    currentRole,
   } = useApp();
+
+  useEffect(() => {
+    if (currentRole === "CREATOR") {
+      router.replace("/content");
+    }
+  }, [currentRole, router]);
 
   const isDark = theme === "dark";
 
