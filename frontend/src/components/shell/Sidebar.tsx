@@ -84,45 +84,90 @@ export function Sidebar() {
   }, [isSidebarCollapsed, toggleSidebar]);
 
   const roles: UserRole[] = ["CREATOR", "JUDGE", "ADMIN", "REVIEWER", "MANAGER"];
+  const isBrand = currentRole === "REVIEWER" || currentRole === "MANAGER";
+  const isCreator = currentRole === "CREATOR";
+  const isAdminOrJudge = currentRole === "ADMIN" || currentRole === "JUDGE";
 
-  const navItems = [
-    {
-      label: "Dashboard",
-      path: "/dashboard",
-      icon: LayoutDashboard,
-      badge: null,
-    },
-    {
-      label: "Brand Setup",
-      path: "/setup",
-      icon: Globe,
-      badge: "Start Here",
-    },
-    {
-      label: "Creator Studio",
-      path: "/content",
-      icon: UploadCloud,
-      badge: null,
-    },
-    {
-      label: "Judge Canvas",
-      path: "/judge",
-      icon: FileCheck2,
-      badge: "Evaluate",
-    },
-    {
-      label: "Audit Queue",
-      path: "/audit",
-      icon: FileText,
-      badge: null,
-    },
-    {
-      label: "Brand Guidelines",
-      path: "/guidelines",
-      icon: BookOpen,
-      badge: null,
-    },
-  ];
+  const navItems = isCreator
+    ? [
+        {
+          label: "Creator Dashboard",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: "Submissions",
+        },
+        {
+          label: "Upload Content",
+          path: "/content",
+          icon: UploadCloud,
+          badge: "Upload",
+        },
+      ]
+    : isBrand
+    ? [
+        {
+          label: "Brand Dashboard",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: null,
+        },
+        {
+          label: "Brand Setup",
+          path: "/setup",
+          icon: Globe,
+          badge: "Start Here",
+        },
+        {
+          label: "Brand Guidelines",
+          path: "/guidelines",
+          icon: BookOpen,
+          badge: null,
+        },
+        {
+          label: "Audit Queue & Approvals",
+          path: "/audit",
+          icon: FileText,
+          badge: null,
+        },
+      ]
+    : [
+        {
+          label: "Dashboard",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: null,
+        },
+        {
+          label: "Judge Canvas",
+          path: "/judge",
+          icon: FileCheck2,
+          badge: "Evaluate",
+        },
+        {
+          label: "Brand Setup",
+          path: "/setup",
+          icon: Globe,
+          badge: "Start Here",
+        },
+        {
+          label: "Creator Studio",
+          path: "/content",
+          icon: UploadCloud,
+          badge: null,
+        },
+        {
+          label: "Audit Queue",
+          path: "/audit",
+          icon: FileText,
+          badge: null,
+        },
+        {
+          label: "Brand Guidelines",
+          path: "/guidelines",
+          icon: BookOpen,
+          badge: null,
+        },
+      ];
 
   const filteredNavItems = searchQuery.trim()
     ? navItems.filter((item) =>
@@ -304,7 +349,10 @@ export function Sidebar() {
             {isSidebarCollapsed ? (
               <button
                 type="button"
-                onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
+                onClick={() => {
+                  if (isCreator) return;
+                  setIsBrandDropdownOpen(!isBrandDropdownOpen);
+                }}
                 className={`w-10 h-10 rounded-xl border flex items-center justify-center cursor-pointer transition-all shadow-2xs ${
                   isDark
                     ? "bg-[#212228] border-[#383a45] hover:border-[#7c3aed]/60 hover:bg-[#2b2c34]"
@@ -345,7 +393,7 @@ export function Sidebar() {
                         isDark ? "text-[#9ca3af]" : "text-[#64748b]"
                       }`}
                     >
-                      Active Brand
+                      {isCreator ? "Demo Partner (Locked)" : "Active Brand"}
                     </span>
                   </div>
                 </div>
@@ -438,8 +486,8 @@ export function Sidebar() {
           <div className={`px-3 py-1.5 shrink-0 ${isSidebarCollapsed ? "flex justify-center" : ""}`}>
             {isSidebarCollapsed ? (
               <Link
-                href="/audit"
-                title="New Audit"
+                href={isCreator ? "/content" : "/audit"}
+                title={isCreator ? "Upload Content" : "New Audit"}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs transition-all hover:scale-105 cursor-pointer ${
                   isDark
                     ? "bg-[#7c3aed] hover:bg-[#6d28d9] shadow-[#7c3aed]/25"
@@ -450,7 +498,7 @@ export function Sidebar() {
               </Link>
             ) : (
               <Link
-                href="/audit"
+                href={isCreator ? "/content" : "/audit"}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`w-full flex items-center justify-center gap-2 h-9 px-3 rounded-xl font-sans text-xs font-semibold text-white shadow-xs transition-all duration-150 hover:shadow-md cursor-pointer ${
                   isDark
@@ -459,7 +507,7 @@ export function Sidebar() {
                 }`}
               >
                 <Plus size={16} />
-                <span>New Audit</span>
+                <span>{isCreator ? "Upload Content" : "New Audit"}</span>
               </Link>
             )}
           </div>
