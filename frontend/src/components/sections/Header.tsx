@@ -2,11 +2,12 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { Show, UserButton } from "@clerk/nextjs";
 import { useApp } from "@/context/AppContext";
 
 export function Header() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { theme, toggleTheme } = useApp();
+  const { theme, toggleTheme, openAuthModal, currentRole } = useApp();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-[100] h-[72px] bg-background/95 backdrop-blur-md border-b border-palette-1 font-sans text-base leading-[1.4] text-text-primary transition-all duration-200">
@@ -57,19 +58,39 @@ export function Header() {
             </span>
           </button>
 
-          <Link
-            href="/dashboard"
-            className="text-equally-action-color hover:text-primary text-xs font-bold px-3 py-2 transition-colors font-sans"
-          >
-            Console
-          </Link>
+          <Show when="signed-out">
+            <Link
+              href="/dashboard"
+              className="text-equally-action-color hover:text-primary text-xs font-bold px-3 py-2 transition-colors font-sans"
+            >
+              Console
+            </Link>
 
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center justify-center px-6 py-2.5 bg-primary hover:bg-[#004578] text-background font-sans font-bold text-xs rounded-full shadow-2xs transition-all duration-200 cursor-pointer"
-          >
-            Start Now
-          </Link>
+            <button
+              type="button"
+              onClick={() => openAuthModal()}
+              className="inline-flex items-center justify-center px-6 py-2.5 bg-primary hover:bg-[#004578] text-background font-sans font-bold text-xs rounded-full shadow-2xs transition-all duration-200 cursor-pointer"
+            >
+              Start Now
+            </button>
+          </Show>
+
+          <Show when="signed-in">
+            <div className="flex items-center gap-2.5">
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 capitalize font-sans">
+                {currentRole === "REVIEWER" ? "Brand Reviewer" : currentRole === "ADMIN" ? "Admin" : "Creator"}
+              </span>
+
+              <Link
+                href="/dashboard"
+                className="text-equally-action-color hover:text-primary text-xs font-bold px-3 py-2 transition-colors font-sans"
+              >
+                Console
+              </Link>
+
+              <UserButton />
+            </div>
+          </Show>
         </div>
 
         {/* Mobile Hamburger Button */}
@@ -103,20 +124,41 @@ export function Header() {
           <a href="#faq" onClick={() => setIsMobileOpen(false)} className="text-equally-action-color font-medium py-1">
             FAQs
           </a>
-          <div className="pt-3 border-t border-palette-1 flex flex-col gap-2.5">
-            <Link
-              href="/dashboard"
-              className="w-full text-center py-2.5 text-text-muted font-bold text-xs"
-            >
-              Console Login
-            </Link>
-            <Link
-              href="/dashboard"
-              className="w-full text-center py-3 bg-primary text-background font-bold text-xs rounded-xl shadow-sm"
-            >
-              Start Now
-            </Link>
-          </div>
+
+          <Show when="signed-out">
+            <div className="pt-3 border-t border-palette-1 flex flex-col gap-2.5">
+              <Link
+                href="/dashboard"
+                onClick={() => setIsMobileOpen(false)}
+                className="w-full text-center py-2.5 text-text-muted font-bold text-xs"
+              >
+                Console Login
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileOpen(false);
+                  openAuthModal();
+                }}
+                className="w-full text-center py-3 bg-primary text-background font-bold text-xs rounded-xl shadow-sm cursor-pointer"
+              >
+                Start Now
+              </button>
+            </div>
+          </Show>
+
+          <Show when="signed-in">
+            <div className="pt-3 border-t border-palette-1 flex items-center justify-between">
+              <Link
+                href="/dashboard"
+                onClick={() => setIsMobileOpen(false)}
+                className="text-xs font-bold text-primary"
+              >
+                Go to Console →
+              </Link>
+              <UserButton />
+            </div>
+          </Show>
         </div>
       )}
     </header>
