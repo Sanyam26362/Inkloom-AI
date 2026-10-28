@@ -8,7 +8,7 @@ export function SelectClientHeading() {
       {/* Pill Badge */}
       <div className="inline-flex items-center justify-center mb-3">
         <span className="text-[11px] font-bold tracking-wider uppercase text-[#635BFF] bg-[#F2EFFE] dark:bg-[#635BFF]/15 px-3.5 py-0.5 rounded-full border border-[#DDD6FE] dark:border-[#635BFF]/30 select-none">
-          STEP 1 OF 4
+          STEP 1 OF 3
         </span>
       </div>
 
