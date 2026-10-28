@@ -110,7 +110,7 @@ export function Sidebar() {
           label: "Creator Dashboard",
           path: "/dashboard",
           icon: LayoutDashboard,
-          badge: "Submissions",
+          badge: "Queue",
         },
       ]
     : isBrand
@@ -121,7 +121,7 @@ export function Sidebar() {
                 label: "Brand Setup",
                 path: "/setup",
                 icon: Globe,
-                badge: "Start Here",
+                badge: "Start",
               },
             ]
           : []),
@@ -182,29 +182,29 @@ export function Sidebar() {
 
   const roleColors: Record<UserRole, { dot: string; bg: string; text: string }> = {
     CREATOR: {
-      dot: "bg-emerald-500",
-      bg: isDark ? "bg-emerald-950/40 border-emerald-800/40" : "bg-emerald-50 border-emerald-200",
-      text: isDark ? "text-emerald-400" : "text-emerald-700",
+      dot: "bg-emerald-400",
+      bg: "bg-emerald-950/40 border-emerald-500",
+      text: "text-emerald-400",
     },
     JUDGE: {
-      dot: "bg-amber-500",
-      bg: isDark ? "bg-amber-950/40 border-amber-800/40" : "bg-amber-50 border-amber-200",
-      text: isDark ? "text-amber-400" : "text-amber-700",
+      dot: "bg-[var(--yellow)]",
+      bg: "bg-amber-950/40 border-[var(--yellow)]",
+      text: "text-[var(--yellow)]",
     },
     ADMIN: {
-      dot: "bg-purple-500",
-      bg: isDark ? "bg-purple-950/40 border-purple-800/40" : "bg-purple-50 border-purple-200",
-      text: isDark ? "text-purple-400" : "text-purple-700",
+      dot: "bg-[var(--pink)]",
+      bg: "bg-purple-950/40 border-[var(--pink)]",
+      text: "text-[var(--pink)]",
     },
     REVIEWER: {
-      dot: "bg-blue-500",
-      bg: isDark ? "bg-blue-950/40 border-blue-800/40" : "bg-blue-50 border-blue-200",
-      text: isDark ? "text-blue-400" : "text-blue-700",
+      dot: "bg-[var(--blue)]",
+      bg: "bg-blue-950/40 border-[var(--blue)]",
+      text: "text-[var(--blue)]",
     },
     MANAGER: {
-      dot: "bg-indigo-500",
-      bg: isDark ? "bg-indigo-950/40 border-indigo-800/40" : "bg-indigo-50 border-indigo-200",
-      text: isDark ? "text-indigo-400" : "text-indigo-700",
+      dot: "bg-indigo-400",
+      bg: "bg-indigo-950/40 border-indigo-500",
+      text: "text-indigo-400",
     },
   };
 
@@ -213,67 +213,41 @@ export function Sidebar() {
       {/* Mobile Backdrop Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/75 backdrop-blur-xs lg:hidden transition-opacity"
           onClick={() => setIsMobileMenuOpen(false)}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-screen border-r shadow-xs z-50 flex flex-col justify-between select-none transition-all duration-300 font-sans ${
+        className={`fixed left-0 top-0 h-screen z-50 flex flex-col justify-between select-none transition-all duration-300 font-mono bg-[var(--ink)] text-white border-r-4 ${
+          isDark ? "border-[#2e2f38]" : "border-[var(--ink)]"
+        } ${
           isMobileMenuOpen
-            ? "translate-x-0 w-72"
+            ? "translate-x-0 w-72 shadow-[8px_0_0_rgba(0,0,0,0.4)]"
             : isSidebarCollapsed
             ? "-translate-x-full lg:translate-x-0 lg:w-20"
             : "-translate-x-full lg:translate-x-0 lg:w-68"
-        } ${
-          isDark
-            ? "bg-[#18191d] border-[#2e2f38] text-[#e3e2e6]"
-            : "bg-white border-[#e2e8f0] text-[#111827]"
         }`}
       >
         {/* Top Scrollable Container for Navigation & Upper Bar Components */}
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           {/* 1. Header: Brand Logo & Title & Collapse/Close */}
           <div
-            className={`h-16 flex items-center shrink-0 border-b transition-colors px-3 ${
-              isSidebarCollapsed
-                ? "justify-center"
-                : "justify-between"
-            } ${
-              isDark ? "bg-[#18191d] border-[#2e2f38]" : "bg-white border-[#e2e8f0]"
+            className={`h-16 flex items-center shrink-0 border-b-3 border-[#262626] px-3 transition-colors ${
+              isSidebarCollapsed ? "justify-center" : "justify-between"
             }`}
           >
             {isSidebarCollapsed ? (
               <button
                 type="button"
                 onClick={toggleSidebar}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center group cursor-pointer transition-colors ${
-                  isDark ? "hover:bg-[#25262c]" : "hover:bg-[#f1f5f9]"
-                }`}
+                className="w-10 h-10 border-2 border-[#444] bg-[#18181b] hover:bg-[var(--yellow)] hover:text-[var(--ink)] hover:border-[var(--ink)] text-white shadow-[2px_2px_0px_#000] flex items-center justify-center cursor-pointer transition-all"
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-xs group-hover:hidden ${
-                    isDark ? "bg-[#7c3aed]" : "bg-[#005797]"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                </div>
-                <div
-                  className={`hidden group-hover:flex items-center justify-center ${
-                    isDark ? "text-[#d2bbff]" : "text-[#005797]"
-                  }`}
-                >
-                  <PanelLeftOpen size={19} />
+                <div className="w-6 h-6 bg-[var(--yellow)] border border-[var(--ink)] flex items-center justify-center text-[var(--ink)] font-black text-xs">
+                  B
                 </div>
               </button>
             ) : (
@@ -283,34 +257,18 @@ export function Sidebar() {
                   className="flex items-center gap-2.5 min-w-0 group"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-xs shrink-0 transition-transform group-hover:scale-105 ${
-                      isDark ? "bg-[#7c3aed]" : "bg-[#005797]"
-                    }`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2.5}
-                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                      />
-                    </svg>
+                  <div className="w-8 h-8 bg-[var(--yellow)] border-2 border-[var(--ink)] shadow-[2px_2px_0px_#fff] flex items-center justify-center text-[var(--ink)] font-black text-sm shrink-0 transition-transform group-hover:scale-105">
+                    B
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span
-                      className={`font-serif text-lg tracking-tight font-bold truncate leading-none ${
-                        isDark ? "text-white" : "text-[#111827]"
-                      }`}
+                      className="text-base tracking-tight font-black text-white leading-none font-display"
+                      style={{ fontFamily: "var(--font-archivo), Arial, sans-serif" }}
                     >
-                      Inkloom
+                      BrandLens
                     </span>
-                    <span
-                      className={`text-[10px] font-mono tracking-wider font-semibold uppercase leading-tight ${
-                        isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                      }`}
-                    >
-                      Governance
+                    <span className="text-[9px] font-mono tracking-widest font-bold uppercase text-[var(--yellow)] leading-tight mt-0.5">
+                      GOVERNANCE AI
                     </span>
                   </div>
                 </Link>
@@ -320,11 +278,7 @@ export function Sidebar() {
                   <button
                     type="button"
                     onClick={toggleSidebar}
-                    className={`hidden lg:flex w-7 h-7 rounded-lg border items-center justify-center cursor-pointer transition-colors shadow-2xs ${
-                      isDark
-                        ? "bg-[#212228] border-[#383a45] text-[#9ca3af] hover:text-white hover:bg-[#2b2c34]"
-                        : "bg-[#f8fafc] border-[#cbd5e1] text-[#64748b] hover:text-[#111827] hover:bg-[#edf2f7]"
-                    }`}
+                    className="hidden lg:flex w-7 h-7 border-2 border-[#444] bg-[#18181b] hover:bg-[var(--yellow)] hover:text-[var(--ink)] hover:border-[var(--ink)] text-[#aaa] shadow-[2px_2px_0px_#000] items-center justify-center cursor-pointer transition-all"
                     title="Collapse sidebar"
                     aria-label="Collapse sidebar"
                   >
@@ -334,11 +288,7 @@ export function Sidebar() {
                   <button
                     type="button"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`lg:hidden w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer transition-colors ${
-                      isDark
-                        ? "bg-[#212228] border-[#383a45] text-[#9ca3af] hover:text-white hover:bg-[#2b2c34]"
-                        : "bg-[#f8fafc] border-[#cbd5e1] text-[#64748b] hover:text-[#111827] hover:bg-[#edf2f7]"
-                    }`}
+                    className="lg:hidden w-8 h-8 border-2 border-[#444] bg-[#18181b] hover:bg-[var(--red)] hover:text-white hover:border-[var(--ink)] text-[#aaa] shadow-[2px_2px_0px_#000] flex items-center justify-center cursor-pointer transition-all"
                     title="Close sidebar"
                     aria-label="Close sidebar"
                   >
@@ -349,7 +299,30 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* 2. Brand Selector (Upper component moved to sidebar) */}
+          {/* 2. Workspace Label (Target Neo-Brutalism Blue Accent Block) */}
+          {isSidebarCollapsed ? (
+            <div
+              className="px-2 pt-2.5 pb-1 flex justify-center shrink-0"
+              title={`Workspace: ${activeBrand ? activeBrand.name : "Blinkit"}`}
+            >
+              <div className="w-10 h-7 bg-[var(--blue)] border-2 border-[var(--ink)] shadow-[2px_2px_0px_#000] flex items-center justify-center font-mono font-black text-[9px] text-[var(--ink)]">
+                QA
+              </div>
+            </div>
+          ) : (
+            <div className="px-3 pt-2.5 pb-1 shrink-0">
+              <div className="bg-[var(--blue)] text-[var(--ink)] border-2 border-[var(--ink)] shadow-[3px_3px_0px_#000] p-2 flex flex-col">
+                <span className="text-[8.5px] font-mono font-bold tracking-wider uppercase text-[var(--ink)]/80 leading-none mb-1">
+                  WORKSPACE // PRODUCT
+                </span>
+                <span className="text-xs font-mono font-black truncate text-[var(--ink)] leading-tight">
+                  {activeBrand ? activeBrand.name : "Blinkit"} · Active QA
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 3. Brand Selector Dropdown */}
           <div className={`p-3 pb-2 relative shrink-0 ${isSidebarCollapsed ? "flex justify-center" : ""}`} ref={brandRef}>
             {isSidebarCollapsed ? (
               <button
@@ -358,55 +331,37 @@ export function Sidebar() {
                   if (isCreator) return;
                   setIsBrandDropdownOpen(!isBrandDropdownOpen);
                 }}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center cursor-pointer transition-all shadow-2xs ${
-                  isDark
-                    ? "bg-[#212228] border-[#383a45] hover:border-[#7c3aed]/60 hover:bg-[#2b2c34]"
-                    : "bg-[#f8fafc] border-[#cbd5e1] hover:border-[#005797]/50 hover:bg-[#edf2f7]"
-                }`}
+                className="w-10 h-10 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#18181b] flex items-center justify-center shadow-[2px_2px_0px_#000] cursor-pointer transition-all"
                 title={`Active Brand: ${activeBrand ? activeBrand.name : "Blinkit"}`}
               >
-                <div className="w-5 h-5 rounded-md bg-[#F8C200] flex items-center justify-center shrink-0 border border-[#e5b300]/80 shadow-2xs">
-                  <span className="font-black text-[12px] text-[#1C1C1E] font-sans -mt-0.5 leading-none">b</span>
-                  <span className="w-1 h-1 rounded-full bg-[#00A36C] -ml-0.5 -mt-1.5" />
+                <div className="w-5 h-5 bg-[#F8C200] border border-[var(--ink)] flex items-center justify-center shrink-0">
+                  <span className="font-black text-[11px] text-[#1C1C1E] font-mono -mt-0.5 leading-none">b</span>
                 </div>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setIsBrandDropdownOpen(!isBrandDropdownOpen)}
-                className={`w-full flex items-center justify-between p-2 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                  isDark
-                    ? "bg-[#212228] border-[#383a45] hover:border-[#7c3aed]/50 hover:bg-[#272830]"
-                    : "bg-[#f8fafc] border-[#cbd5e1] hover:border-[#005797]/40 hover:bg-[#f1f5f9]"
-                }`}
+                className="w-full flex items-center justify-between p-2 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#141416] text-white shadow-[2px_2px_0px_#000] transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-6 h-6 rounded-md bg-[#F8C200] flex items-center justify-center shrink-0 border border-[#e5b300]/80 shadow-2xs">
-                    <span className="font-black text-[13px] text-[#1C1C1E] font-sans -mt-0.5 leading-none">b</span>
-                    <span className="w-1 h-1 rounded-full bg-[#00A36C] -ml-0.5 -mt-1.5" />
+                  <div className="w-5 h-5 bg-[#F8C200] border border-[var(--ink)] flex items-center justify-center shrink-0">
+                    <span className="font-black text-[12px] text-[#1C1C1E] font-mono -mt-0.5 leading-none">b</span>
                   </div>
                   <div className="flex flex-col text-left min-w-0">
-                    <span
-                      className={`text-xs font-bold truncate leading-none mb-0.5 ${
-                        isDark ? "text-white" : "text-[#111827]"
-                      }`}
-                    >
+                    <span className="text-xs font-mono font-bold truncate text-white leading-none mb-0.5">
                       {activeBrand ? activeBrand.name : "Blinkit"}
                     </span>
-                    <span
-                      className={`text-[10px] font-mono leading-none ${
-                        isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                      }`}
-                    >
+                    <span className="text-[9.5px] font-mono text-[#888] leading-none">
                       {isCreator ? "Demo Partner (Locked)" : "Active Brand"}
                     </span>
                   </div>
                 </div>
                 <ChevronDown
-                  size={15}
-                  className={`transition-transform duration-200 shrink-0 ${
+                  size={14}
+                  className={`transition-transform duration-200 shrink-0 text-[#888] ${
                     isBrandDropdownOpen ? "rotate-180" : ""
-                  } ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}
+                  }`}
                 />
               </button>
             )}
@@ -416,22 +371,10 @@ export function Sidebar() {
               <div
                 className={`absolute ${
                   isSidebarCollapsed ? "left-16 top-3 w-60" : "left-3 right-3 top-14"
-                } rounded-xl border shadow-xl py-1.5 z-60 max-h-72 overflow-y-auto ${
-                  isDark
-                    ? "bg-[#1f2026] border-[#383a45] text-white"
-                    : "bg-white border-[#cbd5e1] text-[#111827]"
-                }`}
+                } border-3 border-[var(--ink)] bg-[#101010] shadow-[6px_6px_0px_#000] py-1.5 z-60 max-h-72 overflow-y-auto text-white`}
               >
-                <div
-                  className={`px-3 py-1.5 border-b flex items-center justify-between ${
-                    isDark ? "border-[#2e2f38] bg-[#18191d]" : "border-[#e2e8f0] bg-[#f8fafc]"
-                  }`}
-                >
-                  <span
-                    className={`text-[10px] font-mono uppercase tracking-wider font-bold ${
-                      isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                    }`}
-                  >
+                <div className="px-3 py-1.5 border-b-2 border-[#262626] bg-[#18181b] flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-[var(--yellow)]">
                     Governed Brands ({brands.length})
                   </span>
                   <Link
@@ -440,12 +383,10 @@ export function Sidebar() {
                       setIsBrandDropdownOpen(false);
                       setIsMobileMenuOpen(false);
                     }}
-                    className={`text-[11px] font-bold flex items-center gap-1 hover:underline ${
-                      isDark ? "text-[#d2bbff]" : "text-[#005797]"
-                    }`}
+                    className="text-[10px] font-mono font-bold text-white flex items-center gap-1 hover:text-[var(--yellow)]"
                   >
                     <span>Manage</span>
-                    <ExternalLink size={11} />
+                    <ExternalLink size={10} />
                   </Link>
                 </div>
 
@@ -458,27 +399,20 @@ export function Sidebar() {
                         setActiveBrandId(b.id);
                         setIsBrandDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                      className={`w-full text-left px-3 py-2 text-xs font-mono flex items-center justify-between transition-colors cursor-pointer ${
                         b.id === activeBrandId
-                          ? isDark
-                            ? "bg-[#7c3aed]/20 text-[#d2bbff] font-bold"
-                            : "bg-[#ebf6ff] text-[#005797] font-bold"
-                          : isDark
-                          ? "text-[#d1d5db] hover:bg-[#25262c]"
-                          : "text-[#374151] hover:bg-[#f8fafc]"
+                          ? "bg-[var(--yellow)] text-[var(--ink)] font-black border-2 border-[var(--ink)] shadow-[2px_2px_0px_#000]"
+                          : "text-[#d1d5db] hover:bg-[#202024]"
                       }`}
                     >
                       <div className="flex items-center gap-2.5 truncate pr-2">
-                        <div className="w-5 h-5 rounded bg-[#F8C200] flex items-center justify-center shrink-0">
-                          <span className="font-black text-[11px] text-[#1C1C1E] font-sans -mt-0.5">b</span>
+                        <div className="w-4 h-4 bg-[#F8C200] border border-[var(--ink)] flex items-center justify-center shrink-0">
+                          <span className="font-black text-[10px] text-[#1C1C1E] font-mono -mt-0.5">b</span>
                         </div>
-                        <span className="truncate font-sans font-medium">{b.name}</span>
+                        <span className="truncate font-mono">{b.name}</span>
                       </div>
                       {b.id === activeBrandId && (
-                        <Check
-                          size={15}
-                          className={isDark ? "text-[#d2bbff]" : "text-[#005797]"}
-                        />
+                        <Check size={14} className="text-[var(--ink)] stroke-[3]" />
                       )}
                     </button>
                   ))}
@@ -487,47 +421,35 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* 3. New Audit CTA Button (Upper component moved to sidebar) */}
+          {/* 4. New Action CTA Button */}
           <div className={`px-3 py-1.5 shrink-0 ${isSidebarCollapsed ? "flex justify-center" : ""}`}>
             {isSidebarCollapsed ? (
               <Link
                 href={isCreator ? "/content" : isAdminOrJudge ? "/judge" : "/audit"}
                 title={isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}
-                className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs transition-all hover:scale-105 cursor-pointer ${
-                  isDark
-                    ? "bg-[#7c3aed] hover:bg-[#6d28d9] shadow-[#7c3aed]/25"
-                    : "bg-[#005797] hover:bg-[#004578] shadow-[#005797]/25"
-                }`}
+                className="w-10 h-10 bg-[var(--yellow)] text-[var(--ink)] border-2 border-[var(--ink)] shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 flex items-center justify-center cursor-pointer transition-all"
               >
-                <Plus size={18} />
+                <Plus size={18} className="stroke-[3]" />
               </Link>
             ) : (
               <Link
-                href={isCreator ? "/content" : "/audit"}
+                href={isCreator ? "/content" : isAdminOrJudge ? "/judge" : "/audit"}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={`w-full flex items-center justify-center gap-2 h-9 px-3 rounded-xl font-sans text-xs font-semibold text-white shadow-xs transition-all duration-150 hover:shadow-md cursor-pointer ${
-                  isDark
-                    ? "bg-[#7c3aed] hover:bg-[#6d28d9] shadow-[#7c3aed]/20"
-                    : "bg-[#005797] hover:bg-[#004578] shadow-[#005797]/20"
-                }`}
+                className="w-full flex items-center justify-between h-9 px-3.5 bg-[var(--yellow)] text-[var(--ink)] font-mono font-black text-xs uppercase tracking-wider border-2 border-[var(--ink)] shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 transition-all cursor-pointer"
               >
-                <Plus size={16} />
-                <span>{isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}</span>
+                <span className="truncate">{isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}</span>
+                <Plus size={16} className="shrink-0 stroke-[3]" />
               </Link>
             )}
           </div>
 
-          {/* 4. Global Search Bar (Upper component moved to sidebar) */}
+          {/* 5. Global Search Bar */}
           <div className={`px-3 py-1.5 shrink-0 ${isSidebarCollapsed ? "flex justify-center" : ""}`}>
             {isSidebarCollapsed ? (
               <button
                 type="button"
                 onClick={toggleSidebar}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center cursor-pointer transition-colors shadow-2xs ${
-                  isDark
-                    ? "bg-[#212228] border-[#383a45] text-[#9ca3af] hover:text-white hover:bg-[#2b2c34]"
-                    : "bg-[#f8fafc] border-[#cbd5e1] text-[#64748b] hover:text-[#111827] hover:bg-[#edf2f7]"
-                }`}
+                className="w-10 h-10 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#18181b] text-[#aaa] flex items-center justify-center cursor-pointer transition-all shadow-[2px_2px_0px_#000]"
                 title="Search rules, audits... (⌘K)"
                 aria-label="Search"
               >
@@ -536,10 +458,8 @@ export function Sidebar() {
             ) : (
               <div className="relative flex items-center">
                 <Search
-                  size={15}
-                  className={`absolute left-2.5 pointer-events-none ${
-                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                  }`}
+                  size={14}
+                  className="absolute left-2.5 pointer-events-none text-[#777]"
                 />
                 <input
                   ref={searchInputRef}
@@ -547,19 +467,9 @@ export function Sidebar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search rules, audits..."
-                  className={`w-full h-8.5 pl-8 pr-12 rounded-xl font-sans text-xs border transition-all focus:outline-none ${
-                    isDark
-                      ? "bg-[#151619] border-[#2e2f38] text-white placeholder:text-[#6b7280] focus:border-[#7c3aed] focus:ring-1 focus:ring-[#7c3aed]/30"
-                      : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827] placeholder:text-[#94a3b8] focus:border-[#005797] focus:bg-white focus:ring-1 focus:ring-[#005797]/30"
-                  }`}
+                  className="w-full h-8 pl-8 pr-12 font-mono text-xs border-2 border-[#333] bg-[#141416] text-white placeholder:text-[#666] focus:border-[var(--yellow)] focus:outline-none transition-all shadow-inner"
                 />
-                <kbd
-                  className={`absolute right-2 text-[10px] font-mono px-1.5 py-0.5 rounded border pointer-events-none ${
-                    isDark
-                      ? "bg-[#212228] border-[#383a45] text-[#9ca3af]"
-                      : "bg-white border-[#cbd5e1] text-[#64748b]"
-                  }`}
-                >
+                <kbd className="absolute right-2 text-[9px] font-mono px-1.5 py-0.5 border border-[#444] bg-[#202024] text-[var(--yellow)] font-bold pointer-events-none">
                   ⌘K
                 </kbd>
               </div>
@@ -568,20 +478,16 @@ export function Sidebar() {
 
           {/* Section Heading */}
           {!isSidebarCollapsed && (
-            <div className="px-4 pt-4 pb-1.5">
-              <span
-                className={`font-mono text-[10px] uppercase tracking-wider font-bold ${
-                  isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                }`}
-              >
-                Platform
+            <div className="px-4 pt-3 pb-1">
+              <span className="font-mono text-[9px] uppercase tracking-widest font-black text-[#666]">
+                NAVIGATION
               </span>
             </div>
           )}
 
-          {/* 5. Navigation Items */}
+          {/* 6. Navigation Items */}
           <nav
-            className={`flex flex-col gap-1 py-1 ${
+            className={`flex flex-col gap-1.5 py-1 ${
               isSidebarCollapsed ? "px-2 items-center" : "px-3"
             }`}
           >
@@ -599,24 +505,13 @@ export function Sidebar() {
                     key={item.path}
                     href={item.path}
                     title={item.label}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer relative group ${
+                    className={`w-10 h-10 flex items-center justify-center transition-all cursor-pointer border-2 ${
                       isActive
-                        ? isDark
-                          ? "bg-[#7c3aed]/20 text-[#d2bbff] shadow-2xs font-bold"
-                          : "bg-[#ebf6ff] text-[#005797] shadow-2xs font-bold"
-                        : isDark
-                        ? "text-[#9ca3af] hover:bg-[#25262c] hover:text-white"
-                        : "text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#111827]"
+                        ? "bg-[var(--yellow)] text-[var(--ink)] border-[var(--ink)] shadow-[3px_3px_0px_#000] font-black"
+                        : "border-[#333] bg-[#18181b] text-[#aaa] hover:text-[var(--yellow)] hover:border-[var(--yellow)]"
                     }`}
                   >
-                    <Icon size={19} />
-                    {isActive && (
-                      <span
-                        className={`absolute left-0 w-1 h-5 rounded-r-full ${
-                          isDark ? "bg-[#7c3aed]" : "bg-[#005797]"
-                        }`}
-                      />
-                    )}
+                    <Icon size={18} className={isActive ? "stroke-[2.5]" : ""} />
                   </Link>
                 );
               }
@@ -626,41 +521,27 @@ export function Sidebar() {
                   key={item.path}
                   href={item.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all duration-150 cursor-pointer ${
+                  className={`flex items-center justify-between px-3 py-2 text-xs font-mono transition-all duration-100 cursor-pointer ${
                     isActive
-                      ? isDark
-                        ? "bg-[#7c3aed]/20 text-[#d2bbff] font-bold border-l-3 border-[#7c3aed] shadow-2xs"
-                        : "bg-[#ebf6ff] text-[#005797] font-bold border-l-3 border-[#005797] shadow-2xs"
-                      : isDark
-                      ? "text-[#d1d5db] hover:bg-[#25262c] hover:text-white font-medium"
-                      : "text-[#374151] hover:bg-[#f8fafc] hover:text-[#005797] font-medium"
+                      ? "bg-[var(--yellow)] text-[var(--ink)] font-black border-2 border-[var(--ink)] shadow-[4px_4px_0px_#000]"
+                      : "text-[#cbd5e1] hover:text-[var(--yellow)] hover:bg-[#18181b] border-2 border-transparent font-bold"
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Icon
-                      size={17}
+                      size={16}
                       className={`shrink-0 ${
-                        isActive
-                          ? isDark
-                            ? "text-[#d2bbff]"
-                            : "text-[#005797]"
-                          : isDark
-                          ? "text-[#9ca3af]"
-                          : "text-[#64748b]"
+                        isActive ? "text-[var(--ink)] stroke-[2.5]" : "text-[#888]"
                       }`}
                     />
-                    <span className="font-sans leading-tight truncate">{item.label}</span>
+                    <span className="leading-tight truncate">{item.label}</span>
                   </div>
                   {item.badge && (
                     <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono uppercase font-bold shrink-0 ${
+                      className={`px-1.5 py-0.5 text-[9px] font-mono uppercase font-black shrink-0 border ${
                         isActive
-                          ? isDark
-                            ? "bg-[#7c3aed] text-white"
-                            : "bg-[#005797] text-white"
-                          : isDark
-                          ? "bg-[#7c3aed]/20 text-[#d2bbff] border border-[#7c3aed]/40"
-                          : "bg-[#ebf6ff] text-[#005797] border border-[#005797]/30"
+                          ? "bg-[var(--ink)] text-white border-[var(--ink)]"
+                          : "bg-[#18181b] text-[var(--yellow)] border-[#444]"
                       }`}
                     >
                       {item.badge}
@@ -673,22 +554,14 @@ export function Sidebar() {
         </div>
 
         {/* Bottom Section: Theme Toggle, User Role Switcher & User Identity */}
-        <div
-          className={`border-t transition-colors shrink-0 flex flex-col gap-2 p-3 ${
-            isDark ? "border-[#2e2f38] bg-[#141518]" : "border-[#e2e8f0] bg-[#f8fafc]"
-          }`}
-        >
-          {/* 6. Theme Toggle (Upper component moved to sidebar) */}
+        <div className="border-t-3 border-[#262626] bg-[#0c0c0e] shrink-0 flex flex-col gap-2 p-3">
+          {/* 7. Theme Toggle */}
           {isSidebarCollapsed ? (
             <div className="flex justify-center">
               <button
                 type="button"
                 onClick={toggleTheme}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center cursor-pointer transition-colors shadow-2xs ${
-                  isDark
-                    ? "bg-[#212228] border-[#383a45] text-amber-400 hover:bg-[#2b2c34]"
-                    : "bg-white border-[#cbd5e1] text-[#64748b] hover:text-[#111827] hover:bg-[#edf2f7]"
-                }`}
+                className="w-10 h-10 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#18181b] text-[var(--yellow)] flex items-center justify-center cursor-pointer transition-colors shadow-[2px_2px_0px_#000]"
                 title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 aria-label="Toggle theme mode"
               >
@@ -699,74 +572,54 @@ export function Sidebar() {
             <button
               type="button"
               onClick={toggleTheme}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl border transition-colors cursor-pointer text-xs shadow-2xs ${
-                isDark
-                  ? "bg-[#212228] border-[#383a45] text-[#d1d5db] hover:bg-[#272830]"
-                  : "bg-white border-[#cbd5e1] text-[#374151] hover:bg-[#f1f5f9]"
-              }`}
+              className="w-full flex items-center justify-between px-3 py-1.5 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#141416] text-white text-xs font-mono transition-colors cursor-pointer shadow-[2px_2px_0px_#000]"
               title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
               aria-label="Toggle theme mode"
             >
               <div className="flex items-center gap-2">
-                <span className={isDark ? "text-amber-400" : "text-[#64748b]"}>
+                <span className="text-[var(--yellow)]">
                   {isDark ? <Sun size={15} /> : <Moon size={15} />}
                 </span>
-                <span className="font-medium">{isDark ? "Dark Theme" : "Light Theme"}</span>
+                <span className="font-bold">{isDark ? "Dark Theme" : "Light Theme"}</span>
               </div>
-              <span
-                className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                  isDark ? "bg-[#18191d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
-                }`}
-              >
-                {isDark ? "Dark" : "Light"}
+              <span className="text-[9px] font-mono px-1.5 py-0.5 border border-[#444] bg-[#222] text-[var(--yellow)] font-bold">
+                {isDark ? "DARK" : "LIGHT"}
               </span>
             </button>
           )}
 
-          {/* 7. User Role Switcher (Upper component moved to sidebar) */}
+          {/* 8. User Role Switcher */}
           <div className="relative" ref={roleRef}>
             {isSidebarCollapsed ? (
               <div className="flex justify-center">
                 <button
                   type="button"
                   onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                  className={`w-10 h-10 rounded-xl border flex items-center justify-center cursor-pointer transition-colors shadow-2xs relative ${
-                    isDark
-                      ? "bg-[#212228] border-[#383a45] hover:bg-[#2b2c34]"
-                      : "bg-white border-[#cbd5e1] hover:bg-[#edf2f7]"
-                  }`}
+                  className="w-10 h-10 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#18181b] flex items-center justify-center cursor-pointer transition-colors shadow-[2px_2px_0px_#000]"
                   title={`Active Role: ${currentRole.toLowerCase()}`}
                   aria-label="Change user role"
                 >
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full ${roleColors[currentRole].dot}`}
-                  />
+                  <span className={`w-3 h-3 rounded-none border border-black ${roleColors[currentRole].dot}`} />
                 </button>
               </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl border transition-colors cursor-pointer text-xs shadow-2xs ${
-                  isDark
-                    ? "bg-[#212228] border-[#383a45] text-white hover:bg-[#272830]"
-                    : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f1f5f9]"
-                }`}
+                className="w-full flex items-center justify-between px-3 py-1.5 border-2 border-[#333] hover:border-[var(--yellow)] bg-[#141416] text-white text-xs font-mono transition-colors cursor-pointer shadow-[2px_2px_0px_#000]"
                 title="Switch active governance role"
               >
                 <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${roleColors[currentRole].dot}`}
-                  />
-                  <span className="font-semibold capitalize">
-                    {currentRole.toLowerCase()} Role
+                  <span className={`w-2 h-2 rounded-none border border-black shrink-0 ${roleColors[currentRole].dot}`} />
+                  <span className="font-bold uppercase tracking-tight">
+                    {currentRole.toLowerCase()} ROLE
                   </span>
                 </div>
                 <ChevronDown
                   size={14}
-                  className={`transition-transform duration-200 ${
+                  className={`transition-transform duration-200 text-[#888] ${
                     isRoleDropdownOpen ? "rotate-180" : ""
-                  } ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}
+                  }`}
                 />
               </button>
             )}
@@ -776,18 +629,10 @@ export function Sidebar() {
               <div
                 className={`absolute ${
                   isSidebarCollapsed ? "left-16 bottom-0 w-44" : "left-0 right-0 bottom-9"
-                } rounded-xl border shadow-xl p-1 z-60 ${
-                  isDark
-                    ? "bg-[#1f2026] border-[#383a45] text-white"
-                    : "bg-white border-[#cbd5e1] text-[#111827]"
-                }`}
+                } border-3 border-[var(--ink)] bg-[#101010] shadow-[6px_6px_0px_#000] p-1 z-60 text-white`}
               >
-                <div
-                  className={`px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider font-bold border-b mb-1 ${
-                    isDark ? "text-[#9ca3af] border-[#2e2f38]" : "text-[#64748b] border-[#e2e8f0]"
-                  }`}
-                >
-                  Switch Role
+                <div className="px-2.5 py-1 text-[9px] font-mono uppercase tracking-wider font-bold border-b-2 border-[#262626] text-[var(--yellow)] mb-1">
+                  SWITCH ROLE
                 </div>
                 {roles.map((r) => (
                   <button
@@ -797,27 +642,18 @@ export function Sidebar() {
                       setCurrentRole(r);
                       setIsRoleDropdownOpen(false);
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                    className={`w-full text-left px-2.5 py-1.5 text-xs font-mono flex items-center justify-between transition-colors cursor-pointer ${
                       currentRole === r
-                        ? isDark
-                          ? "bg-[#7c3aed]/20 text-[#d2bbff] font-bold"
-                          : "bg-[#ebf6ff] text-[#005797] font-bold"
-                        : isDark
-                        ? "text-[#d1d5db] hover:bg-[#25262c]"
-                        : "text-[#374151] hover:bg-[#f8fafc]"
+                        ? "bg-[var(--yellow)] text-[var(--ink)] font-black border border-[var(--ink)] shadow-[2px_2px_0px_#000]"
+                        : "text-[#d1d5db] hover:bg-[#202024]"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full shrink-0 ${roleColors[r].dot}`}
-                      />
-                      <span className="capitalize font-medium">{r.toLowerCase()}</span>
+                      <span className={`w-2 h-2 rounded-none border border-black shrink-0 ${roleColors[r].dot}`} />
+                      <span className="capitalize font-bold">{r.toLowerCase()}</span>
                     </div>
                     {currentRole === r && (
-                      <Check
-                        size={14}
-                        className={isDark ? "text-[#d2bbff]" : "text-[#005797]"}
-                      />
+                      <Check size={14} className="text-[var(--ink)] stroke-[3]" />
                     )}
                   </button>
                 ))}
@@ -825,69 +661,35 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* 8. User Profile Card */}
+          {/* 9. User Profile Card (Target Neo-Brutalism Pink Accent Block) */}
           {isSidebarCollapsed ? (
             <div
               className="flex justify-center cursor-pointer"
               title={`Alex Rivera · ${currentRole.toLowerCase()}`}
             >
               <div className="relative">
-                <div
-                  className={`w-9 h-9 rounded-full border flex items-center justify-center font-bold text-xs shadow-2xs ${
-                    isDark
-                      ? "bg-[#7c3aed]/20 border-[#7c3aed]/40 text-[#d2bbff]"
-                      : "bg-[#ebf6ff] border-[#005797]/30 text-[#005797]"
-                  }`}
-                >
+                <div className="w-9 h-9 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[2px_2px_0px_#000]">
                   AR
                 </div>
-                <span
-                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 ${
-                    roleColors[currentRole].dot
-                  } ${isDark ? "border-[#141518]" : "border-[#f8fafc]"}`}
-                />
+                <span className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border border-black ${roleColors[currentRole].dot}`} />
               </div>
             </div>
           ) : (
-            <div
-              className={`flex items-center justify-between p-2 rounded-xl border shadow-2xs ${
-                isDark ? "bg-[#1f2026] border-[#383a45]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
+            <div className="flex items-center justify-between p-2 border-2 border-[#333] bg-[#141416] shadow-[2px_2px_0px_#000]">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative shrink-0">
-                  <div
-                    className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs shadow-2xs ${
-                      isDark
-                        ? "bg-[#7c3aed]/20 border-[#7c3aed]/40 text-[#d2bbff]"
-                        : "bg-[#ebf6ff] border-[#005797]/30 text-[#005797]"
-                    }`}
-                  >
-                    AR
-                  </div>
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 ${
-                      roleColors[currentRole].dot
-                    } ${isDark ? "border-[#1f2026]" : "border-white"}`}
-                  />
+                <div className="w-8 h-8 shrink-0 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[1px_1px_0px_#000]">
+                  AR
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span
-                    className={`text-xs font-bold truncate leading-none mb-1 ${
-                      isDark ? "text-white" : "text-[#111827]"
-                    }`}
-                  >
+                  <span className="text-xs font-mono font-black text-white truncate leading-tight">
                     Alex Rivera
                   </span>
-                  <span
-                    className={`text-[10px] font-mono leading-none truncate ${
-                      isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                    }`}
-                  >
-                    Governance Lead
+                  <span className="text-[9.5px] font-mono text-[#888] truncate leading-tight mt-0.5">
+                    {currentRole.toLowerCase()} · inkloom
                   </span>
                 </div>
               </div>
+              <span className={`w-2.5 h-2.5 rounded-none border border-black shrink-0 ${roleColors[currentRole].dot}`} />
             </div>
           )}
         </div>
@@ -895,3 +697,5 @@ export function Sidebar() {
     </>
   );
 }
+
+export default Sidebar;

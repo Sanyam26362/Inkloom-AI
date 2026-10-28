@@ -15,9 +15,9 @@ interface JudgeSession {
 }
 
 const SEVERITY_CONFIG = {
-  CRITICAL: { label: "Critical", color: "bg-red-100 text-red-700 border-red-200", icon: "🔴", dot: "bg-red-500" },
-  WARNING: { label: "Warning", color: "bg-amber-100 text-amber-700 border-amber-200", icon: "🟡", dot: "bg-amber-500" },
-  SUGGESTION: { label: "Suggestion", color: "bg-blue-100 text-blue-700 border-blue-200", icon: "🔵", dot: "bg-blue-500" },
+  CRITICAL: { label: "CRITICAL", badge: "bg-[var(--red)] text-white", border: "border-[var(--red)]", icon: "🔴" },
+  WARNING: { label: "WARNING", badge: "bg-[var(--yellow)] text-black", border: "border-[var(--yellow)]", icon: "🟡" },
+  SUGGESTION: { label: "SUGGESTION", badge: "bg-[var(--blue)] text-black", border: "border-[var(--blue)]", icon: "🔵" },
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -37,7 +37,8 @@ function formatBytes(bytes: number): string {
 
 export default function JudgeCanvasPage() {
   const router = useRouter();
-  const { brands, activeBrandId, setActiveBrandId, currentRole } = useApp();
+  const { brands, activeBrandId, setActiveBrandId, currentRole, theme } = useApp();
+  const isDark = theme === "dark";
 
   useEffect(() => {
     if (currentRole === "CREATOR") {
@@ -235,18 +236,6 @@ export default function JudgeCanvasPage() {
     }
   };
 
-  const complianceColor = (score: number) => {
-    if (score >= 90) return "text-emerald-600";
-    if (score >= 70) return "text-amber-600";
-    return "text-red-600";
-  };
-
-  const complianceBg = (score: number) => {
-    if (score >= 90) return "bg-emerald-50 border-emerald-200";
-    if (score >= 70) return "bg-amber-50 border-amber-200";
-    return "bg-red-50 border-red-200";
-  };
-
   const CONTENT_TYPES: { id: ContentType; label: string; icon: string; accept: string; desc: string }[] = [
     { id: "image", label: "Instagram Post", icon: "📱", accept: "image/*", desc: "JPG, PNG, WEBP" },
     { id: "poster", label: "Poster / Banner", icon: "🖼️", accept: "image/*", desc: "JPG, PNG, WEBP" },
@@ -256,35 +245,51 @@ export default function JudgeCanvasPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className={`w-full min-h-screen p-4 sm:p-6 lg:p-8 font-mono ${isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"}`}>
+      <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg">
+        {/* Page Header */}
+        <div className={`p-5 sm:p-6 border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} flex flex-wrap items-center justify-between gap-4`}>
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 border-3 border-black bg-[var(--yellow)] flex items-center justify-center text-2xl shadow-[3px_3px_0px_#000] shrink-0">
               ⚖️
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Judge Canvas</h1>
-              <p className="text-slate-500 text-sm">AI-powered brand governance evaluation</p>
+              <div className="inline-block px-2 py-0.5 border border-black bg-[var(--blue)] text-[var(--ink)] text-[10px] font-mono font-black uppercase tracking-wider mb-1 shadow-[1px_1px_0px_#000]">
+                EVALUATION BENCHMARK
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black font-archivo tracking-tight uppercase">
+                Judge Canvas // AI Governance Studio
+              </h1>
+              <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] mt-0.5">
+                Multi-Modal Brand Policy Ingestion, Grounded Rule Auditing &amp; Real-time Verification
+              </p>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 border-2 border-black bg-[var(--pink)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000]">
+              ROLE: {currentRole}
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* LEFT PANEL: Upload + Settings */}
-          <div className="lg:col-span-5 space-y-4">
+        {/* Two-Column Studio Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* LEFT PANEL: Upload + Settings (5 cols) */}
+          <div className="lg:col-span-5 space-y-5">
 
-            {/* Brand & Guidelines Selection */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                🏢 Brand & Guidelines
+            {/* Panel 1: Brand & Guidelines Selection */}
+            <div className={`p-4 sm:p-5 border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} space-y-4`}>
+              <h3 className="font-mono font-black text-xs uppercase tracking-wider text-[var(--ink)] dark:text-white flex items-center gap-2 border-b-2 border-black pb-2">
+                <span>🏢</span> BRAND &amp; GUIDELINES CONFIGURATION
               </h3>
 
-              {/* Brand Selector */}
-              <div className="mb-4">
-                <label className="text-xs font-medium text-slate-500 block mb-1.5">Active Brand</label>
+              {/* Active Brand Selector */}
+              <div>
+                <label className="text-[11px] font-mono font-black uppercase text-[#555] dark:text-[#888] block mb-1">
+                  Active Brand Entity
+                </label>
                 <select
                   value={activeBrandId}
                   onChange={(e) => {
@@ -292,73 +297,86 @@ export default function JudgeCanvasPage() {
                     setActiveBrandId(id);
                     setGuidelinesSource("preloaded");
                   }}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className={`w-full px-3 py-2 border-2 border-black font-mono font-bold text-xs ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"} shadow-[3px_3px_0px_#000] focus:outline-none cursor-pointer`}
                 >
                   {brands.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
+                    <option key={b.id} value={b.id}>{b.name.toUpperCase()} (ID: {b.id})</option>
                   ))}
                 </select>
               </div>
 
-              {/* Guidelines Options */}
+              {/* Guidelines Source Options */}
               <div className="space-y-3">
-                <label className="text-xs font-medium text-slate-500 block">Guidelines Source</label>
+                <label className="text-[11px] font-mono font-black uppercase text-[#555] dark:text-[#888] block">
+                  Guidelines Source
+                </label>
+
+                {/* Pre-loaded Guidelines Card */}
                 <div
-                  className={`p-3.5 rounded-xl border-2 transition-all ${
+                  className={`p-3.5 border-3 transition-all ${
                     session?.guidelinesSource === "preloaded"
-                      ? "border-emerald-400 bg-emerald-50/60"
-                      : "border-slate-200 hover:border-slate-300"
+                      ? "border-black bg-[var(--green)]/20 shadow-[3px_3px_0px_#000]"
+                      : "border-black/40 hover:border-black bg-transparent"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5">
                       <span className="text-xl">✅</span>
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">Pre-loaded Guidelines</p>
-                        <p className="text-xs text-slate-500">Blinkit Diwali 2026 guidelines & design system</p>
+                        <p className="text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                          Pre-loaded Brand Guidelines
+                        </p>
+                        <p className="text-[11px] font-mono text-[#555] dark:text-[#a0a5b5]">
+                          Blinkit Diwali 2026 guidelines &amp; design system
+                        </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={handleLoadPremade}
                       disabled={indexingPremade}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all disabled:opacity-50"
+                      className="px-3 py-1.5 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
                     >
-                      {indexingPremade ? "Indexing..." : "⚡ Sync Premade"}
+                      {indexingPremade ? "Syncing..." : "⚡ Sync Premade"}
                     </button>
                   </div>
 
                   {premadeLoadedMessage && (
-                    <div className="mt-2 text-[11px] font-medium text-emerald-700 bg-emerald-100/70 p-1.5 rounded-md">
+                    <div className="mt-2.5 text-[11px] font-mono font-bold text-[var(--ink)] bg-[var(--green)] border-2 border-black p-2 shadow-[2px_2px_0px_#000]">
                       ✓ {premadeLoadedMessage}
                     </div>
                   )}
 
-                  <div className="mt-2.5 pt-2 border-t border-emerald-200/60 flex items-center gap-3 text-xs">
+                  <div className="mt-2.5 pt-2 border-t-2 border-black/20 flex items-center gap-3 text-[11px] font-mono font-bold">
                     <a
                       href="/blinkit_guidelines.pdf"
                       download="blinkit_guidelines.pdf"
-                      className="text-indigo-600 hover:text-indigo-800 underline font-medium flex items-center gap-1"
+                      className="underline hover:opacity-80 flex items-center gap-1"
                     >
-                      📥 Download guidelines.pdf
+                      📥 Guidelines.pdf
                     </a>
-                    <span className="text-slate-300">·</span>
+                    <span>·</span>
                     <a
                       href="/blinkit_design.md"
                       download="blinkit_design.md"
-                      className="text-indigo-600 hover:text-indigo-800 underline font-medium flex items-center gap-1"
+                      className="underline hover:opacity-80 flex items-center gap-1"
                     >
-                      📥 Download design.md
+                      📥 Design.md
                     </a>
                   </div>
                 </div>
 
-                <div className="border-2 border-slate-200 rounded-xl p-3">
-                  <div className="flex items-center gap-3 mb-2">
+                {/* Upload Custom Guidelines */}
+                <div className="border-3 border-black p-3.5 shadow-[2px_2px_0px_#000] bg-white dark:bg-[#1c1d22]">
+                  <div className="flex items-center gap-2.5 mb-2">
                     <span className="text-xl">📂</span>
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">Upload Your Own Guidelines</p>
-                      <p className="text-xs text-slate-500">Upload a custom brand guidelines PDF or markdown</p>
+                      <p className="text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                        Upload Custom Guidelines
+                      </p>
+                      <p className="text-[11px] font-mono text-[#555] dark:text-[#a0a5b5]">
+                        Upload custom brand PDF or markdown ruleset
+                      </p>
                     </div>
                   </div>
                   <input
@@ -374,7 +392,7 @@ export default function JudgeCanvasPage() {
                   <button
                     onClick={() => guidelineRef.current?.click()}
                     disabled={uploadingGuideline}
-                    className="w-full py-2 px-4 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
+                    className="w-full py-2 px-3 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
                   >
                     {uploadingGuideline ? "Uploading..." : guidelineFile ? `✓ ${guidelineFile.name}` : "Choose Custom File"}
                   </button>
@@ -382,27 +400,27 @@ export default function JudgeCanvasPage() {
               </div>
             </div>
 
-            {/* Campaign Event */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                🗓️ Campaign Event
+            {/* Panel 2: Campaign Event */}
+            <div className={`p-4 sm:p-5 border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} space-y-2`}>
+              <h3 className="font-mono font-black text-xs uppercase tracking-wider text-[var(--ink)] dark:text-white flex items-center gap-2 border-b-2 border-black pb-2">
+                <span>🗓️</span> TARGET CAMPAIGN EVENT
               </h3>
               <input
                 type="text"
                 value={campaignEvent}
                 onChange={(e) => setCampaignEvent(e.target.value)}
-                placeholder="e.g. Diwali 2024, Holi, Summer Sale"
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="e.g. Diwali 2026, Holi, Summer Flash Sale"
+                className={`w-full px-3 py-2 border-2 border-black font-mono font-bold text-xs ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"} shadow-[3px_3px_0px_#000] focus:outline-none`}
               />
-              <p className="text-xs text-slate-400 mt-1.5">
-                Content will be checked for relevance to this event
+              <p className="text-[10px] font-mono text-[#555] dark:text-[#888]">
+                Multimodal content will be evaluated for relevance &amp; festival compliance against this event context.
               </p>
             </div>
 
-            {/* Content Type */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                📁 Content Type
+            {/* Panel 3: Content Type Grid */}
+            <div className={`p-4 sm:p-5 border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} space-y-3`}>
+              <h3 className="font-mono font-black text-xs uppercase tracking-wider text-[var(--ink)] dark:text-white flex items-center gap-2 border-b-2 border-black pb-2">
+                <span>📁</span> ASSET FORMAT &amp; MEDIUM
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {CONTENT_TYPES.map((ct) => (
@@ -414,298 +432,345 @@ export default function JudgeCanvasPage() {
                       setFilePreview(null);
                       setAuditResult(null);
                     }}
-                    className={`p-2.5 rounded-xl border-2 text-center transition-all ${
+                    className={`p-2.5 border-2 border-black text-center transition-all cursor-pointer ${
                       contentType === ct.id
-                        ? "border-indigo-400 bg-indigo-50"
-                        : "border-slate-200 hover:border-slate-300"
+                        ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                        : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                     }`}
                   >
-                    <div className="text-2xl">{ct.icon}</div>
-                    <p className="text-xs font-semibold text-slate-700 mt-1">{ct.label}</p>
+                    <div className="text-xl mb-1">{ct.icon}</div>
+                    <p className="text-[11px] font-mono font-black uppercase truncate">{ct.label}</p>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Quick Test Presets for Judges */}
-            <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-amber-50 border border-indigo-200 rounded-2xl p-4 shadow-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                  🧪 Hackathon Demo Presets (1-Click Test)
+            {/* Panel 4: Quick Test Presets (FOR JUDGES) */}
+            <div className={`p-4 sm:p-5 border-4 border-black bg-[var(--blue)]/20 shadow-[6px_6px_0px_#000] space-y-3`}>
+              <div className="flex items-center justify-between border-b-2 border-black pb-2">
+                <span className="text-xs font-mono font-black uppercase tracking-wider text-black flex items-center gap-1.5">
+                  🧪 HACKATHON BENCHMARK PRESETS (1-CLICK)
                 </span>
-                <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 border border-black bg-[var(--yellow)] text-black shadow-[1px_1px_0px_#000]">
                   FOR JUDGES
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600 mb-3">
-                Click any sample to auto-load test assets and evaluate AI governance in real-time:
+              <p className="text-[11px] font-mono text-[#333] dark:text-[#c9d1d9]">
+                Click any benchmark sample below to instantly load test assets and execute verification:
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 gap-2.5">
                 <button
                   type="button"
                   onClick={loadSpiderManDemo}
-                  className="p-2 bg-white hover:bg-red-50 border border-red-200 rounded-xl text-left transition-all group shadow-2xs hover:border-red-300"
+                  className="p-2.5 border-2 border-black bg-[var(--red)]/15 hover:bg-[var(--red)]/25 text-left transition-all shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-red-700">
-                    <span>🕷️</span> Spider-Man Test
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-black uppercase text-[var(--red)] dark:text-[#ff7b72]">
+                    <span>🕷️</span> Spider-Man Superhero Violation
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5 group-hover:text-red-600">
-                    Prohibited superhero off-brand violation (triggers CRITICAL)
+                  <p className="text-[10px] font-mono text-[#444] dark:text-[#a0a5b5] mt-0.5">
+                    Prohibited off-brand superhero IP (Triggers CRITICAL finding)
                   </p>
                 </button>
 
                 <button
                   type="button"
                   onClick={loadCompliantDemo}
-                  className="p-2 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl text-left transition-all group shadow-2xs hover:border-emerald-300"
+                  className="p-2.5 border-2 border-black bg-[var(--green)]/25 hover:bg-[var(--green)]/35 text-left transition-all shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700">
-                    <span>🪔</span> Diwali Sweets Test
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-[#b9f4a8]">
+                    <span>🪔</span> Festive Diwali Sweets Creative
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5 group-hover:text-emerald-600">
-                    Approved brand palette &amp; festive cues (compliant)
+                  <p className="text-[10px] font-mono text-[#444] dark:text-[#a0a5b5] mt-0.5">
+                    Verified brand color palette &amp; festive cues (100% Compliant)
                   </p>
                 </button>
 
                 <button
                   type="button"
                   onClick={loadTextClaimsDemo}
-                  className="p-2 bg-white hover:bg-amber-50 border border-amber-200 rounded-xl text-left transition-all group shadow-2xs hover:border-amber-300"
+                  className="p-2.5 border-2 border-black bg-[var(--yellow)]/30 hover:bg-[var(--yellow)]/45 text-left transition-all shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                 >
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
-                    <span>📝</span> Prohibited Copy Test
+                  <div className="flex items-center gap-1.5 text-xs font-mono font-black uppercase text-black dark:text-[#ffdb1f]">
+                    <span>📝</span> Prohibited Copy &amp; Claims Test
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5 group-hover:text-amber-600">
-                    Flags &quot;guaranteed&quot;, &quot;instant&quot; &amp; standalone &quot;app&quot;
+                  <p className="text-[10px] font-mono text-[#444] dark:text-[#a0a5b5] mt-0.5">
+                    Flags unverified superlatives (&quot;guaranteed&quot;, &quot;instant&quot;, &quot;app&quot;)
                   </p>
                 </button>
               </div>
             </div>
 
-            {/* Content Upload */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                📤 Upload Content
+            {/* Panel 5: Content Upload & Title Input */}
+            <div className={`p-4 sm:p-5 border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} space-y-3`}>
+              <h3 className="font-mono font-black text-xs uppercase tracking-wider text-[var(--ink)] dark:text-white flex items-center gap-2 border-b-2 border-black pb-2">
+                <span>📤</span> SUBMISSION ASSET DETAILS
               </h3>
 
-              <div className="mb-3">
-                <label className="text-xs font-medium text-slate-500 block mb-1.5">Title</label>
+              <div>
+                <label className="text-[11px] font-mono font-black uppercase text-[#555] dark:text-[#888] block mb-1">
+                  Asset Title
+                </label>
                 <input
                   type="text"
                   value={contentTitle}
                   onChange={(e) => setContentTitle(e.target.value)}
-                  placeholder={`e.g. Blinkit ${campaignEvent} Post`}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  placeholder={`e.g. Blinkit ${campaignEvent} Promotion`}
+                  className={`w-full px-3 py-2 border-2 border-black font-mono font-bold text-xs ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"} shadow-[3px_3px_0px_#000] focus:outline-none`}
                 />
               </div>
 
               {contentType === "text" ? (
-                <textarea
-                  value={textContent}
-                  onChange={(e) => setTextContent(e.target.value)}
-                  placeholder="Enter your caption, copy, or text content here..."
-                  rows={5}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
-                />
-              ) : (
-                <div
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleFileDrop}
-                  onClick={() => fileRef.current?.click()}
-                  className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/20 transition-all"
-                >
-                  {filePreview ? (
-                    <img src={filePreview} alt="Preview" className="max-h-40 mx-auto rounded-lg object-contain" />
-                  ) : selectedFile ? (
-                    <div>
-                      <div className="text-3xl mb-2">
-                        {CONTENT_TYPES.find((ct) => ct.id === contentType)?.icon}
-                      </div>
-                      <p className="text-sm font-medium text-slate-700">{selectedFile.name}</p>
-                      <p className="text-xs text-slate-400">{formatBytes(selectedFile.size)}</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="text-3xl mb-2">
-                        {CONTENT_TYPES.find((ct) => ct.id === contentType)?.icon}
-                      </div>
-                      <p className="text-sm text-slate-500">Drop file or click to upload</p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {CONTENT_TYPES.find((ct) => ct.id === contentType)?.desc}
-                      </p>
-                    </div>
-                  )}
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept={CONTENT_TYPES.find((ct) => ct.id === contentType)?.accept}
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleFileSelect(f);
-                    }}
+                <div>
+                  <label className="text-[11px] font-mono font-black uppercase text-[#555] dark:text-[#888] block mb-1">
+                    Text Copy / Ad Script
+                  </label>
+                  <textarea
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    placeholder="Enter your promotional caption, product claims, or ad scripts here..."
+                    rows={5}
+                    className={`w-full p-3 border-2 border-black font-mono text-xs ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"} shadow-[3px_3px_0px_#000] focus:outline-none resize-none leading-relaxed`}
                   />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[11px] font-mono font-black uppercase text-[#555] dark:text-[#888] block mb-1">
+                    Media File Payload
+                  </label>
+                  <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleFileDrop}
+                    onClick={() => fileRef.current?.click()}
+                    className={`border-3 border-dashed border-black p-5 text-center cursor-pointer transition-all shadow-[2px_2px_0px_#000] ${
+                      isDark ? "bg-[#141518] hover:bg-[#1c1d22]" : "bg-[var(--paper)] hover:bg-white"
+                    }`}
+                  >
+                    {filePreview ? (
+                      <div className="border-2 border-black p-2 bg-white inline-block">
+                        <img src={filePreview} alt="Preview" className="max-h-36 mx-auto object-contain" />
+                      </div>
+                    ) : selectedFile ? (
+                      <div>
+                        <div className="text-3xl mb-1">
+                          {CONTENT_TYPES.find((ct) => ct.id === contentType)?.icon}
+                        </div>
+                        <p className="text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-[10px] font-mono text-[#555] dark:text-[#888]">
+                          {formatBytes(selectedFile.size)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-3xl mb-1">
+                          {CONTENT_TYPES.find((ct) => ct.id === contentType)?.icon}
+                        </div>
+                        <p className="text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                          DROP FILE OR CLICK TO UPLOAD
+                        </p>
+                        <p className="text-[10px] font-mono text-[#555] dark:text-[#888] mt-1">
+                          {CONTENT_TYPES.find((ct) => ct.id === contentType)?.desc}
+                        </p>
+                      </div>
+                    )}
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept={CONTENT_TYPES.find((ct) => ct.id === contentType)?.accept}
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleFileSelect(f);
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Audit Button */}
+            {/* Primary Action Button */}
             <button
               onClick={runAudit}
               disabled={isAuditing || !session}
-              className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
+              className="w-full py-4 border-4 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-[var(--ink)] font-archivo font-black text-base sm:text-lg uppercase tracking-tight shadow-[6px_6px_0px_#000] hover:translate-x-1 hover:translate-y-1 hover:shadow-[3px_3px_0px_#000] active:translate-x-1.5 active:translate-y-1.5 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 cursor-pointer"
             >
               {isAuditing ? (
                 <>
-                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="2" strokeDasharray="32" strokeDashoffset="10" />
+                  <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeWidth="3" strokeDasharray="32" strokeDashoffset="10" />
                   </svg>
-                  Running AI Audit...
+                  <span>RUNNING AI GOVERNANCE AUDIT...</span>
                 </>
               ) : (
                 <>
-                  ⚖️ Judge This Content
+                  <span>⚖️ JUDGE THIS CONTENT</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* RIGHT PANEL: Results */}
-          <div className="lg:col-span-7 space-y-4">
+          {/* RIGHT PANEL: Results (7 cols) */}
+          <div className="lg:col-span-7 space-y-5">
+            {/* Empty State */}
             {!auditResult && !error && !isAuditing && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-                <div className="text-5xl mb-4">🤖</div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Ready to Judge</h3>
-                <p className="text-slate-500 max-w-sm mx-auto">
-                  Upload content and click &quot;Judge This Content&quot; to run an AI-powered brand
-                  governance audit against {session?.brandName || "brand"} guidelines.
+              <div className={`border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} p-10 text-center flex flex-col items-center`}>
+                <div className="w-16 h-16 border-3 border-black bg-[var(--yellow)] flex items-center justify-center text-3xl shadow-[4px_4px_0px_#000] mb-4">
+                  🤖
+                </div>
+                <h3 className="text-xl font-archivo font-black uppercase text-[var(--ink)] dark:text-white mb-2">
+                  Ready to Evaluate Content
+                </h3>
+                <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] max-w-md leading-relaxed">
+                  Configure submission asset details on the left or select a 1-click test preset to initiate multi-modal AI brand governance against {session?.brandName || "Brand"} policies.
                 </p>
                 {campaignEvent && (
-                  <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full text-sm text-amber-700 font-medium">
-                    🗓️ Evaluating for: <strong>{campaignEvent}</strong>
+                  <div className="mt-5 inline-flex items-center gap-2 px-3.5 py-1.5 border-2 border-black bg-[var(--yellow)]/30 text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000]">
+                    🗓️ EVALUATING FOR CONTEXT: {campaignEvent}
                   </div>
                 )}
               </div>
             )}
 
+            {/* Loading State */}
             {isAuditing && (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-sm">
-                <div className="relative inline-flex mb-6">
-                  <div className="w-16 h-16 rounded-full border-4 border-indigo-100 border-t-indigo-500 animate-spin" />
+              <div className={`border-4 border-black ${isDark ? "bg-[#18191f]" : "bg-[var(--white)]"} shadow-[6px_6px_0px_#000] p-10 text-center flex flex-col items-center`}>
+                <div className="relative inline-flex mb-4">
+                  <div className="w-16 h-16 border-4 border-black border-t-[var(--yellow)] animate-spin" />
                   <div className="absolute inset-0 flex items-center justify-center text-2xl">🤖</div>
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Analysing Content...</h3>
-                <p className="text-slate-500 text-sm">
-                  Gemini AI is reviewing your content against {session?.brandName} brand guidelines
+                <h3 className="text-xl font-archivo font-black uppercase text-[var(--ink)] dark:text-white mb-2">
+                  Analysing Content Multimodality...
+                </h3>
+                <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5]">
+                  Google Gemini 2.5 Flash is inspecting visual cues, text claims, and audio tone against {session?.brandName} brand guidelines.
                 </p>
               </div>
             )}
 
+            {/* Error State */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 shadow-sm">
+              <div className="border-4 border-black bg-[var(--red)] text-white shadow-[6px_6px_0px_#000] p-6">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">❌</span>
                   <div>
-                    <h3 className="font-bold text-red-800">Audit Failed</h3>
-                    <p className="text-sm text-red-600 mt-1">{error}</p>
+                    <h3 className="font-archivo font-black text-base uppercase">Audit Execution Failed</h3>
+                    <p className="text-xs font-mono mt-1 leading-relaxed">{error}</p>
                   </div>
                 </div>
               </div>
             )}
 
+            {/* Result State */}
             {auditResult && (
-              <>
-                {/* Score Card */}
-                <div className={`rounded-2xl border p-6 shadow-sm ${complianceBg(auditResult.compliance_score)}`}>
-                  <div className="flex items-center justify-between">
+              <div className="space-y-5">
+                {/* Score & Index Card */}
+                <div className={`border-4 border-black p-6 shadow-[6px_6px_0px_#000] ${
+                  auditResult.compliance_score >= 90
+                    ? "bg-[var(--green)]/20"
+                    : auditResult.compliance_score >= 70
+                    ? "bg-[var(--yellow)]/20"
+                    : "bg-[var(--red)]/20"
+                }`}>
+                  <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-medium text-slate-600 mb-1">Compliance Score</p>
-                      <div className={`text-5xl font-bold font-mono ${complianceColor(auditResult.compliance_score)}`}>
+                      <p className="text-xs font-mono font-black uppercase tracking-wider text-[#555] dark:text-[#a0a5b5]">
+                        COMPLIANCE EVALUATION SCORE
+                      </p>
+                      <div className="text-5xl font-archivo font-black mt-1 text-[var(--ink)] dark:text-white">
                         {auditResult.compliance_score.toFixed(1)}%
                       </div>
-                      <p className="text-sm text-slate-500 mt-1">
-                        {auditResult.total_findings} findings · {auditResult.status.replace("_", " ")}
+                      <p className="text-xs font-mono font-bold mt-1 text-[#333] dark:text-[#c9d1d9]">
+                        {auditResult.total_findings} FINDINGS LOGGED · STATUS: {auditResult.status.replace("_", " ").toUpperCase()}
                       </p>
                     </div>
-                    <div className="text-6xl">
+
+                    <div className="w-16 h-16 border-3 border-black bg-white flex items-center justify-center text-3xl shadow-[3px_3px_0px_#000]">
                       {auditResult.compliance_score >= 90 ? "✅" : auditResult.compliance_score >= 70 ? "⚠️" : "🚫"}
                     </div>
                   </div>
 
-                  {/* Progress bar */}
-                  <div className="mt-4 h-2.5 bg-white/60 rounded-full overflow-hidden">
+                  {/* Progress Bar */}
+                  <div className="mt-4 h-4 bg-black/20 border-2 border-black overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-1000 ${
+                      className={`h-full border-r-2 border-black transition-all duration-1000 ${
                         auditResult.compliance_score >= 90
-                          ? "bg-emerald-500"
+                          ? "bg-[var(--green)]"
                           : auditResult.compliance_score >= 70
-                          ? "bg-amber-500"
-                          : "bg-red-500"
+                          ? "bg-[var(--yellow)]"
+                          : "bg-[var(--red)]"
                       }`}
                       style={{ width: `${auditResult.compliance_score}%` }}
                     />
                   </div>
 
-                  {/* Severity breakdown */}
+                  {/* Severity Breakdown Grid */}
                   <div className="grid grid-cols-3 gap-3 mt-4">
                     {Object.entries(auditResult.findings_by_severity).map(([sev, count]) => {
-                      const cfg = SEVERITY_CONFIG[sev as keyof typeof SEVERITY_CONFIG];
+                      const cfg = SEVERITY_CONFIG[sev as keyof typeof SEVERITY_CONFIG] || SEVERITY_CONFIG.WARNING;
                       return (
-                        <div key={sev} className={`p-2.5 rounded-xl border text-center ${cfg.color}`}>
-                          <div className="text-xl font-bold">{count}</div>
-                          <div className="text-[11px] font-semibold">{cfg.label}</div>
+                        <div key={sev} className={`p-2.5 border-2 border-black text-center shadow-[2px_2px_0px_#000] ${cfg.badge}`}>
+                          <div className="text-xl font-mono font-black">{count}</div>
+                          <div className="text-[10px] font-mono font-black uppercase tracking-wider">{cfg.label}</div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Findings */}
+                {/* Findings List */}
                 {auditResult.findings && auditResult.findings.length > 0 && (
-                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                    <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                      🔍 Audit Findings
+                  <div className={`border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} p-5`}>
+                    <h3 className="font-archivo font-black text-sm uppercase tracking-tight text-[var(--ink)] dark:text-white mb-4 flex items-center gap-2 border-b-2 border-black pb-2">
+                      🔍 AUDIT FINDINGS &amp; DETECTOR CITATIONS
                     </h3>
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+
+                    <div className="space-y-3.5 max-h-[520px] overflow-y-auto pr-1">
                       {auditResult.findings.map((finding: AuditFinding, idx: number) => {
                         const sev = finding.severity as keyof typeof SEVERITY_CONFIG;
                         const cfg = SEVERITY_CONFIG[sev] || SEVERITY_CONFIG.WARNING;
                         return (
-                          <div key={finding.id || idx} className={`p-4 rounded-xl border ${cfg.color}`}>
-                            <div className="flex items-start gap-3">
-                              <span className="text-lg shrink-0 mt-0.5">{cfg.icon}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${cfg.color}`}>
-                                    {cfg.label}
-                                  </span>
-                                  <span className="text-xs text-slate-500 flex items-center gap-1">
-                                    {CATEGORY_ICONS[finding.category] || "📋"}
-                                    {finding.category}
-                                  </span>
-                                  {finding.detector_source && (
-                                    <span className="text-[10px] text-slate-400 font-mono">
-                                      {finding.detector_source}
-                                    </span>
-                                  )}
-                                </div>
-                                {finding.flagged_excerpt && (
-                                  <div className="mb-1">
-                                    <span className="text-xs text-slate-400">Flagged: </span>
-                                    <code className="text-xs bg-white/80 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">
-                                      {finding.flagged_excerpt}
-                                    </code>
-                                  </div>
-                                )}
-                                <p className="text-xs text-slate-700 leading-relaxed">{finding.explanation}</p>
-                                {finding.suggested_correction && (
-                                  <div className="mt-2 p-2 bg-white/60 rounded-lg border border-current/20">
-                                    <p className="text-[11px] font-semibold text-slate-600 mb-0.5">💡 Suggestion:</p>
-                                    <p className="text-xs text-slate-600">{finding.suggested_correction}</p>
-                                  </div>
-                                )}
+                          <div
+                            key={finding.id || idx}
+                            className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-white"} shadow-[3px_3px_0px_#000] space-y-2`}
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-mono font-black px-2 py-0.5 border border-black uppercase shadow-[1px_1px_0px_#000] ${cfg.badge}`}>
+                                  {cfg.label}
+                                </span>
+                                <span className="text-xs font-mono font-bold flex items-center gap-1">
+                                  {CATEGORY_ICONS[finding.category] || "📋"}
+                                  {finding.category}
+                                </span>
                               </div>
+                              {finding.detector_source && (
+                                <span className="text-[10px] font-mono text-[#666] dark:text-[#999] uppercase">
+                                  SRC: {finding.detector_source}
+                                </span>
+                              )}
                             </div>
+
+                            {finding.flagged_excerpt && (
+                              <div className="p-2 border-2 border-black bg-[var(--red)]/10 text-xs font-mono font-bold text-[var(--red)] dark:text-[#ff7b72]">
+                                Flagged: “{finding.flagged_excerpt}”
+                              </div>
+                            )}
+
+                            <p className="text-xs font-mono leading-relaxed text-[#333] dark:text-[#c9d1d9]">
+                              {finding.explanation}
+                            </p>
+
+                            {finding.suggested_correction && (
+                              <div className="p-2 border-2 border-black bg-[var(--green)]/20 text-xs font-mono">
+                                <p className="text-[10px] font-black uppercase text-[var(--ink)] dark:text-white mb-0.5">
+                                  💡 APPROVED SUGGESTION:
+                                </p>
+                                <p className="font-bold text-[var(--ink)] dark:text-[#b9f4a8]">
+                                  “{finding.suggested_correction}”
+                                </p>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -713,17 +778,17 @@ export default function JudgeCanvasPage() {
                   </div>
                 )}
 
-                {/* No findings */}
+                {/* All Clear Card */}
                 {(!auditResult.findings || auditResult.findings.length === 0) && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center shadow-sm">
-                    <div className="text-5xl mb-3">✅</div>
-                    <h3 className="font-bold text-emerald-800 text-lg">All Clear!</h3>
-                    <p className="text-emerald-600 text-sm mt-1">
-                      No brand governance violations detected. Content is compliant with {session?.brandName} guidelines.
+                  <div className="border-4 border-black bg-[var(--green)] text-[var(--ink)] p-8 text-center shadow-[6px_6px_0px_#000]">
+                    <div className="text-5xl mb-2">✅</div>
+                    <h3 className="font-archivo font-black text-xl uppercase">All Clear — Fully Compliant!</h3>
+                    <p className="text-xs font-mono font-bold mt-1">
+                      No brand governance violations detected. Content strictly adheres to {session?.brandName} brand guidelines.
                     </p>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

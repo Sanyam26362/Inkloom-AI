@@ -2,13 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { PackSummary, UserRole, BrandProfile } from "@/lib/types";
-import { OnboardingHeader } from "@/components/onboarding/OnboardingHeader";
-import { OnboardingProgress } from "@/components/onboarding/OnboardingProgress";
-import { SelectClientHeading } from "@/components/onboarding/SelectClientHeading";
-import { ClientSelectionLayout } from "@/components/onboarding/ClientSelectionLayout";
+import { PackSummary, BrandProfile } from "@/lib/types";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -18,7 +15,6 @@ export default function OnboardingPage() {
     setActiveBrandId,
     refreshBrands,
     refreshCampaigns,
-    loginAsDemoUser,
     theme,
     toggleTheme,
     currentRole,
@@ -80,8 +76,6 @@ export default function OnboardingPage() {
   const [newBannedTerm, setNewBannedTerm] = useState("");
   const [newPrefKey, setNewPrefKey] = useState("");
   const [newPrefVal, setNewPrefVal] = useState("");
-
-
 
   // Load available packs on mount
   useEffect(() => {
@@ -329,119 +323,430 @@ export default function OnboardingPage() {
     }
   };
 
+  const steps = [
+    { num: 1, label: "SELECT WORKSPACE", sub: "Brand Identity & Tenant" },
+    { num: 2, label: "INGEST GUIDELINES", sub: "RAG pgvector Indexing" },
+    { num: 3, label: "REVIEW RULESET", sub: "Deterministic Policies" },
+  ];
+
   return (
     <div
-      className={`onboarding-root min-h-screen flex flex-col font-sans selection:bg-[#635BFF] selection:text-white transition-colors duration-200 ${
-        isDark ? "bg-[#0d0e12] text-[#e3e2e6]" : "bg-[#FAF9FE] text-[#111827]"
+      className={`w-full min-h-screen p-4 sm:p-6 lg:p-8 font-mono ${
+        isDark ? "bg-[#101010] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
       }`}
-      style={{
-        fontFamily:
-          'var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
     >
-      {/* Redesigned Enterprise Top Bar */}
-      <OnboardingHeader theme={theme} toggleTheme={toggleTheme} />
+      {/* Toast Notification */}
+      {(successMessage || errorMessage) && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 max-w-md border-3 border-black p-4 shadow-[6px_6px_0px_#000000] flex items-start gap-3 ${
+            successMessage
+              ? "bg-[var(--green)] text-black"
+              : "bg-[var(--red)] text-white"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[24px]">
+            {successMessage ? "check_circle" : "error"}
+          </span>
+          <div className="flex-1 text-xs font-mono font-bold leading-relaxed">
+            {successMessage || errorMessage}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSuccessMessage(null);
+              setErrorMessage(null);
+            }}
+            className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
-      {/* Centered Wizard Progress Bar */}
-      <OnboardingProgress
-        currentStep={currentStep}
-        onStepClick={(step) => setCurrentStep(step)}
-      />
+      <div className="max-w-[1360px] mx-auto">
+        {/* Top Header Bar */}
+        <header
+          className={`p-4 sm:p-5 border-4 ${
+            isDark
+              ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+              : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+          } flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 border-2 border-black bg-[var(--yellow)] flex items-center justify-center font-archivo font-black text-black text-base shadow-[2px_2px_0px_#000]">
+              IK
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 border border-black bg-[var(--yellow)] text-black text-[9px] font-black uppercase shadow-[1px_1px_0px_#000]">
+                  SETUP WIZARD
+                </span>
+                <span className="text-[10px] font-black uppercase text-[#666] dark:text-[#888]">
+                  ROLE: {currentRole}
+                </span>
+              </div>
+              <h1 className="font-archivo font-black text-base sm:text-lg uppercase text-[var(--ink)] dark:text-white leading-tight">
+                Inkloom AI Enterprise Onboarding
+              </h1>
+            </div>
+          </div>
 
-      {/* Main Container */}
-      <main className="flex-1 w-full mx-auto flex flex-col justify-start">
-        {/* Error / Success Notifications */}
-        <div className="max-w-3xl w-full mx-auto px-4 mt-3">
-          {errorMessage && (
-            <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs sm:text-sm flex items-center justify-between shadow-2xs">
-              <span>{errorMessage}</span>
-              <button
-                type="button"
-                onClick={() => setErrorMessage(null)}
-                className="text-red-500 hover:text-red-700 font-bold ml-4 cursor-pointer"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          {successMessage && (
-            <div className="mb-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm flex items-center justify-between shadow-2xs">
-              <span>{successMessage}</span>
-              <button
-                type="button"
-                onClick={() => setSuccessMessage(null)}
-                className="text-emerald-500 hover:text-emerald-700 font-bold ml-4 cursor-pointer"
-              >
-                ×
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <Link
+              href="/dashboard"
+              className="px-3 py-1.5 border-2 border-black bg-[var(--blue)] text-black font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">dashboard</span>
+              Skip to Dashboard →
+            </Link>
+
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+              className="w-8 h-8 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-black text-xs flex items-center justify-center shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">
+                {isDark ? "light_mode" : "dark_mode"}
+              </span>
+            </button>
+          </div>
+        </header>
+
+        {/* Wizard Stepper Progress Bar */}
+        <div
+          className={`p-4 sm:p-5 border-4 ${
+            isDark
+              ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+              : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+          } mb-8`}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {steps.map((s) => {
+              const isActive = currentStep === s.num;
+              const isCompleted = currentStep > s.num;
+
+              return (
+                <button
+                  key={s.num}
+                  type="button"
+                  disabled={!isCompleted}
+                  onClick={() => isCompleted && setCurrentStep(s.num)}
+                  className={`p-3 border-2 border-black text-left transition-all ${
+                    isActive
+                      ? "bg-[var(--yellow)] text-black shadow-[4px_4px_0px_#000] translate-x-0.5 translate-y-0.5"
+                      : isCompleted
+                      ? "bg-[var(--green)]/25 text-[var(--ink)] dark:text-white shadow-[2px_2px_0px_#000] cursor-pointer hover:bg-[var(--green)]/35"
+                      : "bg-white/50 dark:bg-[#141518]/50 text-[#888] border-dashed cursor-not-allowed opacity-75"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider">
+                      STEP 0{s.num}
+                    </span>
+                    {isCompleted && (
+                      <span className="px-1.5 py-0.2 border border-black bg-[var(--green)] text-black text-[9px] font-black uppercase">
+                        ✓ DONE
+                      </span>
+                    )}
+                    {isActive && (
+                      <span className="px-1.5 py-0.2 border border-black bg-black text-[var(--yellow)] text-[9px] font-black uppercase">
+                        ACTIVE
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-archivo font-black text-xs sm:text-sm uppercase tracking-tight truncate">
+                    {s.label}
+                  </div>
+                  <div className="text-[10px] text-[#555] dark:text-[#999] truncate mt-0.5 font-mono">
+                    {s.sub}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* STEP 1: SELECT CLIENT (Redesigned Enterprise UI) */}
+        {/* STEP 1: SELECT CLIENT */}
         {currentStep === 1 && (
-          <section className="w-full flex flex-col items-center">
-            <SelectClientHeading />
-            <ClientSelectionLayout
-              clientType={clientType}
-              setClientType={setClientType}
-              customBrandName={customBrandName}
-              setCustomBrandName={setCustomBrandName}
-              customTone={customTone}
-              setCustomTone={setCustomTone}
-              guidelineFile={guidelineFile}
-              setGuidelineFile={setGuidelineFile}
-              onContinue={handleStep1Submit}
-              loading={loading}
-            />
-          </section>
-        )}
-
-        {/* STEPS 2, 3, 4 CONTAINER */}
-        {currentStep > 1 && (
-          <div className="max-w-5xl w-full mx-auto px-4 py-8">
-        {/* STEP 2: INGEST GUIDELINES */}
-        {currentStep === 2 && (
-          <div
-            className={`p-6 sm:p-8 rounded-2xl border shadow-xl transition-all ${
-              isDark ? "bg-[#14151c] border-[#2b2c36]" : "bg-white border-[#e2e8f0]"
-            }`}
-          >
-            <div className="text-center max-w-xl mx-auto mb-8">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 px-3 py-1 rounded-full">
-                Step 2 of 3
+          <section className="space-y-6">
+            <div className="text-center max-w-2xl mx-auto mb-6">
+              <span className="px-3 py-1 border-2 border-black bg-[var(--pink)] text-black text-[10px] font-black uppercase shadow-[2px_2px_0px_#000]">
+                STEP 01 OF 03 // CLIENT PROVISIONING
               </span>
-              <h2 className="text-2xl font-black mt-3 mb-2 tracking-tight">Ingest Brand Guidelines</h2>
-              <p className={`text-sm ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                Load the pre-indexed Blinkit Diwali 2026 pack or upload custom PDFs for RAG semantic indexing.
+              <h2 className="font-archivo font-black text-2xl sm:text-3xl uppercase tracking-tight text-[var(--ink)] dark:text-white mt-3 mb-2">
+                Choose Enterprise Governance Workspace
+              </h2>
+              <p className="text-xs sm:text-sm font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed">
+                Select the pre-configured quick-commerce benchmark client or initialize a custom brand workspace with dedicated guidelines and policy extraction.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto mb-8">
-              {/* Option A: 1-Click Premade Pack */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+              {/* Option 1: Blinkit Quick-Commerce Demo */}
               <div
-                className={`p-6 rounded-xl border flex flex-col justify-between ${
-                  isDark ? "bg-[#1a1b24] border-[#2b2c36]" : "bg-slate-50 border-[#e2e8f0]"
+                onClick={() => setClientType("blinkit")}
+                role="radio"
+                aria-checked={clientType === "blinkit"}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setClientType("blinkit");
+                  }
+                }}
+                className={`p-6 border-4 border-black transition-all cursor-pointer flex flex-col justify-between ${
+                  clientType === "blinkit"
+                    ? "bg-[var(--yellow)]/20 shadow-[8px_8px_0px_#000] border-black"
+                    : isDark
+                    ? "bg-[#18191f] border-[#383a45] shadow-[4px_4px_0px_#000]"
+                    : "bg-[var(--white)] shadow-[4px_4px_0px_#000]"
                 }`}
               >
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">⚡</span>
-                    <h3 className="font-bold text-base">Blinkit Diwali 2026 Pack</h3>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 border-2 border-black bg-[#F8C200] text-black font-archivo font-black text-2xl flex items-center justify-center shadow-[2px_2px_0px_#000]">
+                        b
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-archivo font-black text-lg uppercase text-[var(--ink)] dark:text-white">
+                            Blinkit
+                          </h3>
+                          <span className="px-2 py-0.5 border border-black bg-[var(--green)] text-black text-[9px] font-black uppercase shadow-[1px_1px_0px_#000]">
+                            RECOMMENDED DEMO
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-mono text-[#666] dark:text-[#888] uppercase mt-0.5">
+                          Quick Commerce Retail
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-6 h-6 border-2 border-black flex items-center justify-center ${
+                        clientType === "blinkit" ? "bg-black" : "bg-white"
+                      }`}
+                    >
+                      {clientType === "blinkit" && (
+                        <span className="w-2.5 h-2.5 bg-[var(--yellow)]" />
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-xs font-mono text-[#444] dark:text-[#c0c5d5] leading-relaxed mb-4">
+                    Pre-packaged with authentic Diwali 2026 campaign briefs, visual palette rules (#F8C200, #00A36C), banned terminology, and multi-modal compliance benchmarks.
+                  </p>
+
+                  <div className="p-3.5 border-2 border-black bg-white dark:bg-[#121316] space-y-2 mb-4 font-mono text-xs">
+                    <div className="flex items-center gap-2 text-[var(--ink)] dark:text-[#b9f4a8]">
+                      <span>✓</span>
+                      <span>Authentic Diwali 2026 campaign briefs &amp; assets</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[var(--ink)] dark:text-[#b9f4a8]">
+                      <span>✓</span>
+                      <span>Approved palette: Sunflower Yellow &amp; Forest Green</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[var(--ink)] dark:text-[#b9f4a8]">
+                      <span>✓</span>
+                      <span>Zero-tolerance banned terminology preloaded</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[var(--ink)] dark:text-[#b9f4a8]">
+                      <span>✓</span>
+                      <span>Multimodal test suite (posters, audio, video)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t-2 border-black flex items-center justify-between font-mono text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 border border-black bg-[#F8C200]" title="#F8C200" />
+                    <span className="w-4 h-4 border border-black bg-[#00A36C]" title="#00A36C" />
+                    <span className="w-4 h-4 border border-black bg-[#1C1C1E]" title="#1C1C1E" />
+                    <span className="text-[10px] text-[#666] dark:text-[#888] uppercase">Diwali 2026 Pack</span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase text-[var(--green)]">
+                    ⚡ 1-Click Ready
+                  </span>
+                </div>
+              </div>
+
+              {/* Option 2: Custom Brand Tenant */}
+              <div
+                onClick={() => setClientType("custom")}
+                role="radio"
+                aria-checked={clientType === "custom"}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setClientType("custom");
+                  }
+                }}
+                className={`p-6 border-4 border-black transition-all cursor-pointer flex flex-col justify-between ${
+                  clientType === "custom"
+                    ? "bg-[var(--pink)]/15 shadow-[8px_8px_0px_#000] border-black"
+                    : isDark
+                    ? "bg-[#18191f] border-[#383a45] shadow-[4px_4px_0px_#000]"
+                    : "bg-[var(--white)] shadow-[4px_4px_0px_#000]"
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 border-2 border-black bg-[var(--pink)] text-black font-archivo font-black text-2xl flex items-center justify-center shadow-[2px_2px_0px_#000]">
+                        +
+                      </div>
+                      <div>
+                        <h3 className="font-archivo font-black text-lg uppercase text-[var(--ink)] dark:text-white">
+                          New Brand
+                        </h3>
+                        <p className="text-[11px] font-mono text-[#666] dark:text-[#888] uppercase mt-0.5">
+                          Custom Enterprise Tenant
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      className={`w-6 h-6 border-2 border-black flex items-center justify-center ${
+                        clientType === "custom" ? "bg-black" : "bg-white"
+                      }`}
+                    >
+                      {clientType === "custom" && (
+                        <span className="w-2.5 h-2.5 bg-[var(--pink)]" />
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-xs font-mono text-[#444] dark:text-[#c0c5d5] leading-relaxed mb-4">
+                    Configure a brand from scratch. Upload any PDF or markdown brand book and let our AI pipeline extract and index governance rules automatically.
+                  </p>
+
+                  {clientType === "custom" ? (
+                    <div
+                      className="space-y-3 mb-4 p-4 border-2 border-black bg-white dark:bg-[#121316]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-[var(--ink)] dark:text-white mb-1">
+                          Brand Name *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Acme Health Corp"
+                          value={customBrandName}
+                          onChange={(e) => setCustomBrandName(e.target.value)}
+                          className="w-full h-9 px-3 border-2 border-black font-mono text-xs font-bold text-black dark:text-white bg-white dark:bg-[#1a1b22] focus:outline-none shadow-[2px_2px_0px_#000]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase text-[var(--ink)] dark:text-white mb-1">
+                          Tone &amp; Persona
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Vibrant, youthful, reliable"
+                          value={customTone}
+                          onChange={(e) => setCustomTone(e.target.value)}
+                          className="w-full h-9 px-3 border-2 border-black font-mono text-xs font-bold text-black dark:text-white bg-white dark:bg-[#1a1b22] focus:outline-none shadow-[2px_2px_0px_#000]"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 border-2 border-black bg-white dark:bg-[#121316] space-y-2 mb-4 font-mono text-xs">
+                      <div className="flex items-center gap-2 text-[var(--ink)] dark:text-white">
+                        <span>✓</span>
+                        <span>Upload proprietary brand guideline documents</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[var(--ink)] dark:text-white">
+                        <span>✓</span>
+                        <span>Self-serve RAG pipeline with 768-dim embeddings</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[var(--ink)] dark:text-white">
+                        <span>✓</span>
+                        <span>Customizable deterministic policy thresholds</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-3 border-t-2 border-black flex items-center justify-between font-mono text-xs">
+                  <span className="text-[10px] text-[#666] dark:text-[#888] uppercase">Custom Workspace</span>
+                  <span className="text-[10px] font-black uppercase text-[var(--pink)]">
+                    Self-Serve RAG
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions Row */}
+            <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t-2 border-black">
+              <span className="text-xs font-mono text-[#666] dark:text-[#888]">
+                Selected: <strong className="text-[var(--ink)] dark:text-white uppercase">{clientType}</strong>
+              </span>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleStep1Submit}
+                className="w-full sm:w-auto px-8 py-3 border-3 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-archivo font-black text-sm uppercase shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {loading ? "Provisioning Brand..." : "Continue to Ingestion →"}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* STEP 2: INGEST GUIDELINES */}
+        {currentStep === 2 && (
+          <section
+            className={`p-6 sm:p-8 border-4 ${
+              isDark
+                ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+                : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            } max-w-5xl mx-auto`}
+          >
+            <div className="text-center max-w-xl mx-auto mb-8">
+              <span className="px-3 py-1 border-2 border-black bg-[var(--blue)] text-black text-[10px] font-black uppercase shadow-[2px_2px_0px_#000]">
+                STEP 02 OF 03 // GUIDELINES INGESTION
+              </span>
+              <h2 className="font-archivo font-black text-2xl uppercase tracking-tight text-[var(--ink)] dark:text-white mt-3 mb-2">
+                Ingest Brand Guidelines
+              </h2>
+              <p className="text-xs sm:text-sm font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed">
+                Load the pre-indexed Blinkit Diwali 2026 pack or upload custom PDFs for RAG semantic vector indexing.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-8">
+              {/* Option A: 1-Click Premade Pack */}
+              <div
+                className={`p-6 border-3 border-black flex flex-col justify-between shadow-[4px_4px_0px_#000] ${
+                  isDark ? "bg-[#141518]" : "bg-[var(--paper)]"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">⚡</span>
+                      <h3 className="font-archivo font-black text-base uppercase text-[var(--ink)] dark:text-white">
+                        Blinkit Diwali 2026 Pack
+                      </h3>
+                    </div>
                     {packs.length > 0 && (
-                      <span className="ml-auto text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      <span className="px-2 py-0.5 border border-black bg-[var(--yellow)] text-black text-[9px] font-black uppercase">
                         {packs[0].name}
                       </span>
                     )}
                   </div>
-                  <p className={`text-xs mb-4 ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Indexes official brand visual guidelines, color palette specifications, font rules, tone parameters,
-                    and Diwali festive campaign brief into pgvector.
+                  <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed mb-4">
+                    Indexes official brand visual guidelines, color palette specifications, font rules, tone parameters, and Diwali festive campaign brief into pgvector.
                   </p>
-                  <div className={`p-3 rounded-lg text-xs space-y-1 mb-4 ${isDark ? "bg-[#121319]" : "bg-white border"}`}>
-                    <div className="text-[11px] font-mono text-[#94a3b8]">✓ blinkit_brand_guidelines.pdf</div>
-                    <div className="text-[11px] font-mono text-[#94a3b8]">✓ blinkit_diwali_campaign_brief.md</div>
-                    <div className="text-[11px] font-mono text-[#94a3b8]">✓ 12+ RAG guideline chunks with pgvector embeddings</div>
+                  <div className="p-3 border-2 border-black bg-white dark:bg-[#1c1d22] text-xs font-mono space-y-1.5 mb-5 shadow-[2px_2px_0px_#000]">
+                    <div className="text-[11px] text-[var(--ink)] dark:text-[#b9f4a8]">✓ blinkit_brand_guidelines.pdf</div>
+                    <div className="text-[11px] text-[var(--ink)] dark:text-[#b9f4a8]">✓ blinkit_diwali_campaign_brief.md</div>
+                    <div className="text-[11px] text-[var(--ink)] dark:text-[#b9f4a8]">✓ 12+ RAG guideline chunks with pgvector embeddings</div>
                   </div>
                 </div>
 
@@ -449,42 +754,46 @@ export default function OnboardingPage() {
                   type="button"
                   disabled={loading}
                   onClick={handleLoadPremadePack}
-                  className="w-full py-2.5 rounded-xl font-bold text-xs bg-[#F8C200] hover:bg-[#e5b300] text-black shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full py-3 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-archivo font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
+                  <span className="material-symbols-outlined text-[18px]">bolt</span>
                   {loading ? "Indexing Pack..." : "🚀 Load Blinkit Pack (1-Click)"}
                 </button>
               </div>
 
               {/* Option B: Upload Document */}
               <div
-                className={`p-6 rounded-xl border flex flex-col justify-between ${
-                  isDark ? "bg-[#1a1b24] border-[#2b2c36]" : "bg-slate-50 border-[#e2e8f0]"
+                className={`p-6 border-3 border-black flex flex-col justify-between shadow-[4px_4px_0px_#000] ${
+                  isDark ? "bg-[#141518]" : "bg-[var(--paper)]"
                 }`}
               >
                 <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">📄</span>
-                    <h3 className="font-bold text-base">Upload Custom Guidelines</h3>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-2xl">📄</span>
+                    <h3 className="font-archivo font-black text-base uppercase text-[var(--ink)] dark:text-white">
+                      Upload Custom Guidelines
+                    </h3>
                   </div>
-                  <p className={`text-xs mb-4 ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
-                    Upload a PDF or Markdown file. Our RAG engine extracts text, generates 768-dim embeddings, and
-                    automatically structures governance rules.
+                  <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed mb-4">
+                    Upload a PDF or Markdown file. Our RAG engine extracts text, generates 768-dim embeddings, and automatically structures governance rules.
                   </p>
 
                   <label
-                    className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all ${
+                    className={`border-3 border-dashed border-black p-5 flex flex-col items-center justify-center cursor-pointer transition-all shadow-[2px_2px_0px_#000] ${
                       guidelineFile
-                        ? "border-[#7c3aed] bg-[#7c3aed]/5"
-                        : isDark
-                        ? "border-[#2b2c36] hover:border-[#3b3c48]"
-                        : "border-[#cbd5e1] hover:border-[#94a3b8]"
+                        ? "bg-[var(--pink)]/20"
+                        : "bg-white dark:bg-[#1c1d22] hover:bg-black/5"
                     }`}
                   >
-                    <span className="text-2xl mb-1">📁</span>
-                    <span className="text-xs font-semibold text-center truncate max-w-[200px]">
+                    <span className="material-symbols-outlined text-[32px] mb-1 text-black dark:text-white">
+                      cloud_upload
+                    </span>
+                    <span className="text-xs font-mono font-black text-center uppercase truncate max-w-[220px]">
                       {guidelineFile ? guidelineFile.name : "Choose PDF or Markdown"}
                     </span>
-                    <span className="text-[10px] text-[#94a3b8] mt-0.5">Up to 25MB</span>
+                    <span className="text-[10px] font-mono text-[#666] dark:text-[#888] mt-0.5">
+                      Up to 25MB (.pdf, .md, .txt)
+                    </span>
                     <input
                       type="file"
                       accept=".pdf,.md,.txt"
@@ -498,68 +807,79 @@ export default function OnboardingPage() {
                   type="button"
                   disabled={!guidelineFile || loading}
                   onClick={handleUploadCustomGuideline}
-                  className="w-full mt-4 py-2.5 rounded-xl font-bold text-xs bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full mt-4 py-3 border-2 border-black bg-[var(--pink)] hover:opacity-95 text-black font-archivo font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
+                  <span className="material-symbols-outlined text-[18px]">publish</span>
                   {loading ? "Uploading & Indexing..." : "Upload & Extract Rules →"}
                 </button>
               </div>
             </div>
 
-            <div className="flex justify-between max-w-3xl mx-auto">
+            <div className="flex justify-between max-w-4xl mx-auto pt-4 border-t-2 border-black">
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold ${
-                  isDark ? "text-[#94a3b8] hover:text-white" : "text-[#64748b] hover:text-black"
-                }`}
+                className="px-4 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
-                ← Back
+                ← Back to Step 01
               </button>
             </div>
-          </div>
+          </section>
         )}
 
         {/* STEP 3: REVIEW & EDIT RULESET */}
         {currentStep === 3 && (
-          <div
-            className={`p-6 sm:p-8 rounded-2xl border shadow-xl transition-all ${
-              isDark ? "bg-[#14151c] border-[#2b2c36]" : "bg-white border-[#e2e8f0]"
-            }`}
+          <section
+            className={`p-6 sm:p-8 border-4 ${
+              isDark
+                ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+                : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            } max-w-5xl mx-auto`}
           >
             <div className="text-center max-w-xl mx-auto mb-6">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#7c3aed] bg-[#7c3aed]/10 px-3 py-1 rounded-full">
-                Step 3 of 3
+              <span className="px-3 py-1 border-2 border-black bg-[var(--green)] text-black text-[10px] font-black uppercase shadow-[2px_2px_0px_#000]">
+                STEP 03 OF 03 // DETERMINISTIC RULESET
               </span>
-              <h2 className="text-2xl font-black mt-3 mb-2 tracking-tight">Review Extracted RuleSet</h2>
-              <p className={`text-sm ${isDark ? "text-[#94a3b8]" : "text-[#64748b]"}`}>
+              <h2 className="font-archivo font-black text-2xl uppercase tracking-tight text-[var(--ink)] dark:text-white mt-3 mb-2">
+                Review Extracted RuleSet
+              </h2>
+              <p className="text-xs sm:text-sm font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed">
                 Review and fine-tune the deterministic governance rules extracted from guidelines before activating audits.
               </p>
               {ingestionStats && (
-                <div className="mt-2 text-xs font-semibold text-emerald-500">
+                <div className="mt-3 inline-block px-3 py-1 border-2 border-black bg-[var(--green)] text-black text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000]">
                   ✓ Indexed {ingestionStats.chunksCreated} chunks from {ingestionStats.documentsIndexed} source documents
                 </div>
               )}
             </div>
 
-            <div className="space-y-6 max-w-3xl mx-auto mb-8">
+            <div className="space-y-6 max-w-4xl mx-auto mb-8 font-mono">
               {/* Approved Color Palette Swatches */}
-              <div className={`p-4 rounded-xl border ${isDark ? "bg-[#1a1b24] border-[#2b2c36]" : "bg-slate-50 border-[#e2e8f0]"}`}>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-[#94a3b8] mb-3">
-                  Approved Color Palette (Hex)
-                </h4>
-                <div className="flex flex-wrap items-center gap-2.5">
+              <div
+                className={`p-5 border-3 border-black shadow-[4px_4px_0px_#000] ${
+                  isDark ? "bg-[#141518]" : "bg-[var(--paper)]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3 border-b-2 border-black pb-2">
+                  <h4 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                    Approved Color Palette (Hex)
+                  </h4>
+                  <span className="text-[10px] text-[#666] dark:text-[#888] font-bold">
+                    {extractedRules.palette.length} SWATCHES
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 mb-3">
                   {extractedRules.palette.map((color, idx) => (
                     <div
                       key={idx}
-                      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-mono font-medium ${
-                        isDark ? "bg-[#121319] border-[#2b2c36]" : "bg-white border-[#cbd5e1]"
-                      }`}
+                      className="flex items-center gap-2 px-3 py-1.5 border-2 border-black bg-white dark:bg-[#1c1d22] text-xs font-mono font-bold shadow-[2px_2px_0px_#000]"
                     >
                       <span
-                        className="w-4 h-4 rounded-full border border-black/10 inline-block shrink-0 shadow-2xs"
+                        className="w-4 h-4 border border-black inline-block shrink-0 shadow-[1px_1px_0px_#000]"
                         style={{ backgroundColor: color }}
                       />
-                      <span>{color}</span>
+                      <span className="text-black dark:text-white">{color}</span>
                       <button
                         type="button"
                         onClick={() =>
@@ -568,51 +888,60 @@ export default function OnboardingPage() {
                             palette: prev.palette.filter((_, i) => i !== idx),
                           }))
                         }
-                        className="text-red-400 hover:text-red-600 font-bold ml-1 text-sm"
+                        className="w-5 h-5 border border-black bg-[var(--red)] text-white font-black text-xs flex items-center justify-center hover:opacity-80 cursor-pointer ml-1"
                       >
-                        ×
+                        ✕
                       </button>
                     </div>
                   ))}
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      placeholder="#HEX"
-                      value={newColor}
-                      onChange={(e) => setNewColor(e.target.value)}
-                      className={`w-20 px-2 py-1 rounded-lg text-xs font-mono border focus:outline-none ${
-                        isDark ? "bg-[#121319] border-[#2b2c36] text-white" : "bg-white border-[#cbd5e1]"
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
-                          setExtractedRules((prev) => ({
-                            ...prev,
-                            palette: [...prev.palette, newColor.toUpperCase()],
-                          }));
-                          setNewColor("#");
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                    >
-                      + Add
-                    </button>
-                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="#HEX (e.g. #FFDB1F)"
+                    value={newColor}
+                    onChange={(e) => setNewColor(e.target.value)}
+                    className="w-40 h-9 px-3 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+                        setExtractedRules((prev) => ({
+                          ...prev,
+                          palette: [...prev.palette, newColor.toUpperCase()],
+                        }));
+                        setNewColor("#");
+                      }
+                    }}
+                    className="h-9 px-4 border-2 border-black bg-[var(--yellow)] text-black font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                  >
+                    + Add Hex
+                  </button>
                 </div>
               </div>
 
               {/* Banned Terms */}
-              <div className={`p-4 rounded-xl border ${isDark ? "bg-[#1a1b24] border-[#2b2c36]" : "bg-slate-50 border-[#e2e8f0]"}`}>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-[#94a3b8] mb-3">
-                  Banned Terminology (Zero Tolerance)
-                </h4>
-                <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div
+                className={`p-5 border-3 border-black shadow-[4px_4px_0px_#000] ${
+                  isDark ? "bg-[#141518]" : "bg-[var(--paper)]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3 border-b-2 border-black pb-2">
+                  <h4 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                    Banned Terminology (Zero Tolerance)
+                  </h4>
+                  <span className="text-[10px] text-[#666] dark:text-[#888] font-bold">
+                    {extractedRules.bannedTerms.length} BANNED PHRASES
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mb-4">
                   {extractedRules.bannedTerms.map((term, idx) => (
                     <span
                       key={idx}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-semibold"
+                      className="inline-flex items-center gap-2 px-2.5 py-1 border-2 border-black bg-[var(--red)] text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000]"
                     >
                       <span>{term}</span>
                       <button
@@ -623,22 +952,21 @@ export default function OnboardingPage() {
                             bannedTerms: prev.bannedTerms.filter((_, i) => i !== idx),
                           }))
                         }
-                        className="text-red-400 hover:text-red-600 font-bold text-sm"
+                        className="w-4 h-4 border border-black bg-white text-black font-black text-[10px] flex items-center justify-center hover:opacity-80 cursor-pointer"
                       >
-                        ×
+                        ✕
                       </button>
                     </span>
                   ))}
                 </div>
+
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     placeholder="Add banned term (e.g. instant delivery guaranteed)"
                     value={newBannedTerm}
                     onChange={(e) => setNewBannedTerm(e.target.value)}
-                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs border focus:outline-none ${
-                      isDark ? "bg-[#121319] border-[#2b2c36] text-white" : "bg-white border-[#cbd5e1]"
-                    }`}
+                    className="flex-1 h-9 px-3 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                   />
                   <button
                     type="button"
@@ -651,30 +979,38 @@ export default function OnboardingPage() {
                         setNewBannedTerm("");
                       }
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+                    className="h-9 px-4 border-2 border-black bg-[var(--red)] text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                   >
-                    + Add
+                    + Add Term
                   </button>
                 </div>
               </div>
 
               {/* Preferred Terminology */}
-              <div className={`p-4 rounded-xl border ${isDark ? "bg-[#1a1b24] border-[#2b2c36]" : "bg-slate-50 border-[#e2e8f0]"}`}>
-                <h4 className="font-bold text-xs uppercase tracking-wider text-[#94a3b8] mb-3">
-                  Preferred Terminology Replacements
-                </h4>
-                <div className="space-y-2 mb-3">
+              <div
+                className={`p-5 border-3 border-black shadow-[4px_4px_0px_#000] ${
+                  isDark ? "bg-[#141518]" : "bg-[var(--paper)]"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3 border-b-2 border-black pb-2">
+                  <h4 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                    Preferred Terminology Replacements
+                  </h4>
+                  <span className="text-[10px] text-[#666] dark:text-[#888] font-bold">
+                    {Object.keys(extractedRules.preferredTerms).length} REPLACEMENTS
+                  </span>
+                </div>
+
+                <div className="space-y-2 mb-4">
                   {Object.entries(extractedRules.preferredTerms).map(([bad, good], idx) => (
                     <div
                       key={idx}
-                      className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-xs border ${
-                        isDark ? "bg-[#121319] border-[#2b2c36]" : "bg-white border-[#cbd5e1]"
-                      }`}
+                      className="flex items-center justify-between px-3.5 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-xs font-mono shadow-[2px_2px_0px_#000]"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="line-through text-red-400">{bad}</span>
-                        <span className="text-[#94a3b8]">→</span>
-                        <span className="font-semibold text-emerald-400">{good}</span>
+                        <span className="line-through text-[var(--red)] font-bold">{bad}</span>
+                        <span className="text-[#666] font-black">→</span>
+                        <span className="font-bold text-[var(--ink)] dark:text-[#b9f4a8]">{good}</span>
                       </div>
                       <button
                         type="button"
@@ -683,31 +1019,28 @@ export default function OnboardingPage() {
                           delete updated[bad];
                           setExtractedRules((prev) => ({ ...prev, preferredTerms: updated }));
                         }}
-                        className="text-red-400 hover:text-red-600 font-bold ml-2 text-sm"
+                        className="w-5 h-5 border border-black bg-[var(--red)] text-white font-black text-xs flex items-center justify-center hover:opacity-80 cursor-pointer"
                       >
-                        ×
+                        ✕
                       </button>
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
                   <input
                     type="text"
                     placeholder="Deprecated (e.g. delivery boy)"
                     value={newPrefKey}
                     onChange={(e) => setNewPrefKey(e.target.value)}
-                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs border focus:outline-none ${
-                      isDark ? "bg-[#121319] border-[#2b2c36] text-white" : "bg-white border-[#cbd5e1]"
-                    }`}
+                    className="h-9 px-3 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                   />
                   <input
                     type="text"
                     placeholder="Preferred (e.g. delivery partner)"
                     value={newPrefVal}
                     onChange={(e) => setNewPrefVal(e.target.value)}
-                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs border focus:outline-none ${
-                      isDark ? "bg-[#121319] border-[#2b2c36] text-white" : "bg-white border-[#cbd5e1]"
-                    }`}
+                    className="h-9 px-3 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                   />
                   <button
                     type="button"
@@ -724,53 +1057,45 @@ export default function OnboardingPage() {
                         setNewPrefVal("");
                       }
                     }}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
+                    className="h-9 px-4 border-2 border-black bg-[var(--yellow)] text-black font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                   >
-                    + Add
+                    + Add Pair
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-3xl mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-4xl mx-auto pt-4 border-t-2 border-black">
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold ${
-                  isDark ? "text-[#94a3b8] hover:text-white" : "text-[#64748b] hover:text-black"
-                }`}
+                className="w-full sm:w-auto px-4 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
-                ← Back
+                ← Back to Ingestion
               </button>
-              <div className="flex flex-wrap items-center gap-2.5">
+
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
                 <button
                   type="button"
                   disabled={loading}
                   onClick={() => handleSaveRulesAndProceed("/guidelines")}
-                  className={`px-4 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
-                    isDark
-                      ? "border-[#3b3c44] text-[#d2bbff] hover:bg-[#20212a]"
-                      : "border-[#cbd5e1] text-[#7c3aed] hover:bg-[#f3f0ff]"
-                  }`}
+                  className="w-full sm:w-auto px-4 py-2.5 border-2 border-black bg-[var(--blue)] hover:bg-[#8cc7ff] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
-                  Save & Open Brand Guidelines →
+                  Save &amp; Open Guidelines →
                 </button>
                 <button
                   type="button"
                   disabled={loading}
                   onClick={() => handleSaveRulesAndProceed("/dashboard")}
-                  className="px-6 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-[#635BFF] to-[#7c3aed] text-white hover:opacity-95 transition-all shadow-md flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-2.5 border-3 border-black bg-[var(--green)] hover:bg-[#a6ec93] text-black font-archivo font-black text-xs sm:text-sm uppercase shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {loading ? "Saving Rules..." : "Finish Setup & Launch Workspace →"}
                 </button>
               </div>
             </div>
-          </div>
+          </section>
         )}
-
-                </div>
-        )}
-      </main>
+      </div>
     </div>
   );
 }

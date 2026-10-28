@@ -1,10 +1,10 @@
 "use client";
 
-import React, { ChangeEvent, useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useApp } from "@/context/AppContext";
 import { api, ApiError } from "@/lib/api";
-import { Submission, AuditExecutionResponse, AuditFinding, SubmissionStatus } from "@/lib/types";
+import { Submission, AuditExecutionResponse, AuditFinding } from "@/lib/types";
 
 type ContentFormatType = "INSTAGRAM_POST" | "TWEET" | "POSTER" | "VIDEO_REEL" | "AUDIO_AD";
 
@@ -92,7 +92,8 @@ const EVALUATOR_SAMPLES: EvaluatorSample[] = [
 ];
 
 export default function CreatorContentStudioPage() {
-  const { activeBrand, activeBrandId, currentRole, brands, setActiveBrandId, refreshBrands } = useApp();
+  const { activeBrandId, currentRole, brands, setActiveBrandId, theme } = useApp();
+  const isDark = theme === "dark";
 
   // Form State
   const [selectedFormat, setSelectedFormat] = useState<ContentFormatType>("POSTER");
@@ -144,7 +145,7 @@ export default function CreatorContentStudioPage() {
   };
 
   // Execute Real Audit
-  const handleRunAudit = async (customCopy?: string, customTitle?: string, sample?: EvaluatorSample) => {
+  const handleRunAudit = async (customCopy?: string, customTitle?: string) => {
     setIsAuditing(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -232,7 +233,7 @@ export default function CreatorContentStudioPage() {
   // One-click load sample and immediately audit
   const handleLoadAndAuditSample = async (sample: EvaluatorSample) => {
     handleSelectSample(sample);
-    await handleRunAudit(sample.copy, sample.headline, sample);
+    await handleRunAudit(sample.copy, sample.headline);
   };
 
   // Apply a single suggested correction
@@ -299,20 +300,24 @@ export default function CreatorContentStudioPage() {
   const isPass = (submissionData?.verdict || auditResult?.verdict) === "PASS" || (score !== null && score >= 80);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#121316] text-[#0f172a] dark:text-[#f8fafc] px-4 sm:px-6 lg:px-8 pb-16 transition-colors">
+    <div
+      className={`w-full min-h-screen p-4 sm:p-6 lg:p-8 font-mono ${
+        isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
+      }`}
+    >
       {/* Toast Notification */}
       {(successMessage || errorMessage) && (
         <div
-          className={`fixed bottom-6 right-6 z-50 max-w-md rounded-2xl border p-4 shadow-2xl transition-all flex items-start gap-3 ${
+          className={`fixed bottom-6 right-6 z-50 max-w-md border-3 border-black p-4 shadow-[6px_6px_0px_#000000] flex items-start gap-3 ${
             successMessage
-              ? "bg-emerald-950/90 border-emerald-500 text-white"
-              : "bg-red-950/90 border-red-500 text-white"
+              ? "bg-[var(--green)] text-black"
+              : "bg-[var(--red)] text-white"
           }`}
         >
-          <span className="material-symbols-outlined text-[22px]">
+          <span className="material-symbols-outlined text-[24px]">
             {successMessage ? "check_circle" : "error"}
           </span>
-          <div className="flex-1 text-xs leading-relaxed font-medium">
+          <div className="flex-1 text-xs font-mono font-bold leading-relaxed">
             {successMessage || errorMessage}
           </div>
           <button
@@ -320,37 +325,39 @@ export default function CreatorContentStudioPage() {
               setSuccessMessage(null);
               setErrorMessage(null);
             }}
-            className="text-white/70 hover:text-white"
+            className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
           >
             ✕
           </button>
         </div>
       )}
 
-      <div className="max-w-[1550px] mx-auto pt-6">
+      <div className="max-w-[1550px] mx-auto">
         {/* Header Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
+        <div className={`p-5 sm:p-6 border-4 ${
+          isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+        } flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6`}>
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full bg-[#00A36C]/15 text-[#00A36C] border border-[#00A36C]/30">
-                Creator Studio
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <span className="px-2.5 py-0.5 border-2 border-black bg-[var(--green)] text-black text-[10px] font-mono font-black uppercase tracking-wider shadow-[2px_2px_0px_#000]">
+                CREATOR PRODUCTION STUDIO
               </span>
-              <span className="text-xs font-semibold text-text-muted">
-                Governing Brand: <strong className="text-primary font-bold">Blinkit</strong> · Campaign: <strong className="text-on-surface">Diwali 2026</strong>
+              <span className="text-xs font-mono font-black text-[#555] dark:text-[#a0a5b5]">
+                GOVERNING BRAND: <strong className="text-[var(--ink)] dark:text-white uppercase">Blinkit</strong> · CAMPAIGN: <strong className="text-[var(--ink)] dark:text-white uppercase">Diwali 2026</strong>
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-on-surface">
-              Autonomous Brand Governance & Upload Studio
+            <h1 className="text-xl sm:text-2xl font-archivo font-black uppercase tracking-tight text-[var(--ink)] dark:text-white">
+              Autonomous Brand Governance &amp; Creator Studio
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-2xl leading-relaxed">
-              Verify marketing copy, posters, audio ads, and video reels against approved brand guidelines before public release.
+            <p className="mt-1 text-xs font-mono text-[#555] dark:text-[#a0a5b5] max-w-2xl leading-relaxed">
+              Verify promotional marketing copy, festive banners, audio voiceovers, and video reels against approved brand policies before public distribution.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0">
             <Link
               href="/dashboard"
-              className="px-4 py-2 rounded-xl border border-border hover:border-primary text-xs font-bold font-sans transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 border-2 border-black bg-[var(--yellow)] text-black text-xs font-mono font-black uppercase flex items-center gap-1.5 shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[17px]">dashboard</span>
               Creator Dashboard
@@ -364,11 +371,13 @@ export default function CreatorContentStudioPage() {
           {/* LEFT COLUMN: CREATOR UPLOAD STUDIO (7 Cols)                               */}
           {/* ========================================================================= */}
           <div className="xl:col-span-7 space-y-6">
-            <div className="rounded-3xl border border-border bg-surface p-6 sm:p-7 shadow-xs">
+            <div className={`p-5 sm:p-7 border-4 ${
+              isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            }`}>
               {/* Step 1: Content Format Selector */}
               <div className="mb-6">
-                <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-3 font-mono">
-                  1. Select Content Format
+                <label className="block text-xs font-black uppercase tracking-wider text-[#666] dark:text-[#888] mb-2.5 font-mono">
+                  [STEP 01 // SELECT CONTENT MEDIUM]
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {[
@@ -384,14 +393,14 @@ export default function CreatorContentStudioPage() {
                         key={fmt.id}
                         type="button"
                         onClick={() => setSelectedFormat(fmt.id)}
-                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                        className={`p-3 border-2 border-black text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
                           isSelected
-                            ? "bg-primary text-white border-primary shadow-xs ring-2 ring-primary/20 scale-[1.02]"
-                            : "bg-palette-7/20 border-border text-on-surface hover:border-primary/50"
+                            ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                            : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                         }`}
                       >
                         <span className="material-symbols-outlined text-[20px]">{fmt.icon}</span>
-                        <span className="text-[11px] font-bold leading-tight">{fmt.label}</span>
+                        <span className="text-[10px] font-mono font-black uppercase leading-tight">{fmt.label}</span>
                       </button>
                     );
                   })}
@@ -401,26 +410,30 @@ export default function CreatorContentStudioPage() {
               {/* Step 2: Campaign Asset Details */}
               <div className="space-y-4 mb-6">
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-on-surface">Creative Title / Headline</label>
-                    <span className="text-[11px] font-mono text-text-muted">Campaign Header</span>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-black uppercase text-[var(--ink)] dark:text-white">
+                      [STEP 02 // CREATIVE TITLE / HEADLINE]
+                    </label>
+                    <span className="text-[10px] font-mono text-[#666] dark:text-[#888]">CAMPAIGN HEADER</span>
                   </div>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Blinkit Diwali Sweets & Snacks Launch"
-                    className="w-full h-11 px-3.5 rounded-xl border border-border bg-palette-7/20 text-sm font-semibold text-on-surface focus:outline-none focus:border-primary transition-colors"
+                    className={`w-full h-11 px-3.5 border-2 border-black font-mono text-xs font-bold text-[var(--ink)] dark:text-white shadow-[3px_3px_0px_#000] focus:outline-none ${
+                      isDark ? "bg-[#1c1d22]" : "bg-white"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-bold text-on-surface">
-                      Marketing Copy / Caption / Script
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-black uppercase text-[var(--ink)] dark:text-white">
+                      MARKETING COPY / SCRIPT
                     </label>
-                    <span className="text-[11px] font-mono text-text-muted">
-                      {copy.length} chars · {copy.trim().split(/\s+/).filter(Boolean).length} words
+                    <span className="text-[10px] font-mono text-[#666] dark:text-[#888]">
+                      {copy.length} CHARS · {copy.trim().split(/\s+/).filter(Boolean).length} WORDS
                     </span>
                   </div>
                   <textarea
@@ -428,17 +441,21 @@ export default function CreatorContentStudioPage() {
                     value={copy}
                     onChange={(e) => setCopy(e.target.value)}
                     placeholder="Enter post body, advertising copy, or video voiceover script..."
-                    className="w-full p-3.5 rounded-xl border border-border bg-palette-7/20 text-sm leading-relaxed text-on-surface focus:outline-none focus:border-primary transition-colors font-sans"
+                    className={`w-full p-3.5 border-2 border-black font-mono text-xs leading-relaxed text-[var(--ink)] dark:text-white shadow-[3px_3px_0px_#000] focus:outline-none ${
+                      isDark ? "bg-[#1c1d22]" : "bg-white"
+                    }`}
                   />
                 </div>
               </div>
 
               {/* Step 3: Optional File Attachment (Drag & Drop) */}
               <div className="mb-6">
-                <label className="block text-xs font-bold text-on-surface mb-2">
-                  Attach Creative Asset (Optional Image / Audio / Video)
+                <label className="block text-xs font-black uppercase text-[var(--ink)] dark:text-white mb-2 font-mono">
+                  [STEP 03 // MULTIMODAL PAYLOAD ATTACHMENT]
                 </label>
-                <label className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-border hover:border-primary bg-palette-7/10 hover:bg-palette-7/30 cursor-pointer transition-all">
+                <label className={`flex flex-col items-center justify-center p-5 border-3 border-dashed border-black shadow-[3px_3px_0px_#000] cursor-pointer transition-all ${
+                  isDark ? "bg-[#141518] hover:bg-[#1c1d22]" : "bg-[var(--paper)] hover:bg-white"
+                }`}>
                   <input
                     type="file"
                     accept="image/*,audio/*,video/*"
@@ -450,10 +467,12 @@ export default function CreatorContentStudioPage() {
                   />
                   {assetFile ? (
                     <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-primary text-[28px]">description</span>
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-on-surface truncate max-w-xs">{assetFile.name}</p>
-                        <p className="text-[10px] font-mono text-text-muted">
+                      <div className="w-10 h-10 border-2 border-black bg-[var(--yellow)] text-black flex items-center justify-center shadow-[2px_2px_0px_#000]">
+                        <span className="material-symbols-outlined text-[24px]">description</span>
+                      </div>
+                      <div className="text-left font-mono">
+                        <p className="text-xs font-black uppercase text-[var(--ink)] dark:text-white truncate max-w-xs">{assetFile.name}</p>
+                        <p className="text-[10px] text-[#666] dark:text-[#888]">
                           {(assetFile.size / 1024).toFixed(1)} KB · {assetFile.type}
                         </p>
                       </div>
@@ -463,33 +482,39 @@ export default function CreatorContentStudioPage() {
                           e.preventDefault();
                           setAssetFile(null);
                         }}
-                        className="p-1 rounded-lg hover:bg-palette-7/60 text-text-muted hover:text-red-500 text-xs font-bold"
+                        className="px-2 py-1 border-2 border-black bg-[var(--red)] text-white text-[10px] font-mono font-black uppercase shadow-[1px_1px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                       >
-                        ✕ Remove
+                        ✕ REMOVE
                       </button>
                     </div>
                   ) : (
-                    <div className="text-center">
-                      <span className="material-symbols-outlined text-primary text-[32px] mb-1">cloud_upload</span>
-                      <p className="text-xs font-bold text-on-surface">Click to upload poster image or media</p>
-                      <p className="text-[11px] text-text-muted mt-0.5">PNG, JPG, MP3, MP4 supported for multi-modal analysis</p>
+                    <div className="text-center font-mono">
+                      <div className="w-12 h-12 border-2 border-black bg-[var(--yellow)] text-black flex items-center justify-center mx-auto mb-2 shadow-[2px_2px_0px_#000]">
+                        <span className="material-symbols-outlined text-[28px]">cloud_upload</span>
+                      </div>
+                      <p className="text-xs font-black uppercase text-[var(--ink)] dark:text-white">
+                        Click or Drop Creative Asset
+                      </p>
+                      <p className="text-[10px] text-[#666] dark:text-[#888] mt-0.5">
+                        PNG, JPG, MP3, MP4 supported for multimodal Gemini verification
+                      </p>
                     </div>
                   )}
                 </label>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-3 pt-2 border-t border-border">
+              <div className="flex items-center gap-3 pt-3 border-t-2 border-black">
                 <button
                   type="button"
                   onClick={() => handleRunAudit()}
                   disabled={isAuditing || (!copy.trim() && !assetFile)}
-                  className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-primary to-[#00A36C] hover:opacity-95 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-3 px-5 border-3 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-archivo font-black text-xs sm:text-sm uppercase tracking-tight shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-[18px]">
-                    {isAuditing ? "progress_activity" : "verified"}
+                  <span className={`material-symbols-outlined text-[20px] ${isAuditing ? "animate-spin" : ""}`}>
+                    {isAuditing ? "sync" : "verified"}
                   </span>
-                  {isAuditing ? "Running Autonomous Governance Audit..." : "Run Autonomous AI Governance Audit ⚡"}
+                  <span>{isAuditing ? "Running Autonomous Governance Audit..." : "Run Autonomous AI Governance Audit ⚡"}</span>
                 </button>
                 <button
                   type="button"
@@ -498,7 +523,7 @@ export default function CreatorContentStudioPage() {
                     setCopy("");
                     setAssetFile(null);
                   }}
-                  className="py-3 px-4 rounded-xl border border-border text-xs font-bold text-text-muted hover:text-on-surface hover:bg-palette-7/30 transition-colors"
+                  className="py-3 px-4 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                 >
                   Clear
                 </button>
@@ -510,18 +535,22 @@ export default function CreatorContentStudioPage() {
           {/* RIGHT COLUMN: HACKATHON EVALUATOR QUICK-TEST CANVAS (5 Cols)              */}
           {/* ========================================================================= */}
           <div className="xl:col-span-5 space-y-4">
-            <div className="rounded-3xl border border-border bg-surface p-5 sm:p-6 shadow-xs">
-              <div className="flex items-center justify-between gap-2 mb-2">
+            <div className={`p-5 sm:p-6 border-4 ${
+              isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            }`}>
+              <div className="flex items-center justify-between gap-2 border-b-2 border-black pb-2.5 mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-amber-500 text-[22px]">gavel</span>
-                  <h3 className="font-bold text-base text-on-surface">Hackathon Evaluator Demo Canvas</h3>
+                  <span className="material-symbols-outlined text-[22px] text-black dark:text-[#ffdb1f]">gavel</span>
+                  <h3 className="font-archivo font-black text-xs uppercase tracking-tight text-[var(--ink)] dark:text-white">
+                    Hackathon Evaluator Demo Canvas
+                  </h3>
                 </div>
-                <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 border border-black bg-[var(--yellow)] text-black shadow-[1px_1px_0px_#000]">
                   Quick Load
                 </span>
               </div>
-              <p className="text-xs text-text-muted leading-relaxed mb-4">
-                Click any pre-configured poster below to test Inkloom&apos;s governance engine against authentic Diwali guidelines without hunting for files.
+              <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed mb-4">
+                Click any benchmark creative below to test Inkloom&apos;s multimodal governance engine against authentic Diwali guidelines instantly.
               </p>
 
               {/* 3 Interactive Cards */}
@@ -534,30 +563,30 @@ export default function CreatorContentStudioPage() {
                   return (
                     <div
                       key={sample.id}
-                      className={`p-4 rounded-2xl border transition-all ${
+                      className={`p-4 border-3 border-black transition-all ${
                         isSelected
-                          ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-xs"
+                          ? "bg-[var(--yellow)]/20 shadow-[4px_4px_0px_#000]"
                           : sample.type === "GOOD"
-                          ? "border-border bg-palette-7/10 hover:border-emerald-500/50"
-                          : "border-red-500/30 bg-red-500/5 hover:border-red-500/70"
+                          ? "bg-[var(--green)]/15 shadow-[3px_3px_0px_#000]"
+                          : "bg-[var(--red)]/15 shadow-[3px_3px_0px_#000]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-lg leading-none">{sample.festivalIcon}</span>
+                          <span className="text-xl leading-none">{sample.festivalIcon}</span>
                           <div>
-                            <h4 className="font-bold text-xs sm:text-sm text-on-surface leading-tight">
+                            <h4 className="font-mono font-black text-xs uppercase text-[var(--ink)] dark:text-white leading-tight">
                               {sample.title}
                             </h4>
-                            <span className="text-[10px] font-mono text-text-muted">{sample.format}</span>
+                            <span className="text-[10px] font-mono text-[#666] dark:text-[#888] uppercase">{sample.format}</span>
                           </div>
                         </div>
 
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase ${
+                          className={`px-2 py-0.5 border border-black text-[9px] font-mono font-black uppercase shadow-[1px_1px_0px_#000] ${
                             sample.type === "GOOD"
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
-                              : "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30"
+                              ? "bg-[var(--green)] text-black"
+                              : "bg-[var(--red)] text-white"
                           }`}
                         >
                           {sample.badgeLabel}
@@ -565,12 +594,12 @@ export default function CreatorContentStudioPage() {
                       </div>
 
                       {/* Highlights */}
-                      <div className="space-y-1 mb-3 text-[11px] leading-relaxed">
+                      <div className="space-y-1 mb-3 text-[11px] font-mono leading-relaxed">
                         {sample.keyHighlights.map((hl, i) => (
                           <div
                             key={i}
-                            className={`line-clamp-1 ${
-                              sample.type === "GOOD" ? "text-emerald-800 dark:text-emerald-300" : "text-red-800 dark:text-red-300"
+                            className={`line-clamp-1 font-bold ${
+                              sample.type === "GOOD" ? "text-emerald-800 dark:text-[#b9f4a8]" : "text-red-800 dark:text-[#ff7b72]"
                             }`}
                           >
                             {hl}
@@ -579,24 +608,24 @@ export default function CreatorContentStudioPage() {
                       </div>
 
                       {/* Expandable LLM Prompt Box */}
-                      <div className="mb-3 pt-2 border-t border-border/60">
-                        <div className="flex items-center justify-between text-[11px] mb-1">
+                      <div className="mb-3 pt-2 border-t-2 border-black/20 font-mono">
+                        <div className="flex items-center justify-between text-[10px] mb-1">
                           <button
                             type="button"
                             onClick={() => setExpandedPromptId(isExpanded ? null : sample.id)}
-                            className="text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                            className="font-black uppercase underline hover:opacity-80 flex items-center gap-1 cursor-pointer"
                           >
                             <span className="material-symbols-outlined text-[14px]">
                               {isExpanded ? "expand_less" : "expand_more"}
                             </span>
-                            {isExpanded ? "Hide Image Prompt" : "View LLM Image Generation Prompt"}
+                            {isExpanded ? "Hide Image Prompt" : "View Image Prompt"}
                           </button>
                           <button
                             type="button"
                             onClick={() => handleCopyPrompt(sample.id, sample.llmPrompt)}
-                            className="text-text-muted hover:text-on-surface font-mono text-[10px] flex items-center gap-1 cursor-pointer"
+                            className="px-2 py-0.5 border border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-[9px] uppercase shadow-[1px_1px_0px_#000] flex items-center gap-1 cursor-pointer"
                           >
-                            <span className="material-symbols-outlined text-[13px]">
+                            <span className="material-symbols-outlined text-[12px]">
                               {isCopied ? "check" : "content_copy"}
                             </span>
                             {isCopied ? "Copied!" : "Copy"}
@@ -604,7 +633,7 @@ export default function CreatorContentStudioPage() {
                         </div>
 
                         {isExpanded && (
-                          <div className="p-2.5 rounded-xl bg-palette-7/40 border border-border text-[11px] font-mono leading-relaxed text-text-muted max-h-36 overflow-y-auto">
+                          <div className="p-2.5 border-2 border-black bg-white dark:bg-[#141518] text-[10px] font-mono leading-relaxed text-[#444] dark:text-[#a0a5b5] max-h-36 overflow-y-auto">
                             {sample.llmPrompt}
                           </div>
                         )}
@@ -615,14 +644,14 @@ export default function CreatorContentStudioPage() {
                         type="button"
                         onClick={() => handleLoadAndAuditSample(sample)}
                         disabled={isAuditing}
-                        className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                        className={`w-full py-2 px-3 border-2 border-black text-xs font-mono font-black uppercase flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 ${
                           sample.type === "GOOD"
-                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                            : "bg-red-600 hover:bg-red-700 text-white"
+                            ? "bg-[var(--green)] text-black"
+                            : "bg-[var(--red)] text-white"
                         }`}
                       >
                         <span className="material-symbols-outlined text-[16px]">bolt</span>
-                        ⚡ Load Sample & Run Real Audit
+                        ⚡ Load Sample &amp; Run Real Audit
                       </button>
                     </div>
                   );
@@ -636,51 +665,53 @@ export default function CreatorContentStudioPage() {
         {/* DETAILED MULTI-MODAL GOVERNANCE AUDIT REPORT                               */}
         {/* ========================================================================= */}
         {submissionData && (
-          <div ref={reportRef} id="audit-report" className="mt-12 space-y-6 scroll-mt-6">
-            <div className="rounded-3xl border border-border bg-surface p-6 sm:p-8 shadow-sm">
+          <div ref={reportRef} id="audit-report" className="mt-10 space-y-6 scroll-mt-6">
+            <div className={`p-6 sm:p-8 border-4 ${
+              isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            }`}>
               {/* Executive Verdict Banner */}
               <div
-                className={`p-6 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 ${
+                className={`p-5 sm:p-6 border-3 border-black flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 shadow-[4px_4px_0px_#000] ${
                   isPass
-                    ? "bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border-emerald-500/40"
-                    : "bg-gradient-to-r from-red-500/15 via-red-500/5 to-transparent border-red-500/40"
+                    ? "bg-[var(--green)]/25"
+                    : "bg-[var(--red)]/20"
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <div
-                    className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl shadow-sm ${
-                      isPass ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                    className={`w-16 h-16 border-3 border-black flex items-center justify-center font-mono font-black text-2xl shadow-[3px_3px_0px_#000] ${
+                      isPass ? "bg-[var(--green)] text-black" : "bg-[var(--red)] text-white"
                     }`}
                   >
                     {score !== null ? `${score}%` : "—"}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider font-mono ${
+                        className={`px-2.5 py-0.5 border border-black text-[10px] font-mono font-black uppercase shadow-[1px_1px_0px_#000] ${
                           isPass
-                            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-                            : "bg-red-500/20 text-red-700 dark:text-red-300"
+                            ? "bg-[var(--green)] text-black"
+                            : "bg-[var(--red)] text-white"
                         }`}
                       >
                         {isPass ? "✓ APPROVED · READY FOR RELEASE" : "✕ CHANGES REQUESTED · REJECTED"}
                       </span>
-                      <span className="text-xs font-mono text-text-muted">
+                      <span className="text-xs font-mono text-[#666] dark:text-[#999]">
                         SUB-#{submissionData.id} · v{submissionData.current_version}
                       </span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-on-surface">{submissionData.title}</h2>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      Evaluated in <strong className="text-on-surface font-mono">{auditLatency}ms</strong> against Blinkit Diwali 2026 Rules & Approved Fact Register
+                    <h2 className="text-xl sm:text-2xl font-archivo font-black uppercase text-[var(--ink)] dark:text-white">{submissionData.title}</h2>
+                    <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] mt-0.5">
+                      Evaluated in <strong className="text-[var(--ink)] dark:text-white font-mono">{auditLatency}ms</strong> against Blinkit Diwali 2026 Rules &amp; Approved Fact Register
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
                   <button
                     type="button"
                     onClick={handleSubmitToBrandQueue}
-                    className="px-4 py-2.5 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-2 border-2 border-black bg-[var(--yellow)] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[17px]">send</span>
                     Submit to Brand Queue
@@ -688,7 +719,7 @@ export default function CreatorContentStudioPage() {
                   <button
                     type="button"
                     onClick={handleApplyAllFixes}
-                    className="px-4 py-2.5 rounded-xl border border-border hover:border-primary text-xs font-bold text-on-surface transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5"
                   >
                     <span className="material-symbols-outlined text-[17px]">auto_fix_high</span>
                     Apply Suggested Fixes
@@ -698,8 +729,8 @@ export default function CreatorContentStudioPage() {
 
               {/* Dimension Scorecards Grid */}
               <div className="mb-8">
-                <h3 className="font-bold text-sm uppercase tracking-wider text-text-muted font-mono mb-4">
-                  Multi-Modal Dimension Analysis
+                <h3 className="font-mono font-black text-xs uppercase tracking-wider text-[#666] dark:text-[#888] mb-3">
+                  [MULTI-MODAL DIMENSION ANALYSIS]
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
                   {[
@@ -746,31 +777,31 @@ export default function CreatorContentStudioPage() {
                   ].map((dim, idx) => (
                     <div
                       key={idx}
-                      className={`p-4 rounded-2xl border transition-all ${
+                      className={`p-3.5 border-2 border-black shadow-[2px_2px_0px_#000] font-mono transition-all ${
                         dim.pass
-                          ? "bg-palette-7/20 border-border"
-                          : "bg-red-500/10 border-red-500/30"
+                          ? "bg-[var(--green)]/15"
+                          : "bg-[var(--red)]/15"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="material-symbols-outlined text-[20px] text-primary">{dim.icon}</span>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="material-symbols-outlined text-[20px] text-black dark:text-white">{dim.icon}</span>
                         <span
-                          className={`text-xs font-mono font-bold ${
-                            dim.pass ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                          className={`text-xs font-mono font-black ${
+                            dim.pass ? "text-[var(--ink)] dark:text-[#b9f4a8]" : "text-[var(--red)] dark:text-[#ff7b72]"
                           }`}
                         >
                           {dim.score}
                         </span>
                       </div>
-                      <h4 className="font-bold text-xs text-on-surface mb-0.5">{dim.label}</h4>
+                      <h4 className="font-bold text-xs uppercase text-[var(--ink)] dark:text-white mb-0.5">{dim.label}</h4>
                       <p
-                        className={`text-[10px] font-bold font-mono uppercase mb-1.5 ${
-                          dim.pass ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
+                        className={`text-[9px] font-black uppercase mb-1 ${
+                          dim.pass ? "text-emerald-800 dark:text-[#b9f4a8]" : "text-red-800 dark:text-[#ff7b72]"
                         }`}
                       >
                         {dim.status}
                       </p>
-                      <p className="text-[11px] text-text-muted leading-tight">{dim.detail}</p>
+                      <p className="text-[10px] text-[#555] dark:text-[#a0a5b5] leading-tight">{dim.detail}</p>
                     </div>
                   ))}
                 </div>
@@ -778,12 +809,12 @@ export default function CreatorContentStudioPage() {
 
               {/* Detected Problems & Actionable Suggestions */}
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-sm uppercase tracking-wider text-text-muted font-mono">
-                    Audit Findings & Corrective Actions ({submissionData.findings?.length || 0})
+                <div className="flex items-center justify-between mb-3 border-b-2 border-black pb-2 font-mono">
+                  <h3 className="font-mono font-black text-xs uppercase tracking-wider text-[var(--ink)] dark:text-white">
+                    Audit Findings &amp; Corrective Actions ({submissionData.findings?.length || 0})
                   </h3>
                   {submissionData.findings && submissionData.findings.length > 0 && (
-                    <span className="text-xs font-mono font-bold text-text-muted">
+                    <span className="text-[10px] font-black uppercase text-[#666] dark:text-[#888]">
                       {submissionData.findings.filter((f) => f.severity === "CRITICAL").length} Critical ·{" "}
                       {submissionData.findings.filter((f) => f.severity === "WARNING").length} Warnings
                     </span>
@@ -791,14 +822,14 @@ export default function CreatorContentStudioPage() {
                 </div>
 
                 {!submissionData.findings || submissionData.findings.length === 0 ? (
-                  <div className="p-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 text-center">
-                    <span className="material-symbols-outlined text-emerald-500 text-[40px] mb-2">
+                  <div className="p-8 border-3 border-black bg-[var(--green)]/20 text-center shadow-[4px_4px_0px_#000]">
+                    <span className="material-symbols-outlined text-[40px] text-black dark:text-white mb-2">
                       verified_user
                     </span>
-                    <h4 className="font-bold text-base text-emerald-800 dark:text-emerald-300">
+                    <h4 className="font-archivo font-black text-base uppercase text-[var(--ink)] dark:text-white">
                       Zero Compliance Violations Detected!
                     </h4>
-                    <p className="text-xs text-text-muted max-w-md mx-auto mt-1">
+                    <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] max-w-md mx-auto mt-1">
                       This creative adheres completely to the Blinkit Diwali 2026 design system, brand colors, eco-friendly policy, and terminology guidelines.
                     </p>
                   </div>
@@ -809,30 +840,30 @@ export default function CreatorContentStudioPage() {
                       return (
                         <div
                           key={finding.id}
-                          className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                          className={`p-4 sm:p-5 border-3 border-black shadow-[3px_3px_0px_#000] font-mono transition-all ${
                             isCritical
-                              ? "border-red-500/40 bg-red-500/5"
-                              : "border-amber-500/40 bg-amber-500/5"
+                              ? "bg-[var(--red)]/10"
+                              : "bg-[var(--yellow)]/15"
                           }`}
                         >
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5 mb-2">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono tracking-wider ${
+                                className={`px-2 py-0.5 border border-black text-[9px] font-black uppercase shadow-[1px_1px_0px_#000] ${
                                   isCritical
-                                    ? "bg-red-600 text-white"
-                                    : "bg-amber-600 text-white"
+                                    ? "bg-[var(--red)] text-white"
+                                    : "bg-[var(--yellow)] text-black"
                                 }`}
                               >
                                 {finding.severity}
                               </span>
-                              <span className="text-xs font-mono font-bold uppercase text-text-muted">
+                              <span className="text-xs font-black uppercase text-[#666] dark:text-[#888]">
                                 {finding.category.replace("_", " ")}
                               </span>
                             </div>
 
                             {finding.guideline_citation && (
-                              <span className="text-[11px] font-mono text-primary font-semibold flex items-center gap-1">
+                              <span className="text-[10px] text-[var(--ink)] dark:text-white font-black uppercase flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[14px]">menu_book</span>
                                 {finding.guideline_citation}
                               </span>
@@ -842,28 +873,28 @@ export default function CreatorContentStudioPage() {
                           {/* Flagged Excerpt */}
                           {finding.flagged_excerpt && (
                             <div className="mb-2">
-                              <span className="text-[10px] font-mono uppercase text-text-muted block mb-0.5">
+                              <span className="text-[9px] uppercase font-black text-[#666] dark:text-[#888] block mb-0.5">
                                 Flagged Excerpt:
                               </span>
-                              <code className="text-xs px-2 py-1 rounded bg-black/10 dark:bg-black/30 font-bold text-red-600 dark:text-red-400 font-mono">
+                              <code className="text-xs px-2 py-1 border border-black bg-white dark:bg-[#121316] font-bold text-[var(--red)] dark:text-[#ff7b72] block">
                                 &quot;{finding.flagged_excerpt}&quot;
                               </code>
                             </div>
                           )}
 
                           {/* Explanation */}
-                          <p className="text-xs text-on-surface leading-relaxed mb-3">
+                          <p className="text-xs text-[var(--ink)] dark:text-[#c9d1d9] leading-relaxed mb-3">
                             {finding.explanation}
                           </p>
 
                           {/* Suggested Correction */}
                           {finding.suggested_correction && (
-                            <div className="p-3 rounded-xl bg-palette-7/30 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="p-3 border-2 border-black bg-white dark:bg-[#1c1d22] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               <div>
-                                <span className="text-[10px] font-mono uppercase text-[#00A36C] font-bold block mb-0.5">
+                                <span className="text-[9px] uppercase text-[var(--ink)] dark:text-[#b9f4a8] font-black block mb-0.5">
                                   ✓ Suggested Intent-Preserving Fix:
                                 </span>
-                                <p className="text-xs font-semibold text-on-surface">
+                                <p className="text-xs font-bold text-[var(--ink)] dark:text-white">
                                   &quot;{finding.suggested_correction}&quot;
                                 </p>
                               </div>
@@ -871,7 +902,7 @@ export default function CreatorContentStudioPage() {
                               <button
                                 type="button"
                                 onClick={() => handleApplySingleCorrection(finding)}
-                                className="px-3 py-1.5 rounded-lg bg-primary hover:bg-[#004578] text-white text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                                className="px-3 py-1.5 border-2 border-black bg-[var(--yellow)] text-black text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 shrink-0 transition-all cursor-pointer"
                               >
                                 Apply Fix
                               </button>
