@@ -91,31 +91,31 @@ export function Sidebar() {
   const navItems = isCreator
     ? [
         {
-          label: "Creator Dashboard",
-          path: "/dashboard",
-          icon: LayoutDashboard,
-          badge: "Submissions",
-        },
-        {
           label: "Upload Content",
           path: "/content",
           icon: UploadCloud,
           badge: "Upload",
         },
+        {
+          label: "Creator Dashboard",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: "Submissions",
+        },
       ]
     : isBrand
     ? [
-        {
-          label: "Brand Dashboard",
-          path: "/dashboard",
-          icon: LayoutDashboard,
-          badge: null,
-        },
         {
           label: "Brand Setup",
           path: "/setup",
           icon: Globe,
           badge: "Start Here",
+        },
+        {
+          label: "Brand Dashboard",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: null,
         },
         {
           label: "Brand Guidelines",
@@ -132,31 +132,19 @@ export function Sidebar() {
       ]
     : [
         {
-          label: "Dashboard",
-          path: "/dashboard",
-          icon: LayoutDashboard,
-          badge: null,
-        },
-        {
           label: "Judge Canvas",
           path: "/judge",
           icon: FileCheck2,
           badge: "Evaluate",
         },
         {
-          label: "Brand Setup",
-          path: "/setup",
-          icon: Globe,
-          badge: "Start Here",
+          label: "Governance Dashboard",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: "Console",
         },
         {
-          label: "Creator Studio",
-          path: "/content",
-          icon: UploadCloud,
-          badge: null,
-        },
-        {
-          label: "Audit Queue",
+          label: "Audit Queue & Overrides",
           path: "/audit",
           icon: FileText,
           badge: null,
@@ -486,8 +474,8 @@ export function Sidebar() {
           <div className={`px-3 py-1.5 shrink-0 ${isSidebarCollapsed ? "flex justify-center" : ""}`}>
             {isSidebarCollapsed ? (
               <Link
-                href={isCreator ? "/content" : "/audit"}
-                title={isCreator ? "Upload Content" : "New Audit"}
+                href={isCreator ? "/content" : isAdminOrJudge ? "/judge" : "/audit"}
+                title={isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs transition-all hover:scale-105 cursor-pointer ${
                   isDark
                     ? "bg-[#7c3aed] hover:bg-[#6d28d9] shadow-[#7c3aed]/25"
@@ -507,7 +495,7 @@ export function Sidebar() {
                 }`}
               >
                 <Plus size={16} />
-                <span>{isCreator ? "Upload Content" : "New Audit"}</span>
+                <span>{isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}</span>
               </Link>
             )}
           </div>
