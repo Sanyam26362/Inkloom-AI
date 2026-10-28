@@ -166,6 +166,26 @@ export const api = {
   },
 
   // Auth & Personas
+  async clerkSync(payload: {
+    clerk_id: string;
+    email: string;
+    user_name?: string;
+    role?: string;
+    tenant_id?: string;
+  }): Promise<TokenResponse> {
+    const res = await fetchJson<TokenResponse>("/auth/clerk-sync", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (res?.access_token && typeof window !== "undefined") {
+      localStorage.setItem("inkloom_token", res.access_token);
+      if (res.user) {
+        localStorage.setItem("inkloom_user", JSON.stringify(res.user));
+      }
+    }
+    return res;
+  },
+
   async login(payload: { email?: string; password?: string; role?: string }): Promise<TokenResponse> {
     const res = await fetchJson<TokenResponse>("/auth/login", {
       method: "POST",
