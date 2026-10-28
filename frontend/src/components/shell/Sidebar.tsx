@@ -130,6 +130,21 @@ export function Sidebar() {
           badge: null,
         },
       ]
+    : currentRole === "ADMIN"
+    ? [
+        {
+          label: "Platform Command Center",
+          path: "/dashboard",
+          icon: LayoutDashboard,
+          badge: "Admin",
+        },
+        {
+          label: "Judge Canvas",
+          path: "/judge",
+          icon: FileCheck2,
+          badge: "Demo",
+        },
+      ]
     : [
         {
           label: "Judge Canvas",
@@ -142,18 +157,6 @@ export function Sidebar() {
           path: "/dashboard",
           icon: LayoutDashboard,
           badge: "Console",
-        },
-        {
-          label: "Audit Queue & Overrides",
-          path: "/audit",
-          icon: FileText,
-          badge: null,
-        },
-        {
-          label: "Brand Guidelines",
-          path: "/guidelines",
-          icon: BookOpen,
-          badge: null,
         },
       ];
 
