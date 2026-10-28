@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, Moon, Sun } from "@/components/ui/icons";
 
 interface OnboardingHeaderProps {
@@ -34,8 +35,16 @@ export function OnboardingHeader({
         </div>
       </div>
 
-      {/* Actions: Theme Toggle, Help, Profile */}
+      {/* Actions: Brand Dashboard Link, Theme Toggle, Help, Profile */}
       <div className="flex items-center gap-2.5 sm:gap-3">
+        <Link
+          href="/dashboard"
+          className="text-xs font-bold text-[#635BFF] dark:text-[#a594fd] hover:underline px-3 py-1.5 rounded-xl border border-[#635BFF]/30 bg-[#635BFF]/5 hover:bg-[#635BFF]/10 transition-colors flex items-center gap-1 shadow-2xs"
+          title="Jump to Brand Governance Dashboard"
+        >
+          <span>Brand Dashboard</span>
+          <span>→</span>
+        </Link>
         {/* Theme Toggle */}
         <button
           type="button"
