@@ -83,9 +83,16 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       email: clerkUser.primaryEmailAddress?.emailAddress || `${clerkUser.id}@inkloom.user`,
       user_name: clerkUser.fullName || clerkUser.firstName || "Inkloom User",
       role: mappedRole,
-    }).then((res) => {
+    }).then(async (res) => {
       setUser(res.user);
       setCurrentRoleState(mappedRole);
+      if (mappedRole === "CREATOR") {
+        const brandList = brands.length > 0 ? brands : await api.listBrands().catch(() => []);
+        const blinkit = brandList.find((b) => b.name.toLowerCase() === "blinkit");
+        if (blinkit) {
+          setActiveBrandId(blinkit.id);
+        }
+      }
     }).catch((err) => {
       console.warn("Clerk backend sync failed, using client session:", err);
     });
@@ -147,10 +154,17 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
       const res = await api.login({ role });
       setUser(res.user);
       setCurrentRoleState(role);
+      if (role === "CREATOR") {
+        const brandList = brands.length > 0 ? brands : await api.listBrands().catch(() => []);
+        const blinkit = brandList.find((b) => b.name.toLowerCase() === "blinkit");
+        if (blinkit) {
+          setActiveBrandId(blinkit.id);
+        }
+      }
     } catch (err) {
       console.error("Failed to login as demo user:", err);
     }
-  }, []);
+  }, [brands]);
 
   const setCurrentRole = useCallback((role: UserRole) => {
     setCurrentRoleState(role);
