@@ -2,8 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
+import { useApp } from "@/context/AppContext";
 
 export function Section21_Footer() {
+  const { openAuthModal } = useApp();
   const footerColumns = [
     {
       title: "Platform",
@@ -63,12 +65,13 @@ export function Section21_Footer() {
               Enterprise Brand Identity Governance, Computational Policy Adherence &amp; Multi-Modal Content Auditing Platform.
             </p>
 
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center px-6 py-2.5 bg-primary hover:bg-[#004578] text-background text-xs font-bold rounded-xl shadow-2xs transition-all"
+            <button
+              type="button"
+              onClick={() => openAuthModal()}
+              className="inline-flex items-center justify-center px-6 py-2.5 bg-primary hover:bg-[#004578] text-background text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer"
             >
               Start Now
-            </Link>
+            </button>
           </div>
 
           {/* Links Columns */}
