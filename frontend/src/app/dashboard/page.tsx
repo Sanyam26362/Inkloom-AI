@@ -22,7 +22,7 @@ import TechText from "@/components/ui/TechText";
 import DriftWall from "@/components/ui/DriftWall";
 
 export default function GovernanceDashboardPage() {
-  const { activeBrandId, currentRole, brands, theme, refreshKey, setActiveBrandId } = useApp();
+  const { activeBrandId, currentRole, brands, theme, refreshKey, setActiveBrandId, refreshBrands } = useApp();
   const isDark = theme === "dark";
   const activeBrandReady = activeBrandId > 0 && brands.some((brand) => brand.id === activeBrandId);
 
@@ -37,9 +37,100 @@ export default function GovernanceDashboardPage() {
   const [activeMetric, setActiveMetric] = useState<"compliance" | "violations">("compliance");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
+  // Future Clients & Enterprise Prospects Pipeline
+  const futureClients = [
+    {
+      name: "Zepto",
+      industry: "Quick Commerce Retail",
+      category: "10-Minute Dark Store Grocery",
+      pipelineStatus: "Ready for Ingestion",
+      fitScore: "98% Fit",
+      tone: "Energetic, fast, friendly, culturally connected, reliable",
+      palette: ["#9333EA", "#EC4899", "#111827", "#FFFFFF"],
+      bannedTerms: ["guaranteed delivery in 5 mins", "zero cost forever"],
+      leadSource: "Enterprise Pitch",
+      description: "Direct competitor to Blinkit in Indian Q-commerce with instant dark store fulfillment model.",
+    },
+    {
+      name: "Swiggy Instamart",
+      industry: "Hyperlocal Quick Commerce",
+      category: "On-Demand Grocery & Essentials",
+      pipelineStatus: "Evaluation Pilot",
+      fitScore: "94% Fit",
+      tone: "Friendly, punctual, vibrant, household-trusted",
+      palette: ["#FC8019", "#282C3F", "#FFFFFF"],
+      bannedTerms: ["100% free grocery", "instant delivery unconditionally"],
+      leadSource: "Product Trial",
+      description: "India's premier food & grocery aggregator with strict festive campaign governance.",
+    },
+    {
+      name: "Zomato",
+      industry: "Food Tech & Dining",
+      category: "Restaurant Aggregation & Nightlife",
+      pipelineStatus: "Contract Review",
+      fitScore: "90% Fit",
+      tone: "Witty, humorous, pop-culture driven, food-obsessed",
+      palette: ["#CB202D", "#2D2D2D", "#FFFFFF"],
+      bannedTerms: ["unlimited free food", "no questions asked refund always"],
+      leadSource: "Partner Referral",
+      description: "High-volume social copy and outdoor billboard advertising with viral copy requirements.",
+    },
+    {
+      name: "Nykaa",
+      industry: "Beauty & Personal Care",
+      category: "Cosmetics, Skincare & Wellness",
+      pipelineStatus: "Evaluation Trial",
+      fitScore: "87% Fit",
+      tone: "Sophisticated, authentic, empowering, wellness-first",
+      palette: ["#FC2779", "#27272A", "#FFFFFF"],
+      bannedTerms: ["miracle cure in 24 hours", "permanent skin whitening"],
+      leadSource: "Enterprise Inbound",
+      description: "Stringent regulatory compliance for dermatological claims and cosmetic safety claims.",
+    },
+    {
+      name: "Nike India",
+      industry: "Sportswear & Athleisure",
+      category: "Athletic Footwear & Performance Apparel",
+      pipelineStatus: "Enterprise Prospect",
+      fitScore: "84% Fit",
+      tone: "Inspirational, relentless, premium, athlete-focused",
+      palette: ["#000000", "#FFFFFF", "#E11D48"],
+      bannedTerms: ["cheapest shoes", "knockoff discounts"],
+      leadSource: "Marketing Division",
+      description: "Global trademark standards, athlete quote attribution, and visual contrast governance.",
+    },
+  ];
+
+  const handleProvisionProspect = async (prospect: (typeof futureClients)[0]) => {
+    setProvisioningName(prospect.name);
+    try {
+      let existing = brands.find((b) => b.name.toLowerCase() === prospect.name.toLowerCase());
+      if (!existing) {
+        existing = await api.createBrand({
+          name: prospect.name,
+          industry: prospect.industry,
+          tone_persona: prospect.tone,
+          approved_hex_palette: prospect.palette,
+          banned_terms: prospect.bannedTerms,
+          preferred_terminology: {},
+          min_wcag_contrast: 4.5,
+        });
+        await refreshBrands();
+      }
+      setActiveBrandId(existing.id);
+      setAdminTab("clients");
+    } catch (err) {
+      console.error("Failed to provision prospect brand:", err);
+    } finally {
+      setProvisioningName(null);
+    }
+  };
+
   // Tabs for Creator & Brand views
   const [creatorTab, setCreatorTab] = useState<"ALL" | "REJECTED" | "APPROVED" | "REVIEW">("ALL");
   const [brandTab, setBrandTab] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
+  const [adminTab, setAdminTab] = useState<"clients" | "submissions" | "pipeline">("clients");
+  const [provisioningName, setProvisioningName] = useState<string | null>(null);
 
   // Rejection modal for Brand Reviewer
   const [rejectingSub, setRejectingSub] = useState<Submission | null>(null);
@@ -1229,179 +1320,468 @@ export default function GovernanceDashboardPage() {
             </div>
           </div>
 
-          {/* Interactive Trend Chart */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-            <div
-              className={`lg:col-span-8 rounded-xl p-5 border shadow-2xs ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                    Compliance Score Progression
-                  </h3>
-                  <p className={`font-sans text-xs ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
-                    Chronological compliance audit history across submissions
+          {/* Platform Admin View Selector: Our Clients | Submissions | Future Pipeline */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-palette-7/30 border border-border">
+              <button
+                type="button"
+                onClick={() => setAdminTab("clients")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  adminTab === "clients"
+                    ? "bg-primary text-white shadow-xs"
+                    : "text-text-muted hover:text-on-surface hover:bg-palette-7/40"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[17px]">corporate_fare</span>
+                Our Clients ({brands.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminTab("submissions")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  adminTab === "submissions"
+                    ? "bg-primary text-white shadow-xs"
+                    : "text-text-muted hover:text-on-surface hover:bg-palette-7/40"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[17px]">rule_folder</span>
+                Client Submissions ({submissions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdminTab("pipeline")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  adminTab === "pipeline"
+                    ? "bg-primary text-white shadow-xs"
+                    : "text-text-muted hover:text-on-surface hover:bg-palette-7/40"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[17px]">rocket_launch</span>
+                Future Clients & Pipeline (5)
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href="/setup"
+                className="px-4 py-2 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">add_circle</span>
+                + Onboard New Client
+              </Link>
+            </div>
+          </div>
+
+          {/* TAB 1: OUR CLIENTS & ACTIVE TENANTS */}
+          {adminTab === "clients" && (
+            <div className="space-y-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {brands.map((b) => {
+                  const isCurrentActive = b.id === activeBrandId;
+                  const clientSubs = submissions.filter((s) => s.brand_id === b.id);
+                  return (
+                    <div
+                      key={b.id}
+                      className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                        isCurrentActive
+                          ? "border-primary/80 ring-2 ring-primary/20 bg-primary/5 shadow-sm"
+                          : isDark
+                          ? "bg-[#1b1b1f] border-[#3b3c44] hover:border-[#4f505b]"
+                          : "bg-white border-[#cbd5e1] hover:border-slate-400"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary font-black text-sm flex items-center justify-center">
+                              {b.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-sm text-on-surface leading-tight">{b.name}</h4>
+                              <span className="text-[11px] text-text-muted">{b.industry || "Enterprise Brand"}</span>
+                            </div>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              isCurrentActive
+                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                : "bg-palette-7/40 text-text-muted"
+                            }`}
+                          >
+                            {isCurrentActive ? "● Active Tenant" : "Configured"}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-text-muted line-clamp-2 mb-4 leading-relaxed">
+                          {b.tone_persona || "Autonomous brand governance guidelines and multi-modal compliance configured."}
+                        </p>
+
+                        {/* Palette swatches */}
+                        {b.approved_hex_palette && b.approved_hex_palette.length > 0 && (
+                          <div className="mb-4">
+                            <span className="text-[10px] uppercase font-mono font-semibold text-text-muted block mb-1.5">
+                              Approved Colors
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {b.approved_hex_palette.slice(0, 5).map((color, idx) => (
+                                <div
+                                  key={idx}
+                                  className="w-5 h-5 rounded-md border border-border shadow-2xs"
+                                  style={{ backgroundColor: color }}
+                                  title={color}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Client Metric Grid */}
+                        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border text-xs mb-4">
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-text-muted block">Submissions</span>
+                            <span className="font-mono font-bold text-on-surface">{clientSubs.length} Audited</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-text-muted block">Policy Chunks</span>
+                            <span className="font-mono font-bold text-primary">110 Indexed</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveBrandId(b.id);
+                            setAdminTab("submissions");
+                          }}
+                          className={`w-full py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                            isCurrentActive
+                              ? "bg-primary text-white hover:bg-[#004578]"
+                              : "border border-border text-on-surface hover:bg-palette-7/30"
+                          }`}
+                        >
+                          {isCurrentActive ? "Active Workspace" : "Switch to Brand"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Quick Add Client Card */}
+                <Link
+                  href="/setup"
+                  className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center transition-all cursor-pointer group ${
+                    isDark
+                      ? "border-[#3b3c44] hover:border-primary bg-[#14151a]/50"
+                      : "border-slate-300 hover:border-primary bg-slate-50/50"
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined text-[28px]">add_business</span>
+                  </div>
+                  <h4 className="font-bold text-sm text-on-surface mb-1">Onboard New Client</h4>
+                  <p className="text-xs text-text-muted max-w-xs mb-3">
+                    Ingest brand guidelines, configure color palettes, extract policy rules and launch an autonomous tenant workspace.
                   </p>
+                  <span className="text-xs font-bold text-primary flex items-center gap-1 group-hover:underline">
+                    Launch Client Onboarding Wizard →
+                  </span>
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: CLIENT SUBMISSIONS & REVIEWS */}
+          {adminTab === "submissions" && (
+            <div className="space-y-6 mb-8">
+              {/* Interactive Trend Chart */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div
+                  className={`lg:col-span-8 rounded-xl p-5 border shadow-2xs ${
+                    isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                        Compliance Score Progression
+                      </h3>
+                      <p className={`font-sans text-xs ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                        Chronological compliance audit history across submissions
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="h-64 w-full">
+                    {isMounted ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="complianceGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.4} />
+                              <stop offset="95%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#2e2f38" : "#f1f5f9"} />
+                          <XAxis dataKey="run" stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
+                          <YAxis domain={[50, 100]} stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: isDark ? "#1f2026" : "#ffffff",
+                              borderColor: isDark ? "#383a45" : "#e2e8f0",
+                              borderRadius: "0.5rem",
+                              fontSize: "12px",
+                            }}
+                          />
+                          <ReferenceLine y={90} stroke="#10b981" strokeDasharray="3 3" label={{ value: "Target (90%)", fill: "#10b981", fontSize: 10 }} />
+                          <Area type="monotone" dataKey="compliance" stroke={isDark ? "#7c3aed" : "#005797"} strokeWidth={2.5} fillOpacity={1} fill="url(#complianceGradient)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-xs text-text-muted">Loading chart...</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Top Violations Breakdown */}
+                <div
+                  className={`lg:col-span-4 rounded-xl p-5 border shadow-2xs ${
+                    isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                      Top Violations
+                    </h3>
+                    <span className="text-[11px] font-mono text-text-muted">{totalCategoryViolations} Total</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {categoryEntries.length === 0 ? (
+                      <p className="text-xs text-text-muted py-6 text-center">No violations logged for this brand.</p>
+                    ) : (
+                      categoryEntries.slice(0, 4).map(([cat, count]) => {
+                        const pct = Math.round((count / totalCategoryViolations) * 100);
+                        return (
+                          <div key={cat} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs font-semibold">
+                              <span className="capitalize">{cat.replace("_", " ")}</span>
+                              <span className="font-mono text-text-muted">{pct}% ({count})</span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-palette-7/30 overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="h-64 w-full">
-                {isMounted ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="complianceGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.4} />
-                          <stop offset="95%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#2e2f38" : "#f1f5f9"} />
-                      <XAxis dataKey="run" stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
-                      <YAxis domain={[50, 100]} stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: isDark ? "#1f2026" : "#ffffff",
-                          borderColor: isDark ? "#383a45" : "#e2e8f0",
-                          borderRadius: "0.5rem",
-                          fontSize: "12px",
-                        }}
-                      />
-                      <ReferenceLine y={90} stroke="#10b981" strokeDasharray="3 3" label={{ value: "Target (90%)", fill: "#10b981", fontSize: 10 }} />
-                      <Area type="monotone" dataKey="compliance" stroke={isDark ? "#7c3aed" : "#005797"} strokeWidth={2.5} fillOpacity={1} fill="url(#complianceGradient)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-text-muted">Loading chart...</div>
-                )}
+              {/* Multi-Modal Submissions Table */}
+              <div
+                className={`rounded-2xl border overflow-hidden shadow-xs ${
+                  isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+                }`}
+              >
+                <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-on-surface">Client Submissions Review Queue</h3>
+                    <p className="text-[11px] text-text-muted">Direct superuser override authority — approve or reject submissions without leaving the dashboard</p>
+                  </div>
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-palette-7/30 text-text-muted">
+                    {submissions.length} Total
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                      <tr
+                        className={`text-[10px] font-mono uppercase tracking-wider font-semibold border-b ${
+                          isDark ? "bg-[#14151a] text-text-muted border-[#2e2f38]" : "bg-slate-50 text-slate-500 border-slate-200"
+                        }`}
+                      >
+                        <th className="py-3 px-4">Title</th>
+                        <th className="py-3 px-4">Author / Format</th>
+                        <th className="py-3 px-4">Findings</th>
+                        <th className="py-3 px-4">Score</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Admin Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-xs divide-y divide-border">
+                      {topSubmissions.map((sub) => (
+                        <tr key={sub.id} className="hover:bg-palette-7/20 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-on-surface">{sub.title}</div>
+                            <div className="text-[11px] font-mono text-text-muted">SUB-#{sub.id} · v{sub.current_version}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-on-surface">{sub.creator_name}</div>
+                            <span className="text-[10px] font-mono uppercase text-text-muted">{sub.content_format}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-xs font-mono font-bold text-text-muted">
+                              {sub.findings?.length || 0} Flags
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold">
+                            {sub.compliance_score != null ? `${sub.compliance_score}%` : "—"}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-palette-7/40">
+                              {sub.status.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
+                                disabled={updatingId === sub.id}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer transition-colors shadow-2xs"
+                              >
+                                ✓ Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleQuickStatusUpdate(sub.id, "CHANGES_REQUESTED")}
+                                disabled={updatingId === sub.id}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 cursor-pointer transition-colors shadow-2xs"
+                              >
+                                ✕ Reject
+                              </button>
+                              <Link
+                                href={`/audit?id=${sub.id}`}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-border hover:border-primary text-text-muted hover:text-on-surface"
+                              >
+                                Audit
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Top Violations Breakdown */}
-            <div
-              className={`lg:col-span-4 rounded-xl p-5 border shadow-2xs ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                  Top Violations
-                </h3>
-                <span className="text-[11px] font-mono text-text-muted">{totalCategoryViolations} Total</span>
+          {/* TAB 3: FUTURE CLIENTS & ENTERPRISE PIPELINE */}
+          {adminTab === "pipeline" && (
+            <div className="space-y-6 mb-8">
+              <div className="p-5 rounded-2xl border bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-transparent border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-base text-on-surface flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-[20px]">rocket_launch</span>
+                      Enterprise Expansion Pipeline
+                    </h3>
+                    <p className="text-xs text-text-muted mt-1 max-w-xl">
+                      Future clients pre-analyzed for autonomous brand governance. Platform creators can provision an instant isolated workspace with one click.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 self-start sm:self-auto">
+                    5 High-Value Prospects
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                {categoryEntries.length === 0 ? (
-                  <p className="text-xs text-text-muted py-6 text-center">No violations logged for this brand.</p>
-                ) : (
-                  categoryEntries.slice(0, 4).map(([cat, count]) => {
-                    const pct = Math.round((count / totalCategoryViolations) * 100);
-                    return (
-                      <div key={cat} className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold">
-                          <span className="capitalize">{cat.replace("_", " ")}</span>
-                          <span className="font-mono text-text-muted">{pct}% ({count})</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {futureClients.map((client) => {
+                  const isAlreadyCreated = brands.some((b) => b.name.toLowerCase() === client.name.toLowerCase());
+                  const isProcessing = provisioningName === client.name;
+
+                  return (
+                    <div
+                      key={client.name}
+                      className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                        isDark ? "bg-[#1b1b1f] border-[#3b3c44] hover:border-[#4f505b]" : "bg-white border-[#cbd5e1] hover:border-slate-400"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                          <div>
+                            <h4 className="font-bold text-base text-on-surface leading-tight">{client.name}</h4>
+                            <span className="text-[11px] font-mono text-text-muted">{client.industry}</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                            {client.fitScore}
+                          </span>
                         </div>
-                        <div className="w-full h-1.5 rounded-full bg-palette-7/30 overflow-hidden">
-                          <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+
+                        <p className="text-xs text-text-muted leading-relaxed mb-3">
+                          {client.description}
+                        </p>
+
+                        {/* Tone & Palette */}
+                        <div className="space-y-2 mb-4 text-xs">
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-text-muted block font-semibold">
+                              Target Tone & Persona
+                            </span>
+                            <span className="text-xs text-on-surface line-clamp-1">{client.tone}</span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] uppercase font-mono text-text-muted block font-semibold mb-1">
+                              Proposed Palette
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {client.palette.map((hex, i) => (
+                                <div
+                                  key={i}
+                                  className="w-4 h-4 rounded border border-border shadow-2xs"
+                                  style={{ backgroundColor: hex }}
+                                  title={hex}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <span className="text-[11px] text-text-muted font-medium">Pipeline Stage:</span>
+                            <span className="text-[11px] font-bold text-primary font-mono">{client.pipelineStatus}</span>
+                          </div>
                         </div>
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
 
-          {/* Admin Submissions Table with Overrides */}
-          <div
-            className={`rounded-2xl border overflow-hidden shadow-xs mb-6 ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}
-          >
-            <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-sm text-on-surface">Admin Multi-Modal Review Queue</h3>
-                <p className="text-[11px] text-text-muted">Superuser override authority across all tenant submissions</p>
-              </div>
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-palette-7/30 text-text-muted">
-                {submissions.length} Total
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr
-                    className={`text-[10px] font-mono uppercase tracking-wider font-semibold border-b ${
-                      isDark ? "bg-[#14151a] text-text-muted border-[#2e2f38]" : "bg-slate-50 text-slate-500 border-slate-200"
-                    }`}
-                  >
-                    <th className="py-3 px-4">Title</th>
-                    <th className="py-3 px-4">Author / Format</th>
-                    <th className="py-3 px-4">Findings</th>
-                    <th className="py-3 px-4">Score</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Admin Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="text-xs divide-y divide-border">
-                  {topSubmissions.map((sub) => (
-                    <tr key={sub.id} className="hover:bg-palette-7/20 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-on-surface">{sub.title}</div>
-                        <div className="text-[11px] font-mono text-text-muted">SUB-#{sub.id} · v{sub.current_version}</div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-on-surface">{sub.creator_name}</div>
-                        <span className="text-[10px] font-mono uppercase text-text-muted">{sub.content_format}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-xs font-mono font-bold text-text-muted">
-                          {sub.findings?.length || 0} Flags
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold">
-                        {sub.compliance_score != null ? `${sub.compliance_score}%` : "—"}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-palette-7/40">
-                          {sub.status.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <div className="pt-3 border-t border-border">
+                        {isAlreadyCreated ? (
                           <button
                             type="button"
-                            onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
-                            disabled={updatingId === sub.id}
-                            className="px-2 py-1 rounded text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                            onClick={() => {
+                              const found = brands.find((b) => b.name.toLowerCase() === client.name.toLowerCase());
+                              if (found) {
+                                setActiveBrandId(found.id);
+                                setAdminTab("clients");
+                              }
+                            }}
+                            className="w-full py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer"
                           >
-                            ✓ Approve
+                            ✓ Workspace Live (Switch)
                           </button>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => handleQuickStatusUpdate(sub.id, "CHANGES_REQUESTED")}
-                            disabled={updatingId === sub.id}
-                            className="px-2 py-1 rounded text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 cursor-pointer"
+                            onClick={() => handleProvisionProspect(client)}
+                            disabled={isProcessing}
+                            className="w-full py-2 rounded-xl text-xs font-bold bg-primary hover:bg-[#004578] text-white transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
                           >
-                            ✕ Reject
+                            {isProcessing ? "Provisioning Workspace..." : "+ Provision Client Workspace"}
                           </button>
-                          <Link
-                            href={`/audit?id=${sub.id}`}
-                            className="px-2 py-1 rounded text-[11px] font-semibold border border-border hover:border-primary"
-                          >
-                            Audit
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </div>
