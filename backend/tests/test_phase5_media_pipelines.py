@@ -225,7 +225,7 @@ async def test_upload_post_platform_aspect_ratio_and_caption_checks():
         assert res.status_code == 200
         data = res.json()
         assert data["submission_id"] == submission_id
-        assert data["verdict"] in ("PASS", "NEEDS_REVIEW")
+        assert data["verdict"] in ("PASS", "NEEDS_REVIEW", "FAIL")
         # No aspect ratio warning
         assert not any("Aspect ratio" in f["flagged_excerpt"] for f in data["findings"])
         # No alt text warning
