@@ -336,6 +336,7 @@ export interface GovernanceAnalytics {
   findings_by_source: Record<string, number>;
   resolution_breakdown: Record<string, number>;
   ambiguous_guidelines: AmbiguousGuideline[];
+  active_guidelines_count?: number;
 }
 
 export interface HealthCheckResponse {
