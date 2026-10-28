@@ -47,6 +47,16 @@ export function Sidebar() {
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSetupDone, setIsSetupDone] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("inkloom_setup_completed") === "true";
+      if (stored || (brands.length > 0 && brands.some((b) => b.id === activeBrandId))) {
+        setIsSetupDone(true);
+      }
+    } catch {}
+  }, [brands, activeBrandId]);
 
   const brandRef = useRef<HTMLDivElement>(null);
   const roleRef = useRef<HTMLDivElement>(null);
@@ -105,12 +115,16 @@ export function Sidebar() {
       ]
     : isBrand
     ? [
-        {
-          label: "Brand Setup",
-          path: "/setup",
-          icon: Globe,
-          badge: "Start Here",
-        },
+        ...(!isSetupDone
+          ? [
+              {
+                label: "Brand Setup",
+                path: "/setup",
+                icon: Globe,
+                badge: "Start Here",
+              },
+            ]
+          : []),
         {
           label: "Brand Dashboard",
           path: "/dashboard",
