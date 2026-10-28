@@ -29,3 +29,12 @@ class DemoUserItem(BaseModel):
     role: str
     default_password: str
     description: str
+
+
+class ClerkSyncRequest(BaseModel):
+    clerk_id: str
+    email: str
+    user_name: Optional[str] = None
+    role: Optional[str] = "CREATOR"
+    tenant_id: Optional[str] = "tenant_default"
+
