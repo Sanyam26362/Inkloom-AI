@@ -38,7 +38,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
       } else if (role === "CREATOR") {
         router.push("/content");
       } else {
-        router.push("/judge");
+        router.push("/dashboard");
       }
     } catch (err) {
       console.error("Fast signup failed:", err);
@@ -288,7 +288,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                       ? "/setup"
                       : selectedRole === "CREATOR"
                       ? "/content"
-                      : "/judge"
+                      : "/dashboard"
                   }
                   signInUrl="#signin"
                 />
