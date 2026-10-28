@@ -47,3 +47,5 @@ htmlcov/
 .DS_Store
 Thumbs.db
 /designlens-filestage.io-20261023-230758
+scratch/
+backend/scratch/
