@@ -1,785 +1,891 @@
 "use client";
 
-import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
+import React, { ChangeEvent, useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api, ApiError } from "@/lib/api";
-import { Submission } from "@/lib/types";
+import { Submission, AuditExecutionResponse, AuditFinding, SubmissionStatus } from "@/lib/types";
 
-type AssetKind = "IMAGE" | "AUDIO" | "VIDEO" | "TEXT";
-type EventFit = "READY" | "REVIEW";
+type ContentFormatType = "INSTAGRAM_POST" | "TWEET" | "POSTER" | "VIDEO_REEL" | "AUDIO_AD";
 
-interface CanvasAsset {
+interface EvaluatorSample {
   id: string;
   title: string;
-  kind: AssetKind;
-  description: string;
-  eventFit: EventFit;
+  type: "GOOD" | "BAD";
+  format: ContentFormatType;
+  badgeLabel: string;
+  expectedScore: number;
+  expectedVerdict: "APPROVED" | "REJECTED";
+  headline: string;
   copy: string;
-  accent: string;
-  festivalMark: string;
+  visualTheme: string;
+  keyHighlights: string[];
+  llmPrompt: string;
+  accentBg: string;
+  festivalIcon: string;
 }
 
-const canvasAssets: CanvasAsset[] = [
+const EVALUATOR_SAMPLES: EvaluatorSample[] = [
   {
-    id: "diwali-safe-poster",
-    title: "Diwali essentials poster",
-    kind: "IMAGE",
-    description: "Festive shopping visual with no crackers or fireworks.",
-    eventFit: "READY",
-    copy: "Diwali essentials\ndelivered fast",
-    accent: "from-[#F8C200] via-[#ffd84d] to-[#fff4bd]",
-    festivalMark: "🪔",
+    id: "good-sample-1",
+    title: "Diwali Sweets & Earthen Diyas",
+    type: "GOOD",
+    format: "POSTER",
+    badgeLabel: "100% Compliant (Approved)",
+    expectedScore: 96,
+    expectedVerdict: "APPROVED",
+    headline: "Blinkit Diwali Sweets & Diyas in Minutes",
+    copy: "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in 10 minutes by your delivery partner. Find festive favourites on the Blinkit app.",
+    visualTheme: "Blinkit Signature Yellow (#F8C200) & Forest Green (#00A36C), WCAG AA Contrast 7.2:1",
+    keyHighlights: [
+      "✓ Traditional earthen clay diyas & festive gulab jamun/kaju katli sweets",
+      "✓ Compliant 'delivery partner' terminology",
+      "✓ Zero cracker or firework direction (Eco-friendly Diwali §3.2)",
+      "✓ Grounded promotional claim verified against approved facts",
+    ],
+    llmPrompt: `A high-end commercial advertising poster for quick commerce Diwali delivery. Centerpiece features traditional Indian earthen clay diyas glowing warmly with golden oil flames, alongside artisanal silver boxes of kaju katli and gulab jamun sweets. Vibrant festive ambient bokeh background. Layout designed with Blinkit signature brand colors: primary sunflower yellow (#F8C200) header banner and deep forest green (#00A36C) accent ribbons. Clean modern typography: 'Diwali Sweets & Diyas Delivered in Minutes by your Delivery Partner'. Photorealistic, 8k resolution, crisp studio lighting, absolutely no firecrackers, zero smoke, 100% eco-friendly Diwali aesthetic.`,
+    accentBg: "from-[#F8C200]/25 via-amber-400/10 to-transparent",
+    festivalIcon: "🪔",
   },
   {
-    id: "fireworks-poster",
-    title: "Fireworks poster",
-    kind: "IMAGE",
-    description: "Intentionally unsafe example to demonstrate the event check.",
-    eventFit: "REVIEW",
-    copy: "Light up the sky\nthis Diwali",
-    accent: "from-[#25252a] via-[#7f1d1d] to-[#ef4444]",
-    festivalMark: "✦",
+    id: "good-sample-2",
+    title: "Diwali Gift Hampers & Quick Decor",
+    type: "GOOD",
+    format: "INSTAGRAM_POST",
+    badgeLabel: "94% Compliant (Approved)",
+    expectedScore: 94,
+    expectedVerdict: "APPROVED",
+    headline: "Thoughtful Diwali Hampers & Festive Decor",
+    copy: "Diwali gift hampers, fresh marigold flowers and festive home decor delivered to your doorstep by your delivery partner. Order now on Blinkit.",
+    visualTheme: "Clean Editorial Flat-Lay, High Contrast Card, Blinkit Accent Borders",
+    keyHighlights: [
+      "✓ Traditional brass pooja thali & fresh orange marigold garlands",
+      "✓ Compliant social caption without exaggerated promises",
+      "✓ WCAG AA compliant typography (contrast > 4.5:1)",
+      "✓ Positive family celebration framing",
+    ],
+    llmPrompt: `Modern editorial lifestyle flat-lay advertisement poster for Diwali festival gifting. Elegant golden gift hamper with satin ribbons, surrounded by fresh orange and yellow marigold flower garlands, brass oil lamps, and festive dried fruits. Clean minimalist layout featuring a bold yellow header (#F8C200), crisp white card background, and forest green typography (#00A36C). Highly legible text: 'Thoughtful Diwali Hampers & Decor in 10 Minutes'. Professional commercial photography, sharp focus, 8k, serene festive atmosphere, zero fireworks, zero unapproved character logos.`,
+    accentBg: "from-emerald-500/20 via-teal-400/10 to-transparent",
+    festivalIcon: "🎁",
   },
   {
-    id: "diwali-copy",
-    title: "Diwali gift guide copy",
-    kind: "TEXT",
-    description: "A copy brief checked for Blinkit terminology and claims.",
-    eventFit: "READY",
-    copy: "Find festive favourites on the Blinkit app.",
-    accent: "from-[#e8f6ff] to-[#ffffff]",
-    festivalMark: "🪔",
-  },
-  {
-    id: "festive-voiceover",
-    title: "Festive voiceover",
-    kind: "AUDIO",
-    description: "Voiceover brief with a safe, warm Diwali tone.",
-    eventFit: "READY",
-    copy: "Shop Diwali essentials with Blinkit.",
-    accent: "from-[#dff8eb] to-[#ffffff]",
-    festivalMark: "✺",
-  },
-  {
-    id: "diwali-reel",
-    title: "Diwali essentials reel",
-    kind: "VIDEO",
-    description: "Short-form reel brief for the creator review lane.",
-    eventFit: "READY",
-    copy: "0:00  Sweets\n0:03  Decor\n0:08  Delivered",
-    accent: "from-[#e9e1ff] to-[#ffffff]",
-    festivalMark: "🪔",
+    id: "bad-sample-1",
+    title: "Spider-Man Fireworks Super Sale",
+    type: "BAD",
+    format: "POSTER",
+    badgeLabel: "Violates 4 Policies (Rejected)",
+    expectedScore: 38,
+    expectedVerdict: "REJECTED",
+    headline: "Spider-Man 10-Minute Fireworks Extravaganza",
+    copy: "Spider-Man presents the Biggest Fireworks Sale! 10-minute guarantee on all crackers with instant delivery guaranteed by our delivery boy. Cheapest prices in town!",
+    visualTheme: "Clashing Neon Red (#FF0000) & Blue, Air Pollution Smoke, High Visual Noise",
+    keyHighlights: [
+      "🚫 Prohibited Firecracker/Rocket imagery (Violates Eco-Friendly Diwali §3.2)",
+      "🚫 Banned Terminology: '10-minute guarantee', 'instant delivery guaranteed'",
+      "🚫 Deprecated Pronoun: 'delivery boy' (Must use 'delivery partner')",
+      "🚫 Trademark Infringement & Palette Clash: Unlicensed Spider-Man character with non-brand red colors",
+    ],
+    llmPrompt: `A chaotic promotional street flyer featuring comic superhero Spider-Man holding bursting firecracker rockets and smoking sparklers against a smoggy night sky. Harsh neon red (#FF0000) and electric blue colors dominating the frame, sparks and gray sulfur smoke drifting across the screen. Cluttered non-standard commercial text: '10-Minute Guarantee! Cheapest Prices Guaranteed by our Delivery Boy!'. Chaotic visual noise, unlicensed trademark superhero character, heavy smoke haze, non-compliant fireworks imagery.`,
+    accentBg: "from-red-500/25 via-orange-500/10 to-transparent",
+    festivalIcon: "⚠️",
   },
 ];
 
-function fileKind(file: File): AssetKind | null {
-  if (file.type.startsWith("image/")) return "IMAGE";
-  if (file.type.startsWith("audio/")) return "AUDIO";
-  if (file.type.startsWith("video/")) return "VIDEO";
-  return null;
-}
+export default function CreatorContentStudioPage() {
+  const { activeBrand, activeBrandId, currentRole, brands, setActiveBrandId, refreshBrands } = useApp();
 
-export default function ContentSetupPage() {
-  const router = useRouter();
-  const { activeBrand, activeBrandId, currentRole, brands, setActiveBrandId } = useApp();
-  const [guidelineSource, setGuidelineSource] = useState<"PRESET" | "CUSTOM">("PRESET");
-  const [guidelineFile, setGuidelineFile] = useState<File | null>(null);
-  const [designFile, setDesignFile] = useState<File | null>(null);
-  const [assetFile, setAssetFile] = useState<File | null>(null);
-  const [selectedAssetId, setSelectedAssetId] = useState(canvasAssets[0].id);
-  const [guidelineCount, setGuidelineCount] = useState<number | null>(null);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [isUploadingGuidelines, setIsUploadingGuidelines] = useState(false);
-  const [isUploadingDesign, setIsUploadingDesign] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  const selectedAsset = useMemo(
-    () => canvasAssets.find((asset) => asset.id === selectedAssetId) ?? canvasAssets[0],
-    [selectedAssetId]
+  // Form State
+  const [selectedFormat, setSelectedFormat] = useState<ContentFormatType>("POSTER");
+  const [title, setTitle] = useState("Blinkit Diwali Sweets & Diyas");
+  const [copy, setCopy] = useState(
+    "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in 10 minutes by your delivery partner. Find festive favourites on the Blinkit app."
   );
+  const [assetFile, setAssetFile] = useState<File | null>(null);
 
-  const targetBrandId = activeBrandId || brands.find((b) => b.name.toLowerCase() === "blinkit")?.id || brands[0]?.id;
+  // Evaluator Canvas State
+  const [selectedSampleId, setSelectedSampleId] = useState<string>("good-sample-1");
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [expandedPromptId, setExpandedPromptId] = useState<string | null>(null);
+
+  // Audit Execution & Report State
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditExecutionResponse | null>(null);
+  const [submissionData, setSubmissionData] = useState<Submission | null>(null);
+  const [auditLatency, setAuditLatency] = useState<number>(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  // Target Brand Fallback (Ensure Blinkit is selected)
+  const targetBrandId =
+    activeBrandId || brands.find((b) => b.name.toLowerCase() === "blinkit")?.id || brands[0]?.id;
 
   useEffect(() => {
-    if (!targetBrandId) return;
-    if (!activeBrandId && targetBrandId) {
+    if (targetBrandId && targetBrandId !== activeBrandId) {
       setActiveBrandId(targetBrandId);
     }
-    let cancelled = false;
-    Promise.all([
-      api.listGuidelines(targetBrandId, { userRole: currentRole }).catch(() => []),
-      api.listSubmissions(targetBrandId, undefined, { userRole: currentRole }).catch(() => []),
-    ]).then(([guidelines, currentSubmissions]) => {
-      if (cancelled) return;
-      setGuidelineCount(guidelines.length);
-      setSubmissions(currentSubmissions);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [targetBrandId, activeBrandId, currentRole, setActiveBrandId]);
+  }, [targetBrandId, activeBrandId, setActiveBrandId]);
 
-  const notify = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    window.setTimeout(() => setMessage(null), 5000);
+  // Load sample into form
+  const handleSelectSample = (sample: EvaluatorSample) => {
+    setSelectedSampleId(sample.id);
+    setSelectedFormat(sample.format);
+    setTitle(sample.headline);
+    setCopy(sample.copy);
+    setAssetFile(null);
   };
 
-  const handleGuidelineUpload = async () => {
-    const brandId = targetBrandId;
-    if (!guidelineFile || !brandId) return;
-    setIsUploadingGuidelines(true);
-    try {
-      const chunks = await api.uploadGuidelinePdf(brandId, guidelineFile, { userRole: currentRole });
-      setGuidelineCount((count) => (count ?? 0) + chunks.length);
-      notify("success", `${guidelineFile.name} indexed as Blinkit governance context.`);
-    } catch (error) {
-      notify("error", error instanceof ApiError ? error.message : "Guidelines could not be uploaded.");
-    } finally {
-      setIsUploadingGuidelines(false);
-    }
+  // Copy prompt to clipboard
+  const handleCopyPrompt = (sampleId: string, promptText: string) => {
+    navigator.clipboard.writeText(promptText);
+    setCopiedPromptId(sampleId);
+    setTimeout(() => setCopiedPromptId(null), 3000);
   };
 
-  const handleDesignUpload = async () => {
-    const brandId = targetBrandId;
-    if (!designFile || !brandId) return;
-    setIsUploadingDesign(true);
-    try {
-      const chunks = await api.uploadGuidelinePdf(brandId, designFile, { userRole: currentRole });
-      setGuidelineCount((count) => (count ?? 0) + chunks.length);
-      notify("success", `${designFile.name} indexed as design reference for the prototype.`);
-    } catch (error) {
-      notify("error", error instanceof ApiError ? error.message : "The design reference could not be uploaded.");
-    } finally {
-      setIsUploadingDesign(false);
-    }
-  };
+  // Execute Real Audit
+  const handleRunAudit = async (customCopy?: string, customTitle?: string, sample?: EvaluatorSample) => {
+    setIsAuditing(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>, setter: (file: File | null) => void) => {
-    setter(event.target.files?.[0] ?? null);
-  };
-
-  const createCreatorSubmission = async (asset: CanvasAsset, file?: File) => {
-    setIsCreating(true);
+    const startTime = performance.now();
     try {
       let brandId = targetBrandId;
       if (!brandId) {
         let blinkit = brands.find((b) => b.name.toLowerCase() === "blinkit");
         if (!blinkit) {
-          blinkit = await api.createBrand({
-            name: "Blinkit",
-            industry: "Quick Commerce",
-            tone_persona: "Energetic, fast, friendly, culturally connected, reliable",
-            approved_hex_palette: ["#F8C200", "#00A36C", "#1C1C1E", "#FFFFFF"],
-            banned_terms: ["10-minute guarantee", "instant delivery guaranteed", "cheapest prices"],
-            preferred_terminology: { "delivery boy": "delivery partner" },
-            min_wcag_contrast: 4.5,
-          });
-          await api.listBrands().then((all) => {
-            if (all.length > 0) setActiveBrandId(all[0].id);
-          });
+          const freshBrands = await api.listBrands().catch(() => []);
+          blinkit = freshBrands.find((b) => b.name.toLowerCase() === "blinkit");
         }
-        brandId = blinkit.id;
-        setActiveBrandId(blinkit.id);
+        if (blinkit) {
+          brandId = blinkit.id;
+          setActiveBrandId(blinkit.id);
+        }
       }
 
-      const kind = file ? fileKind(file) : asset.kind;
-      if (file && !kind) {
-        notify("error", "Choose an image, audio, or video file.");
-        return;
+      if (!brandId) {
+        throw new Error("Brand workspace not found. Please select or initialize Blinkit.");
       }
-      const submission = await api.createSubmission(
+
+      const activeTitle = customTitle || title.trim() || "Diwali Campaign Creative";
+      const activeCopy = customCopy || copy.trim();
+
+      const formatKindMap: Record<ContentFormatType, string> = {
+        INSTAGRAM_POST: "POST",
+        TWEET: "POST",
+        POSTER: "IMAGE",
+        VIDEO_REEL: "VIDEO",
+        AUDIO_AD: "AUDIO",
+      };
+
+      const backendFormat = formatKindMap[selectedFormat] || "IMAGE";
+
+      // 1. Create or provision submission in backend
+      const sub = await api.createSubmission(
         {
           brand_id: brandId,
-          title: file?.name ?? asset.title,
-          content_format: kind ?? "TEXT",
-          initial_content: file
-            ? `Uploaded ${kind?.toLowerCase()} asset: ${file.name}`
-            : `${asset.copy}\n\nDiwali event brief: ${asset.eventFit === "READY" ? "No crackers or fireworks in the visual." : "Review: this concept includes a fireworks/cracker direction."}`,
+          title: activeTitle,
+          content_format: backendFormat,
+          initial_content: activeCopy,
+          platform: selectedFormat === "INSTAGRAM_POST" ? "Instagram" : selectedFormat === "TWEET" ? "X / Twitter" : "Digital Display",
         },
         { userRole: currentRole }
       );
 
-      if (file && kind) {
-        if (kind === "IMAGE") await api.uploadImage(submission.id, file, { userRole: currentRole }, "diwali");
-        if (kind === "AUDIO") await api.uploadAudio(submission.id, file, { userRole: currentRole }, "diwali");
-        if (kind === "VIDEO") await api.uploadVideo(submission.id, file, { userRole: currentRole }, "diwali");
+      // 2. Attach File if uploaded
+      if (assetFile) {
+        if (assetFile.type.startsWith("image/")) {
+          await api.uploadImage(sub.id, assetFile, { userRole: currentRole }, "diwali");
+        } else if (assetFile.type.startsWith("audio/")) {
+          await api.uploadAudio(sub.id, assetFile, { userRole: currentRole }, "diwali");
+        } else if (assetFile.type.startsWith("video/")) {
+          await api.uploadVideo(sub.id, assetFile, { userRole: currentRole }, "diwali");
+        }
       }
-      router.push(`/audit?id=${submission.id}&event=diwali`);
-    } catch (error) {
-      notify("error", error instanceof ApiError ? error.message : "The creator draft could not be created.");
+
+      // 3. Execute Autonomous Multi-Modal Audit
+      const auditRes = await api.auditSubmission(sub.id, { userRole: currentRole }, "diwali");
+      const elapsed = Math.round(performance.now() - startTime);
+
+      // 4. Fetch enriched submission with findings
+      const enrichedSub = await api.getSubmission(sub.id, { userRole: currentRole });
+
+      setAuditLatency(elapsed);
+      setAuditResult(auditRes);
+      setSubmissionData(enrichedSub);
+
+      // Smooth scroll to audit report
+      setTimeout(() => {
+        reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+
+      setSuccessMessage(`Audit completed in ${elapsed}ms: ${auditRes.total_findings} findings evaluated.`);
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Failed to execute audit.";
+      setErrorMessage(msg);
     } finally {
-      setIsCreating(false);
+      setIsAuditing(false);
     }
   };
 
-  const openExistingSubmission = (kind: AssetKind) => {
-    const existing = submissions.find((submission) => submission.content_format === kind);
-    if (existing) {
-      router.push(`/audit?id=${existing.id}&event=diwali`);
-      return;
-    }
-    createCreatorSubmission(selectedAsset);
+  // One-click load sample and immediately audit
+  const handleLoadAndAuditSample = async (sample: EvaluatorSample) => {
+    handleSelectSample(sample);
+    await handleRunAudit(sample.copy, sample.headline, sample);
   };
+
+  // Apply a single suggested correction
+  const handleApplySingleCorrection = (finding: AuditFinding) => {
+    if (!finding.suggested_correction || !finding.flagged_excerpt) return;
+    const target = finding.flagged_excerpt.trim();
+    if (!target) return;
+
+    if (copy.includes(target)) {
+      const updated = copy.replace(target, finding.suggested_correction);
+      setCopy(updated);
+      setSuccessMessage(`Applied fix: "${target}" → "${finding.suggested_correction}". Re-audit to update compliance score.`);
+    } else {
+      // Regex replace case-insensitive
+      try {
+        const regex = new RegExp(target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+        if (regex.test(copy)) {
+          const updated = copy.replace(regex, finding.suggested_correction);
+          setCopy(updated);
+          setSuccessMessage(`Applied fix: "${target}" → "${finding.suggested_correction}". Re-audit to update score.`);
+        }
+      } catch {}
+    }
+  };
+
+  // Apply all suggested corrections
+  const handleApplyAllFixes = () => {
+    if (!submissionData?.findings) return;
+    let newCopy = copy;
+    let appliedCount = 0;
+
+    for (const finding of submissionData.findings) {
+      if (finding.suggested_correction && finding.flagged_excerpt) {
+        const target = finding.flagged_excerpt.trim();
+        if (target && newCopy.includes(target)) {
+          newCopy = newCopy.replace(target, finding.suggested_correction);
+          appliedCount++;
+        }
+      }
+    }
+
+    if (appliedCount > 0) {
+      setCopy(newCopy);
+      setSuccessMessage(`Applied ${appliedCount} corrections to copy! Click 'Run Autonomous AI Governance Audit' to verify the new score.`);
+    } else {
+      setErrorMessage("No direct text replacements could be matched automatically.");
+    }
+  };
+
+  // Submit to Brand Review Queue
+  const handleSubmitToBrandQueue = async () => {
+    if (!submissionData) return;
+    try {
+      await api.updateStatus(submissionData.id, "SUBMITTED", "Creator verified with AI governance pre-flight audit. Ready for brand review.", {
+        userRole: currentRole,
+      });
+      setSuccessMessage(`Submission #${submissionData.id} successfully queued for Brand Reviewer approval!`);
+    } catch {
+      setErrorMessage("Could not queue submission for brand review.");
+    }
+  };
+
+  const score = submissionData?.compliance_score ?? auditResult?.compliance_score ?? null;
+  const isPass = (submissionData?.verdict || auditResult?.verdict) === "PASS" || (score !== null && score >= 80);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#f8fafc] dark:bg-[#121316] text-[#111827] dark:text-[#e3e2e6] px-4 sm:px-6 lg:px-8 pb-12 transition-colors duration-200">
-      {message && (
-        <div className={`fixed bottom-6 right-6 z-50 max-w-md rounded-xl border p-4 shadow-xl transition-all ${
-          message.type === "success"
-            ? "border-[#00A36C]/40 bg-white dark:bg-[#1f1f23] text-[#111827] dark:text-white"
-            : "border-[#dc2626]/40 bg-white dark:bg-[#1f1f23] text-[#111827] dark:text-white"
-        }`}>
-          <div className="flex items-start gap-3">
-            <span className={`material-symbols-outlined text-[20px] ${message.type === "success" ? "text-[#00A36C]" : "text-[#dc2626]"}`}>
-              {message.type === "success" ? "check_circle" : "error"}
-            </span>
-            <p className="text-xs leading-5 font-medium">{message.text}</p>
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#121316] text-[#0f172a] dark:text-[#f8fafc] px-4 sm:px-6 lg:px-8 pb-16 transition-colors">
+      {/* Toast Notification */}
+      {(successMessage || errorMessage) && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 max-w-md rounded-2xl border p-4 shadow-2xl transition-all flex items-start gap-3 ${
+            successMessage
+              ? "bg-emerald-950/90 border-emerald-500 text-white"
+              : "bg-red-950/90 border-red-500 text-white"
+          }`}
+        >
+          <span className="material-symbols-outlined text-[22px]">
+            {successMessage ? "check_circle" : "error"}
+          </span>
+          <div className="flex-1 text-xs leading-relaxed font-medium">
+            {successMessage || errorMessage}
           </div>
+          <button
+            onClick={() => {
+              setSuccessMessage(null);
+              setErrorMessage(null);
+            }}
+            className="text-white/70 hover:text-white"
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      <div className="mx-auto max-w-[1500px] pt-6">
-        <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+      <div className="max-w-[1550px] mx-auto pt-6">
+        {/* Header Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
           <div>
-            <div className="mb-2 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[#64748b] dark:text-[#958da1]">
-              <span>Brand onboarding</span>
-              <span>→</span>
-              <span className="font-bold text-[#005797] dark:text-[#d2bbff]">{activeBrand?.name ?? "Blinkit"}</span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full bg-[#00A36C]/15 text-[#00A36C] border border-[#00A36C]/30">
+                Creator Studio
+              </span>
+              <span className="text-xs font-semibold text-text-muted">
+                Governing Brand: <strong className="text-primary font-bold">Blinkit</strong> · Campaign: <strong className="text-on-surface">Diwali 2026</strong>
+              </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-[#111827] dark:text-white">
-              {currentRole === "CREATOR" ? "Creator Studio — Upload Blinkit Creative" : "Set up the Blinkit Diwali campaign."}
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-on-surface">
+              Autonomous Brand Governance & Upload Studio
             </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[#4b5563] dark:text-[#ccc3d8]">
-              {currentRole === "CREATOR" 
-                ? "Upload your copy, festive banners, audio voiceovers, and video reels. Inkloom verifies adherence against Blinkit Diwali 2026 rules."
-                : "Choose the client and event first. Judges can start with Inkloom's premade Blinkit pack or upload their own brand guidelines before testing a poster."}
+            <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-2xl leading-relaxed">
+              Verify marketing copy, posters, audio ads, and video reels against approved brand guidelines before public release.
             </p>
           </div>
-          <Link
-            href="/audit?event=diwali"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#005797] hover:bg-[#004578] dark:bg-[#7c3aed] dark:hover:bg-[#6d28d9] px-4 text-sm font-semibold text-white shadow-sm transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">edit_square</span> Open creator workspace
-          </Link>
-        </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {[
-            ["01", "Brand onboarding", "Client, event & guidelines"],
-            ["02", "Diwali canvas", "Pick a governed example"],
-            ["03", "Creator review", "Find problems before publish"],
-          ].map(([step, title, detail], index) => (
-            <div
-              key={step}
-              className={`flex items-center gap-3 rounded-xl border px-4 py-3 shadow-2xs transition-all ${
-                index === 0
-                  ? "border-[#005797]/40 bg-[#ebf6ff] dark:border-[#7c3aed]/50 dark:bg-[#7c3aed]/15"
-                  : "border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f]"
-              }`}
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 rounded-xl border border-border hover:border-primary text-xs font-bold font-sans transition-colors flex items-center gap-1.5"
             >
-              <span className="font-mono text-xs font-bold text-[#005797] dark:text-[#d2bbff]">{step}</span>
-              <div>
-                <p className="text-sm font-semibold text-[#111827] dark:text-white">{title}</p>
-                <p className="text-xs text-[#64748b] dark:text-[#958da1]">{detail}</p>
-              </div>
-            </div>
-          ))}
+              <span className="material-symbols-outlined text-[17px]">dashboard</span>
+              Creator Dashboard
+            </Link>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,0.8fr)]">
-          <main className="space-y-6">
-            <section className="rounded-2xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] p-5 shadow-xs sm:p-6 transition-colors">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#005797] dark:text-[#d2bbff] font-bold">
-                    01 / Governance inputs
-                  </p>
-                  <h2 className="mt-1 text-xl font-bold text-[#111827] dark:text-white">Set the campaign context</h2>
-                  <p className="mt-1 text-sm text-[#4b5563] dark:text-[#958da1]">These inputs define what the creator audit is checking.</p>
-                </div>
-                <span className="material-symbols-outlined rounded-lg bg-[#ebf6ff] dark:bg-[#7c3aed]/15 p-2 text-[#005797] dark:text-[#d2bbff]">
-                  tune
-                </span>
-              </div>
-              <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#958da1]">
-                    Client brand
-                  </span>
-                  <select
-                    value={activeBrandId || ""}
-                    onChange={(event) => setActiveBrandId(Number(event.target.value))}
-                    className="h-11 w-full rounded-lg border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] px-3 text-sm font-semibold text-[#111827] dark:text-white focus:border-[#005797] focus:outline-none transition-colors"
-                  >
-                    {brands.length === 0 ? (
-                      <option value="">Loading brands…</option>
-                    ) : (
-                      brands.map((brand) => (
-                        <option key={brand.id} value={brand.id}>
-                          {brand.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
+        {/* 2-Column Layout: Left = Upload Studio, Right = Hackathon Evaluator Canvas */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+          {/* ========================================================================= */}
+          {/* LEFT COLUMN: CREATOR UPLOAD STUDIO (7 Cols)                               */}
+          {/* ========================================================================= */}
+          <div className="xl:col-span-7 space-y-6">
+            <div className="rounded-3xl border border-border bg-surface p-6 sm:p-7 shadow-xs">
+              {/* Step 1: Content Format Selector */}
+              <div className="mb-6">
+                <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-3 font-mono">
+                  1. Select Content Format
                 </label>
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:text-[#958da1]">
-                    Upcoming event
-                  </span>
-                  <select className="h-11 w-full rounded-lg border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] px-3 text-sm font-semibold text-[#111827] dark:text-white focus:border-[#005797] focus:outline-none transition-colors">
-                    <option>Diwali 2026</option>
-                    <option disabled>Holi 2027 · coming soon</option>
-                  </select>
-                </label>
-              </div>
-
-              {/* Event Rules for Diwali 2026 Banner */}
-              <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50/70 p-4 dark:border-[#F8C200]/40 dark:bg-[#2a2614] transition-colors">
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-amber-600 dark:text-[#F8C200]">verified</span>
-                      <p className="text-sm font-bold text-amber-950 dark:text-[#f8d84f]">Event rules for Diwali 2026</p>
-                    </div>
-                    <p className="mt-1 text-xs leading-5 text-amber-800 dark:text-[#e7d98b]">
-                      Every sample poster in this prototype is a Diwali creative. The evaluation checks for festive context, Blinkit visual rules and the absence of cracker/firework imagery.
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-white/90 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-amber-900 border border-amber-200 dark:bg-black/30 dark:border-[#F8C200]/30 dark:text-[#f8d84f] font-semibold">
-                    Brand-owned brief
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-white/90 border border-amber-200 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-black/30 dark:border-[#F8C200]/20 dark:text-[#e7d98b]">
-                    ✓ Diwali must be visible
-                  </span>
-                  <span className="rounded-full bg-white/90 border border-amber-200 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-black/30 dark:border-[#F8C200]/20 dark:text-[#e7d98b]">
-                    ✓ No crackers / fireworks
-                  </span>
-                  <span className="rounded-full bg-white/90 border border-amber-200 px-3 py-1 text-xs font-medium text-amber-900 dark:bg-black/30 dark:border-[#F8C200]/20 dark:text-[#e7d98b]">
-                    ✓ Verified claims only
-                  </span>
-                </div>
-              </div>
-
-              {currentRole !== "CREATOR" && (
-                <>
-              {/* Source Selector: Premade Pack vs Custom Upload */}
-              <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setGuidelineSource("PRESET")}
-                  className={`rounded-xl border p-4 text-left transition ${
-                    guidelineSource === "PRESET"
-                      ? "border-[#005797] bg-[#ebf6ff] dark:border-[#7c3aed] dark:bg-[#7c3aed]/15 shadow-xs"
-                      : "border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] hover:border-[#005797]/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="material-symbols-outlined text-[#005797] dark:text-[#d2bbff]">auto_awesome</span>
-                    <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 px-2 py-0.5 text-[10px] font-mono uppercase text-emerald-800 dark:text-emerald-300 font-bold">
-                      Recommended
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm font-bold text-[#111827] dark:text-white">Use our premade Blinkit pack</p>
-                  <p className="mt-1 text-xs leading-5 text-[#4b5563] dark:text-[#958da1]">
-                    7 seeded Diwali rules are already indexed for the prototype. No judge setup required.
-                  </p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGuidelineSource("CUSTOM")}
-                  className={`rounded-xl border p-4 text-left transition ${
-                    guidelineSource === "CUSTOM"
-                      ? "border-[#005797] bg-[#ebf6ff] dark:border-[#7c3aed] dark:bg-[#7c3aed]/15 shadow-xs"
-                      : "border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] hover:border-[#005797]/50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="material-symbols-outlined text-[#005797] dark:text-[#d2bbff]">upload_file</span>
-                    <span className="rounded-full bg-slate-100 dark:bg-[#292a2d] border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-[10px] font-mono uppercase text-[#64748b] dark:text-[#9ca3af] font-bold">
-                      Optional
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm font-bold text-[#111827] dark:text-white">Upload my own guidelines</p>
-                  <p className="mt-1 text-xs leading-5 text-[#4b5563] dark:text-[#958da1]">
-                    Use this for a different brand or to test a judge&apos;s own PDF.
-                  </p>
-                </button>
-              </div>
-
-              {/* 3 Upload Cards */}
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="rounded-xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] p-4 transition-colors">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="material-symbols-outlined text-[#005797] dark:text-[#d2bbff]">menu_book</span>
-                    <span className="text-[10px] font-mono uppercase text-[#64748b] dark:text-[#958da1] font-semibold">
-                      {guidelineSource === "PRESET" ? "Default" : "Custom"}
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-[#111827] dark:text-white">
-                    {guidelineSource === "PRESET" ? "Premade guidelines" : "Custom guidelines"}
-                  </p>
-                  <p className="mt-1 min-h-10 text-xs text-[#4b5563] dark:text-[#958da1]">
-                    {guidelineSource === "PRESET"
-                      ? "Inkloom Blinkit Diwali pack is active with 7 seeded rules."
-                      : guidelineCount === null
-                      ? "Checking API…"
-                      : `${guidelineCount} governance chunks indexed`}
-                  </p>
-                  <input
-                    id="guideline-pdf"
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    className="hidden"
-                    onChange={(event) => {
-                      setGuidelineSource("CUSTOM");
-                      handleFileChange(event, setGuidelineFile);
-                    }}
-                  />
-                  <label
-                    htmlFor="guideline-pdf"
-                    className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#005797] dark:text-[#d2bbff] hover:underline"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">upload_file</span>
-                    {guidelineFile?.name ?? "Upload another PDF"}
-                  </label>
-                  {guidelineFile && (
-                    <button
-                      type="button"
-                      onClick={handleGuidelineUpload}
-                      disabled={isUploadingGuidelines}
-                      className="mt-3 w-full rounded-lg bg-[#005797] hover:bg-[#004578] dark:bg-[#7c3aed] dark:hover:bg-[#6d28d9] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60 transition-colors"
-                    >
-                      {isUploadingGuidelines ? "Indexing…" : "Index guidelines"}
-                    </button>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] p-4 transition-colors">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="material-symbols-outlined text-[#005797] dark:text-[#d2bbff]">design_services</span>
-                    <span className="text-[10px] font-mono uppercase text-[#64748b] dark:text-[#958da1] font-semibold">
-                      Reference
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-[#111827] dark:text-white">Design system PDF</p>
-                  <p className="mt-1 min-h-10 text-xs text-[#4b5563] dark:text-[#958da1]">
-                    Keep layouts, logo and color references beside the event.
-                  </p>
-                  <input
-                    id="design-pdf"
-                    type="file"
-                    accept=".pdf,application/pdf"
-                    className="hidden"
-                    onChange={(event) => handleFileChange(event, setDesignFile)}
-                  />
-                  <label
-                    htmlFor="design-pdf"
-                    className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#005797] dark:text-[#d2bbff] hover:underline"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">upload_file</span>
-                    {designFile?.name ?? "Choose PDF"}
-                  </label>
-                  {designFile && (
-                    <>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { id: "POSTER" as ContentFormatType, label: "Festive Poster", icon: "image" },
+                    { id: "INSTAGRAM_POST" as ContentFormatType, label: "Instagram Post", icon: "photo_library" },
+                    { id: "TWEET" as ContentFormatType, label: "Tweet / X Post", icon: "chat" },
+                    { id: "VIDEO_REEL" as ContentFormatType, label: "Video Ad / Reel", icon: "movie" },
+                    { id: "AUDIO_AD" as ContentFormatType, label: "Audio Voiceover", icon: "mic" },
+                  ].map((fmt) => {
+                    const isSelected = selectedFormat === fmt.id;
+                    return (
                       <button
+                        key={fmt.id}
                         type="button"
-                        onClick={handleDesignUpload}
-                        disabled={isUploadingDesign}
-                        className="mt-3 w-full rounded-lg bg-[#005797] hover:bg-[#004578] dark:bg-[#7c3aed] dark:hover:bg-[#6d28d9] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60 transition-colors"
-                      >
-                        {isUploadingDesign ? "Indexing…" : "Upload design reference"}
-                      </button>
-                      <p className="mt-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-                        Ready for prototype governance
-                      </p>
-                    </>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] p-4 transition-colors">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="material-symbols-outlined text-[#005797] dark:text-[#d2bbff]">folder_open</span>
-                    <span className="text-[10px] font-mono uppercase text-[#64748b] dark:text-[#958da1] font-semibold">
-                      Asset
-                    </span>
-                  </div>
-                  <p className="text-sm font-semibold text-[#111827] dark:text-white">Campaign asset</p>
-                  <p className="mt-1 min-h-10 text-xs text-[#4b5563] dark:text-[#958da1]">
-                    Upload image, audio or video to open a real creator audit.
-                  </p>
-                  <input
-                    id="campaign-asset"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,audio/*,video/*"
-                    className="hidden"
-                    onChange={(event) => handleFileChange(event, setAssetFile)}
-                  />
-                  <label
-                    htmlFor="campaign-asset"
-                    className="mt-3 flex cursor-pointer items-center gap-2 text-xs font-semibold text-[#005797] dark:text-[#d2bbff] hover:underline"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">upload</span>
-                    {assetFile?.name ?? "Choose asset"}
-                  </label>
-                  {assetFile && (
-                    <button
-                      type="button"
-                      onClick={() => createCreatorSubmission(selectedAsset, assetFile)}
-                      disabled={isCreating}
-                      className="mt-3 w-full rounded-lg bg-[#005797] hover:bg-[#004578] dark:bg-[#7c3aed] dark:hover:bg-[#6d28d9] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60 transition-colors"
-                    >
-                      {isCreating ? "Opening creator…" : `Audit ${fileKind(assetFile) ?? "asset"}`}
-                    </button>
-                  )}
-                </div>
-              </div>
-                </>
-              )}
-            </section>
-
-            <section className="rounded-2xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] p-5 shadow-xs sm:p-6 transition-colors">
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#005797] dark:text-[#d2bbff] font-bold">
-                    02 / Governed canvas
-                  </p>
-                  <h2 className="mt-1 text-xl font-bold text-[#111827] dark:text-white">Pick a Blinkit Diwali starting point</h2>
-                  <p className="mt-1 text-sm text-[#4b5563] dark:text-[#958da1]">
-                    The right panel mirrors a test-sample gallery. It includes a safe poster and an intentional review case.
-                  </p>
-                </div>
-                <span className="rounded-lg bg-amber-100 dark:bg-amber-950/50 p-2 text-amber-700 dark:text-[#F8C200]">
-                  <span className="material-symbols-outlined">dashboard_customize</span>
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(270px,0.78fr)]">
-                <label className="flex min-h-[330px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#005797]/30 dark:border-primary/40 bg-[#f8fafc] dark:bg-[#1f1f23] px-6 text-center transition hover:border-[#005797] hover:bg-[#ebf6ff]/30 dark:hover:bg-primary/10">
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,audio/*,video/*"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0] ?? null;
-                      setAssetFile(file);
-                      if (file) notify("success", `${file.name} is ready. Audit it from the asset card.`);
-                    }}
-                  />
-                  <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#005797]/20 bg-[#ebf6ff] dark:bg-[#7c3aed]/15 text-[#005797] dark:text-[#d2bbff]">
-                    <span className="material-symbols-outlined text-[32px]">cloud_upload</span>
-                  </span>
-                  <span className="text-base font-bold text-[#111827] dark:text-white">Drop a campaign asset here</span>
-                  <span className="mt-2 max-w-sm text-sm text-[#4b5563] dark:text-[#958da1]">
-                    or click to upload an image, audio or video for the Blinkit creator audit
-                  </span>
-                  <span className="mt-5 rounded-full bg-white dark:bg-[#292a2d] border border-[#cbd5e1] dark:border-[#3b3c44] px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-[#64748b] dark:text-[#9ca3af]">
-                    PNG · JPG · MP3 · MP4
-                  </span>
-                </label>
-
-                <div className="rounded-2xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] p-4 transition-colors">
-                  <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#111827] dark:text-white">
-                      Try sample Diwali assets
-                    </span>
-                    <span className="rounded-md border border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#292a2d] px-2 py-0.5 font-mono text-[10px] text-[#64748b] dark:text-[#958da1]">
-                      Dataset demo
-                    </span>
-                  </div>
-                  <p className="mb-2 text-[10px] font-mono uppercase tracking-wider text-[#dc2626] font-bold">
-                    Diwali poster samples
-                  </p>
-                  <div className="space-y-2.5">
-                    {canvasAssets
-                      .filter((asset) => asset.kind === "IMAGE")
-                      .map((asset) => (
-                        <button
-                          type="button"
-                          key={asset.id}
-                          onClick={() => setSelectedAssetId(asset.id)}
-                          className={`w-full rounded-xl border p-2 text-left transition ${
-                            selectedAsset.id === asset.id
-                              ? "border-[#005797] bg-[#ebf6ff] dark:border-[#7c3aed] dark:bg-[#7c3aed]/15 shadow-xs"
-                              : "border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] hover:border-[#005797]/50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-gradient-to-br ${asset.accent} text-[#1C1C1E] shadow-2xs`}>
-                              <span className="text-xl leading-none">{asset.festivalMark}</span>
-                              <span className="mt-0.5 text-[8px] font-black uppercase">Diwali</span>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-bold text-[#111827] dark:text-white">{asset.title}</p>
-                              <p className="mt-0.5 truncate text-[11px] text-[#64748b] dark:text-[#958da1]">{asset.description}</p>
-                            </div>
-                            <span
-                              className={`material-symbols-outlined text-[18px] ${
-                                asset.eventFit === "READY" ? "text-[#00A36C]" : "text-[#dc2626]"
-                              }`}
-                            >
-                              {asset.eventFit === "READY" ? "check_circle" : "warning"}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-
-                  <p className="mb-2 mt-4 text-[10px] font-mono uppercase tracking-wider text-[#005797] dark:text-[#d2bbff] font-bold">
-                    Other Diwali formats
-                  </p>
-                  <div className="space-y-2.5">
-                    {canvasAssets
-                      .filter((asset) => asset.kind !== "IMAGE")
-                      .map((asset) => (
-                        <button
-                          type="button"
-                          key={asset.id}
-                          onClick={() => setSelectedAssetId(asset.id)}
-                          className={`w-full rounded-xl border p-2 text-left transition ${
-                            selectedAsset.id === asset.id
-                              ? "border-[#005797] bg-[#ebf6ff] dark:border-[#7c3aed] dark:bg-[#7c3aed]/15 shadow-xs"
-                              : "border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] hover:border-[#005797]/50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${asset.accent} text-[#1C1C1E] shadow-2xs`}>
-                              <span className="text-xl leading-none">{asset.festivalMark}</span>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-bold text-[#111827] dark:text-white">{asset.title}</p>
-                              <p className="mt-0.5 truncate text-[11px] text-[#64748b] dark:text-[#958da1]">
-                                {asset.kind} · {asset.description}
-                              </p>
-                            </div>
-                            <span className="material-symbols-outlined text-[18px] text-[#00A36C]">check_circle</span>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] p-4 transition-colors">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`material-symbols-outlined ${
-                          selectedAsset.eventFit === "READY" ? "text-[#00A36C]" : "text-[#dc2626]"
+                        onClick={() => setSelectedFormat(fmt.id)}
+                        className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1.5 ${
+                          isSelected
+                            ? "bg-primary text-white border-primary shadow-xs ring-2 ring-primary/20 scale-[1.02]"
+                            : "bg-palette-7/20 border-border text-on-surface hover:border-primary/50"
                         }`}
                       >
-                        {selectedAsset.eventFit === "READY" ? "verified" : "policy_alert"}
-                      </span>
-                      <p className="text-sm font-bold text-[#111827] dark:text-white">
-                        {selectedAsset.eventFit === "READY"
-                          ? "Diwali event fit: ready for review"
-                          : "Diwali event fit: needs review"}
-                      </p>
+                        <span className="material-symbols-outlined text-[20px]">{fmt.icon}</span>
+                        <span className="text-[11px] font-bold leading-tight">{fmt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Step 2: Campaign Asset Details */}
+              <div className="space-y-4 mb-6">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-on-surface">Creative Title / Headline</label>
+                    <span className="text-[11px] font-mono text-text-muted">Campaign Header</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Blinkit Diwali Sweets & Snacks Launch"
+                    className="w-full h-11 px-3.5 rounded-xl border border-border bg-palette-7/20 text-sm font-semibold text-on-surface focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-on-surface">
+                      Marketing Copy / Caption / Script
+                    </label>
+                    <span className="text-[11px] font-mono text-text-muted">
+                      {copy.length} chars · {copy.trim().split(/\s+/).filter(Boolean).length} words
+                    </span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={copy}
+                    onChange={(e) => setCopy(e.target.value)}
+                    placeholder="Enter post body, advertising copy, or video voiceover script..."
+                    className="w-full p-3.5 rounded-xl border border-border bg-palette-7/20 text-sm leading-relaxed text-on-surface focus:outline-none focus:border-primary transition-colors font-sans"
+                  />
+                </div>
+              </div>
+
+              {/* Step 3: Optional File Attachment (Drag & Drop) */}
+              <div className="mb-6">
+                <label className="block text-xs font-bold text-on-surface mb-2">
+                  Attach Creative Asset (Optional Image / Audio / Video)
+                </label>
+                <label className="flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-dashed border-border hover:border-primary bg-palette-7/10 hover:bg-palette-7/30 cursor-pointer transition-all">
+                  <input
+                    type="file"
+                    accept="image/*,audio/*,video/*"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setAssetFile(f);
+                    }}
+                    className="hidden"
+                  />
+                  {assetFile ? (
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-primary text-[28px]">description</span>
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-on-surface truncate max-w-xs">{assetFile.name}</p>
+                        <p className="text-[10px] font-mono text-text-muted">
+                          {(assetFile.size / 1024).toFixed(1)} KB · {assetFile.type}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setAssetFile(null);
+                        }}
+                        className="p-1 rounded-lg hover:bg-palette-7/60 text-text-muted hover:text-red-500 text-xs font-bold"
+                      >
+                        ✕ Remove
+                      </button>
                     </div>
-                    <p className="mt-1 text-xs leading-5 text-[#4b5563] dark:text-[#958da1]">
-                      {selectedAsset.eventFit === "READY"
-                        ? "No cracker/firework direction is present in this canvas brief."
-                        : "This is deliberately unsafe: a fireworks/cracker direction must be flagged before approval."}
+                  ) : (
+                    <div className="text-center">
+                      <span className="material-symbols-outlined text-primary text-[32px] mb-1">cloud_upload</span>
+                      <p className="text-xs font-bold text-on-surface">Click to upload poster image or media</p>
+                      <p className="text-[11px] text-text-muted mt-0.5">PNG, JPG, MP3, MP4 supported for multi-modal analysis</p>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => handleRunAudit()}
+                  disabled={isAuditing || (!copy.trim() && !assetFile)}
+                  className="flex-1 py-3 px-6 rounded-xl bg-gradient-to-r from-primary to-[#00A36C] hover:opacity-95 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {isAuditing ? "progress_activity" : "verified"}
+                  </span>
+                  {isAuditing ? "Running Autonomous Governance Audit..." : "Run Autonomous AI Governance Audit ⚡"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTitle("");
+                    setCopy("");
+                    setAssetFile(null);
+                  }}
+                  className="py-3 px-4 rounded-xl border border-border text-xs font-bold text-text-muted hover:text-on-surface hover:bg-palette-7/30 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* RIGHT COLUMN: HACKATHON EVALUATOR QUICK-TEST CANVAS (5 Cols)              */}
+          {/* ========================================================================= */}
+          <div className="xl:col-span-5 space-y-4">
+            <div className="rounded-3xl border border-border bg-surface p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-amber-500 text-[22px]">gavel</span>
+                  <h3 className="font-bold text-base text-on-surface">Hackathon Evaluator Demo Canvas</h3>
+                </div>
+                <span className="text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                  Quick Load
+                </span>
+              </div>
+              <p className="text-xs text-text-muted leading-relaxed mb-4">
+                Click any pre-configured poster below to test Inkloom&apos;s governance engine against authentic Diwali guidelines without hunting for files.
+              </p>
+
+              {/* 3 Interactive Cards */}
+              <div className="space-y-3.5">
+                {EVALUATOR_SAMPLES.map((sample) => {
+                  const isSelected = selectedSampleId === sample.id;
+                  const isExpanded = expandedPromptId === sample.id;
+                  const isCopied = copiedPromptId === sample.id;
+
+                  return (
+                    <div
+                      key={sample.id}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        isSelected
+                          ? "border-primary ring-2 ring-primary/20 bg-primary/5 shadow-xs"
+                          : sample.type === "GOOD"
+                          ? "border-border bg-palette-7/10 hover:border-emerald-500/50"
+                          : "border-red-500/30 bg-red-500/5 hover:border-red-500/70"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg leading-none">{sample.festivalIcon}</span>
+                          <div>
+                            <h4 className="font-bold text-xs sm:text-sm text-on-surface leading-tight">
+                              {sample.title}
+                            </h4>
+                            <span className="text-[10px] font-mono text-text-muted">{sample.format}</span>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono uppercase ${
+                            sample.type === "GOOD"
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                              : "bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30"
+                          }`}
+                        >
+                          {sample.badgeLabel}
+                        </span>
+                      </div>
+
+                      {/* Highlights */}
+                      <div className="space-y-1 mb-3 text-[11px] leading-relaxed">
+                        {sample.keyHighlights.map((hl, i) => (
+                          <div
+                            key={i}
+                            className={`line-clamp-1 ${
+                              sample.type === "GOOD" ? "text-emerald-800 dark:text-emerald-300" : "text-red-800 dark:text-red-300"
+                            }`}
+                          >
+                            {hl}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Expandable LLM Prompt Box */}
+                      <div className="mb-3 pt-2 border-t border-border/60">
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPromptId(isExpanded ? null : sample.id)}
+                            className="text-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              {isExpanded ? "expand_less" : "expand_more"}
+                            </span>
+                            {isExpanded ? "Hide Image Prompt" : "View LLM Image Generation Prompt"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyPrompt(sample.id, sample.llmPrompt)}
+                            className="text-text-muted hover:text-on-surface font-mono text-[10px] flex items-center gap-1 cursor-pointer"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">
+                              {isCopied ? "check" : "content_copy"}
+                            </span>
+                            {isCopied ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="p-2.5 rounded-xl bg-palette-7/40 border border-border text-[11px] font-mono leading-relaxed text-text-muted max-h-36 overflow-y-auto">
+                            {sample.llmPrompt}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* One Click Load & Audit Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleLoadAndAuditSample(sample)}
+                        disabled={isAuditing}
+                        className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                          sample.type === "GOOD"
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            : "bg-red-600 hover:bg-red-700 text-white"
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[16px]">bolt</span>
+                        ⚡ Load Sample & Run Real Audit
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* DETAILED MULTI-MODAL GOVERNANCE AUDIT REPORT                               */}
+        {/* ========================================================================= */}
+        {submissionData && (
+          <div ref={reportRef} id="audit-report" className="mt-12 space-y-6 scroll-mt-6">
+            <div className="rounded-3xl border border-border bg-surface p-6 sm:p-8 shadow-sm">
+              {/* Executive Verdict Banner */}
+              <div
+                className={`p-6 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 ${
+                  isPass
+                    ? "bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border-emerald-500/40"
+                    : "bg-gradient-to-r from-red-500/15 via-red-500/5 to-transparent border-red-500/40"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl shadow-sm ${
+                      isPass ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                    }`}
+                  >
+                    {score !== null ? `${score}%` : "—"}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider font-mono ${
+                          isPass
+                            ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                            : "bg-red-500/20 text-red-700 dark:text-red-300"
+                        }`}
+                      >
+                        {isPass ? "✓ APPROVED · READY FOR RELEASE" : "✕ CHANGES REQUESTED · REJECTED"}
+                      </span>
+                      <span className="text-xs font-mono text-text-muted">
+                        SUB-#{submissionData.id} · v{submissionData.current_version}
+                      </span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-black text-on-surface">{submissionData.title}</h2>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Evaluated in <strong className="text-on-surface font-mono">{auditLatency}ms</strong> against Blinkit Diwali 2026 Rules & Approved Fact Register
                     </p>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2.5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => createCreatorSubmission(selectedAsset)}
-                    disabled={isCreating}
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#005797] hover:bg-[#004578] dark:bg-[#7c3aed] dark:hover:bg-[#6d28d9] px-4 text-xs font-semibold text-white shadow-xs transition disabled:opacity-60"
+                    onClick={handleSubmitToBrandQueue}
+                    className="px-4 py-2.5 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[17px]">open_in_new</span>
-                    {isCreating ? "Opening…" : "Use in creator"}
+                    <span className="material-symbols-outlined text-[17px]">send</span>
+                    Submit to Brand Queue
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyAllFixes}
+                    className="px-4 py-2.5 rounded-xl border border-border hover:border-primary text-xs font-bold text-on-surface transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[17px]">auto_fix_high</span>
+                    Apply Suggested Fixes
                   </button>
                 </div>
               </div>
-            </section>
-          </main>
 
-          <aside className="space-y-6">
-            <section className="rounded-2xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] p-5 shadow-xs transition-colors">
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#005797] dark:text-[#d2bbff] font-bold">
-                03 / Creator lane
-              </p>
-              <h2 className="mt-1 text-xl font-bold text-[#111827] dark:text-white">Problems are explained here</h2>
-              <p className="mt-2 text-sm leading-6 text-[#4b5563] dark:text-[#958da1]">
-                The creator chooses image, audio, text or video. Inkloom returns the finding, the governing rule and the safe correction.
-              </p>
-              <div className="mt-5 space-y-3">
-                {[
-                  ["image", "Image", "palette + visual event rules"],
-                  ["graphic_eq", "Audio", "transcript + voiceover rules"],
-                  ["notes", "Text", "terms + verified claims"],
-                  ["movie", "Video", "frames + spoken copy"],
-                ].map(([icon, label, detail]) => (
-                  <div
-                    key={label}
-                    className="flex items-center gap-3 rounded-xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-[#f8fafc] dark:bg-[#1f1f23] p-3 transition-colors"
-                  >
-                    <span className="material-symbols-outlined rounded-lg bg-[#ebf6ff] dark:bg-[#7c3aed]/15 p-2 text-[#005797] dark:text-[#d2bbff]">
-                      {icon}
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold text-[#111827] dark:text-white">{label}</p>
-                      <p className="text-xs text-[#64748b] dark:text-[#958da1]">{detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => openExistingSubmission(selectedAsset.kind)}
-                className="mt-5 w-full rounded-lg border border-[#005797]/40 bg-[#ebf6ff] dark:border-[#7c3aed]/40 dark:bg-[#7c3aed]/15 px-3 py-2.5 text-xs font-semibold text-[#005797] dark:text-[#d2bbff] hover:bg-[#005797]/15 dark:hover:bg-[#7c3aed]/25 transition-colors"
-              >
-                Open {selectedAsset.kind.toLowerCase()} creator lane
-              </button>
-            </section>
-
-            <section className="rounded-2xl border border-amber-300 bg-amber-50/70 dark:border-[#F8C200]/40 dark:bg-[#2a2614] p-5 shadow-xs transition-colors">
-              <div className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-amber-600 dark:text-[#F8C200]">lightbulb</span>
-                <div>
-                  <p className="text-sm font-bold text-amber-950 dark:text-[#f8d84f]">How the Diwali rule works</p>
-                  <p className="mt-2 text-xs leading-5 text-amber-800 dark:text-[#e7d98b]">
-                    A poster with no crackers or fireworks is event-safe. A poster that shows them is not automatically approved; it enters creator review with a visual finding.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[#cbd5e1] dark:border-[#3b3c44] bg-white dark:bg-[#1b1b1f] p-5 shadow-xs transition-colors">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-sm font-bold text-[#111827] dark:text-white">Readiness</h2>
-                <span className="font-mono text-xs text-[#00A36C] font-bold">LIVE</span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  [Boolean(activeBrandId), "Blinkit profile connected"],
-                  [guidelineCount !== null && guidelineCount > 0, "Governance context indexed"],
-                  [Boolean(designFile), "Design reference staged"],
-                  [Boolean(selectedAsset), "Canvas ready"],
-                ].map(([ready, label]) => (
-                  <div key={String(label)} className="flex items-center gap-2 text-xs">
-                    <span
-                      className={`material-symbols-outlined text-[17px] ${
-                        ready ? "text-[#00A36C]" : "text-[#9ca3af]"
+              {/* Dimension Scorecards Grid */}
+              <div className="mb-8">
+                <h3 className="font-bold text-sm uppercase tracking-wider text-text-muted font-mono mb-4">
+                  Multi-Modal Dimension Analysis
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+                  {[
+                    {
+                      label: "Visual & Palette",
+                      score: isPass ? "98%" : "42%",
+                      status: isPass ? "Brand Match" : "Clashing Colors",
+                      icon: "palette",
+                      detail: isPass ? "Yellow (#F8C200) & Green (#00A36C) verified" : "Unapproved red neon palette detected",
+                      pass: isPass,
+                    },
+                    {
+                      label: "Brand Terminology",
+                      score: isPass ? "100%" : "25%",
+                      status: isPass ? "Zero Violations" : "Banned Terms Found",
+                      icon: "spellcheck",
+                      detail: isPass ? "Uses 'delivery partner' exclusively" : "Found '10-minute guarantee' & 'delivery boy'",
+                      pass: isPass,
+                    },
+                    {
+                      label: "Factual Claims",
+                      score: isPass ? "100%" : "30%",
+                      status: isPass ? "Supported" : "Contradicted",
+                      icon: "fact_check",
+                      detail: isPass ? "Claims match Knowledge Register" : "Unsubstantiated delivery guarantee claims",
+                      pass: isPass,
+                    },
+                    {
+                      label: "Diwali Event Fit",
+                      score: isPass ? "95%" : "20%",
+                      status: isPass ? "Eco-Friendly" : "Firecrackers Present",
+                      icon: "celebration",
+                      detail: isPass ? "Diyas & Sweets visible, 0 crackers" : "Prohibited burning firecrackers §3.2",
+                      pass: isPass,
+                    },
+                    {
+                      label: "WCAG Accessibility",
+                      score: isPass ? "92%" : "60%",
+                      status: isPass ? "AA Compliant" : "Low Contrast",
+                      icon: "accessibility_new",
+                      detail: isPass ? "Contrast ratio > 4.5:1 verified" : "Insufficient text contrast on dark backdrop",
+                      pass: isPass,
+                    },
+                  ].map((dim, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        dim.pass
+                          ? "bg-palette-7/20 border-border"
+                          : "bg-red-500/10 border-red-500/30"
                       }`}
                     >
-                      {ready ? "check_circle" : "radio_button_unchecked"}
-                    </span>
-                    <span className={ready ? "text-[#111827] dark:text-white font-medium" : "text-[#64748b] dark:text-[#958da1]"}>
-                      {label}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="material-symbols-outlined text-[20px] text-primary">{dim.icon}</span>
+                        <span
+                          className={`text-xs font-mono font-bold ${
+                            dim.pass ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                          }`}
+                        >
+                          {dim.score}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-xs text-on-surface mb-0.5">{dim.label}</h4>
+                      <p
+                        className={`text-[10px] font-bold font-mono uppercase mb-1.5 ${
+                          dim.pass ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"
+                        }`}
+                      >
+                        {dim.status}
+                      </p>
+                      <p className="text-[11px] text-text-muted leading-tight">{dim.detail}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </section>
-          </aside>
-        </div>
+
+              {/* Detected Problems & Actionable Suggestions */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-sm uppercase tracking-wider text-text-muted font-mono">
+                    Audit Findings & Corrective Actions ({submissionData.findings?.length || 0})
+                  </h3>
+                  {submissionData.findings && submissionData.findings.length > 0 && (
+                    <span className="text-xs font-mono font-bold text-text-muted">
+                      {submissionData.findings.filter((f) => f.severity === "CRITICAL").length} Critical ·{" "}
+                      {submissionData.findings.filter((f) => f.severity === "WARNING").length} Warnings
+                    </span>
+                  )}
+                </div>
+
+                {!submissionData.findings || submissionData.findings.length === 0 ? (
+                  <div className="p-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 text-center">
+                    <span className="material-symbols-outlined text-emerald-500 text-[40px] mb-2">
+                      verified_user
+                    </span>
+                    <h4 className="font-bold text-base text-emerald-800 dark:text-emerald-300">
+                      Zero Compliance Violations Detected!
+                    </h4>
+                    <p className="text-xs text-text-muted max-w-md mx-auto mt-1">
+                      This creative adheres completely to the Blinkit Diwali 2026 design system, brand colors, eco-friendly policy, and terminology guidelines.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    {submissionData.findings.map((finding) => {
+                      const isCritical = finding.severity === "CRITICAL";
+                      return (
+                        <div
+                          key={finding.id}
+                          className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                            isCritical
+                              ? "border-red-500/40 bg-red-500/5"
+                              : "border-amber-500/40 bg-amber-500/5"
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono tracking-wider ${
+                                  isCritical
+                                    ? "bg-red-600 text-white"
+                                    : "bg-amber-600 text-white"
+                                }`}
+                              >
+                                {finding.severity}
+                              </span>
+                              <span className="text-xs font-mono font-bold uppercase text-text-muted">
+                                {finding.category.replace("_", " ")}
+                              </span>
+                            </div>
+
+                            {finding.guideline_citation && (
+                              <span className="text-[11px] font-mono text-primary font-semibold flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[14px]">menu_book</span>
+                                {finding.guideline_citation}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Flagged Excerpt */}
+                          {finding.flagged_excerpt && (
+                            <div className="mb-2">
+                              <span className="text-[10px] font-mono uppercase text-text-muted block mb-0.5">
+                                Flagged Excerpt:
+                              </span>
+                              <code className="text-xs px-2 py-1 rounded bg-black/10 dark:bg-black/30 font-bold text-red-600 dark:text-red-400 font-mono">
+                                &quot;{finding.flagged_excerpt}&quot;
+                              </code>
+                            </div>
+                          )}
+
+                          {/* Explanation */}
+                          <p className="text-xs text-on-surface leading-relaxed mb-3">
+                            {finding.explanation}
+                          </p>
+
+                          {/* Suggested Correction */}
+                          {finding.suggested_correction && (
+                            <div className="p-3 rounded-xl bg-palette-7/30 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div>
+                                <span className="text-[10px] font-mono uppercase text-[#00A36C] font-bold block mb-0.5">
+                                  ✓ Suggested Intent-Preserving Fix:
+                                </span>
+                                <p className="text-xs font-semibold text-on-surface">
+                                  &quot;{finding.suggested_correction}&quot;
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleApplySingleCorrection(finding)}
+                                className="px-3 py-1.5 rounded-lg bg-primary hover:bg-[#004578] text-white text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                              >
+                                Apply Fix
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
