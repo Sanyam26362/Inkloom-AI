@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   ResponsiveContainer,
@@ -17,14 +17,18 @@ import {
 
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { GovernanceAnalytics, Submission, SubmissionStatus } from "@/lib/types";
+import { GovernanceAnalytics, Submission, SubmissionStatus, UserRole } from "@/lib/types";
 import TechText from "@/components/ui/TechText";
 import DriftWall from "@/components/ui/DriftWall";
 
 export default function GovernanceDashboardPage() {
-  const { activeBrandId, currentRole, brands, theme, refreshKey } = useApp();
+  const { activeBrandId, currentRole, brands, theme, refreshKey, setActiveBrandId } = useApp();
   const isDark = theme === "dark";
   const activeBrandReady = activeBrandId > 0 && brands.some((brand) => brand.id === activeBrandId);
+
+  const isCreator = currentRole === "CREATOR";
+  const isBrand = currentRole === "REVIEWER" || currentRole === "MANAGER";
+  const isAdmin = currentRole === "ADMIN" || currentRole === "JUDGE";
 
   const [analytics, setAnalytics] = useState<GovernanceAnalytics | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -33,14 +37,25 @@ export default function GovernanceDashboardPage() {
   const [activeMetric, setActiveMetric] = useState<"compliance" | "violations">("compliance");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
-  const handleQuickStatusUpdate = async (subId: number, targetStatus: SubmissionStatus) => {
+  // Tabs for Creator & Brand views
+  const [creatorTab, setCreatorTab] = useState<"ALL" | "REJECTED" | "APPROVED" | "REVIEW">("ALL");
+  const [brandTab, setBrandTab] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
+
+  // Rejection modal for Brand Reviewer
+  const [rejectingSub, setRejectingSub] = useState<Submission | null>(null);
+  const [rejectionNotes, setRejectionNotes] = useState<string>("");
+  const [isSubmittingReject, setIsSubmittingReject] = useState<boolean>(false);
+
+  // Quick status update (Approve / Reject)
+  const handleQuickStatusUpdate = async (subId: number, targetStatus: SubmissionStatus, customNotes?: string) => {
     setUpdatingId(subId);
     setError(null);
     try {
       const notes =
-        targetStatus === "CHANGES_REQUESTED" || targetStatus === "REJECTED"
+        customNotes ||
+        (targetStatus === "CHANGES_REQUESTED" || targetStatus === "REJECTED"
           ? "Administrative review: Revision requested by governance lead."
-          : undefined;
+          : undefined);
       await api.updateStatus(subId, targetStatus, notes, { userRole: currentRole });
       setSubmissions((prev) =>
         prev.map((s) => (s.id === subId ? { ...s, status: targetStatus } : s))
@@ -55,7 +70,20 @@ export default function GovernanceDashboardPage() {
       setTimeout(() => setError(null), 8000);
     } finally {
       setUpdatingId(null);
+      setRejectingSub(null);
+      setRejectionNotes("");
     }
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!rejectingSub) return;
+    setIsSubmittingReject(true);
+    await handleQuickStatusUpdate(
+      rejectingSub.id,
+      "CHANGES_REQUESTED",
+      rejectionNotes.trim() || "Brand Reviewer requested revisions to align with brand guidelines."
+    );
+    setIsSubmittingReject(false);
   };
 
   const loadDashboardData = useCallback(async () => {
@@ -64,7 +92,7 @@ export default function GovernanceDashboardPage() {
     setError(null);
     try {
       const [analyticsData, submissionsData] = await Promise.all([
-        api.getAnalytics(activeBrandId, { userRole: currentRole }),
+        api.getAnalytics(activeBrandId, { userRole: currentRole }).catch(() => null),
         api.listSubmissions(activeBrandId, undefined, { userRole: currentRole }),
       ]);
       setAnalytics(analyticsData);
@@ -80,9 +108,6 @@ export default function GovernanceDashboardPage() {
   useEffect(() => {
     let ignore = false;
     async function fetchData() {
-      // Wait until AppContext has resolved the database-generated brand ID.
-      // This prevents an initial request such as /analytics/1 from producing a
-      // misleading "Backend Communication Warning" after a fresh seed.
       if (!activeBrandReady) {
         setError(null);
         setIsLoading(brands.length === 0);
@@ -92,7 +117,7 @@ export default function GovernanceDashboardPage() {
       setError(null);
       try {
         const [analyticsData, submissionsData] = await Promise.all([
-          api.getAnalytics(activeBrandId, { userRole: currentRole }),
+          api.getAnalytics(activeBrandId, { userRole: currentRole }).catch(() => null),
           api.listSubmissions(activeBrandId, undefined, { userRole: currentRole }),
         ]);
         if (!ignore) {
@@ -116,21 +141,55 @@ export default function GovernanceDashboardPage() {
     };
   }, [activeBrandId, activeBrandReady, brands.length, currentRole, refreshKey]);
 
-  // Derived metrics from real data
+  // Derived metrics
   const totalSubmissions = analytics?.total_submissions ?? submissions.length;
   const avgComplianceScore = analytics?.avg_compliance_score ?? 0;
   const openFindingsCount = analytics?.resolution_breakdown?.["OPEN"] ?? 0;
-  const overriddenCount = analytics?.resolution_breakdown?.["OVERRIDDEN"] ?? 0;
   const totalFindings = analytics?.total_findings_generated ?? 0;
 
-  const autoRemediationRate =
-    totalFindings > 0
-      ? Math.round(((totalFindings - openFindingsCount) / totalFindings) * 100)
-      : totalSubmissions > 0
-      ? 100
-      : null;
+  const rejectedSubmissions = useMemo(
+    () =>
+      submissions.filter(
+        (s) =>
+          s.status === "CHANGES_REQUESTED" ||
+          s.status === "REJECTED" ||
+          s.verdict === "FAIL"
+      ),
+    [submissions]
+  );
 
-  // Calculate top violation categories
+  const approvedSubmissions = useMemo(
+    () => submissions.filter((s) => s.status === "APPROVED"),
+    [submissions]
+  );
+
+  const pendingReviewSubmissions = useMemo(
+    () =>
+      submissions.filter(
+        (s) =>
+          s.status === "NEEDS_REVIEW" ||
+          s.status === "DRAFT" ||
+          s.status === "AUDITING"
+      ),
+    [submissions]
+  );
+
+  // Filtered submissions based on active tab
+  const filteredCreatorSubmissions = useMemo(() => {
+    if (creatorTab === "REJECTED") return rejectedSubmissions;
+    if (creatorTab === "APPROVED") return approvedSubmissions;
+    if (creatorTab === "REVIEW") return pendingReviewSubmissions;
+    return submissions;
+  }, [creatorTab, submissions, rejectedSubmissions, approvedSubmissions, pendingReviewSubmissions]);
+
+  const filteredBrandSubmissions = useMemo(() => {
+    if (brandTab === "PENDING") return pendingReviewSubmissions;
+    if (brandTab === "APPROVED") return approvedSubmissions;
+    if (brandTab === "REJECTED") return rejectedSubmissions;
+    return submissions;
+  }, [brandTab, submissions, pendingReviewSubmissions, approvedSubmissions, rejectedSubmissions]);
+
+  // Top violation categories
   const categoryBreakdown = analytics?.findings_by_category || {};
   const categoryEntries = Object.entries(categoryBreakdown);
   const totalCategoryViolations = categoryEntries.reduce((acc, [, val]) => acc + val, 0) || 1;
@@ -141,7 +200,7 @@ export default function GovernanceDashboardPage() {
     () => false
   );
 
-  const chartData = React.useMemo(() => {
+  const chartData = useMemo(() => {
     if (!submissions || submissions.length === 0) {
       return [
         { run: "Run #1", compliance: 78, violations: 4, title: "Diwali Offers Email", target: 90 },
@@ -164,8 +223,7 @@ export default function GovernanceDashboardPage() {
     });
   }, [submissions, avgComplianceScore, openFindingsCount]);
 
-  // Extract top 5 most recent completed/recorded submissions
-  const topSubmissions = React.useMemo(() => {
+  const topSubmissions = useMemo(() => {
     if (!submissions || submissions.length === 0) return [];
     return [...submissions]
       .sort((a, b) => {
@@ -173,9 +231,8 @@ export default function GovernanceDashboardPage() {
         const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return timeB - timeA || b.id - a.id;
       })
-      .slice(0, 5);
+      .slice(0, 10);
   }, [submissions]);
-
 
   return (
     <div
@@ -183,7 +240,7 @@ export default function GovernanceDashboardPage() {
         isDark ? "bg-[#121316] text-[#e3e2e6]" : "bg-[#f8fafc] text-[#111827]"
       }`}
     >
-      {/* Error Banner if API connection fails */}
+      {/* Error Banner */}
       {error && (
         <div
           className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${
@@ -203,676 +260,609 @@ export default function GovernanceDashboardPage() {
           </div>
           <button
             onClick={loadDashboardData}
-            className="px-3 py-1 rounded-md bg-[#dc2626] text-white text-xs font-semibold hover:bg-[#b91c1c] transition-colors"
+            className="px-3 py-1 rounded-md bg-[#dc2626] text-white text-xs font-semibold hover:bg-[#b91c1c] transition-colors cursor-pointer"
           >
             Retry
           </button>
         </div>
       )}
 
-            {/* 1. Dynamic Hero Section: Inkloom AI (Top-Left) layered with DriftWall (Right / Behind) */}
-      <section className="mb-6 relative w-full h-[290px] sm:h-[330px] lg:h-[360px] overflow-hidden rounded-3xl select-none">
-        {/* DriftWall: Positioned on the right side, extending partially underneath the text */}
-        <div className="absolute top-0 bottom-0 right-0 w-[62%] sm:w-[68%] lg:w-[72%] z-0 overflow-hidden pointer-events-auto">
-          <DriftWall
-            columns={4}
-            tileWidth={190}
-            tileHeight={125}
-            gap={16}
-            tilt={28}
-            turn={-14}
-            perspective={1100}
-            depth={110}
-            speed={35}
-            direction="up"
-            variance={0.45}
-            parallax={0.6}
-            lift={55}
-            fade={0.65}
-            dim={isDark ? 0.45 : 0.65}
-            overlayColor={isDark ? "#121316" : "#f8fafc"}
-          />
-          {/* Subtle gradient dissolution so the left edge of DriftWall fades smoothly under the text */}
+      {/* ========================================================================= */}
+      {/* 1. CONTENT CREATOR VIEW                                                   */}
+      {/* ========================================================================= */}
+      {isCreator && (
+        <div className="space-y-6">
+          {/* Creator Hero Header */}
           <div
-            className={`absolute inset-y-0 left-0 w-32 pointer-events-none bg-gradient-to-r ${
+            className={`p-6 sm:p-8 rounded-3xl border shadow-sm relative overflow-hidden transition-all ${
               isDark
-                ? "from-[#121316] via-[#121316]/60 to-transparent"
-                : "from-[#f8fafc] via-[#f8fafc]/60 to-transparent"
-            }`}
-          />
-        </div>
-
-        {/* TechText: Positioned at the top-left (z-10), with its right letters slightly overlapping the DriftWall */}
-        <div className="absolute top-0 left-0 w-full sm:w-[76%] md:w-[68%] lg:w-[62%] h-full z-10 pointer-events-auto">
-          <TechText
-            text="Inkloom AI"
-            align="left"
-            fontWeight={600}
-            fontSize={162}
-            reveal="letter"
-            dashLength={4}
-            dashGap={2}
-            specks={8}
-            intro="metrics"
-            introDuration={2.8}
-            clickKick
-            guides
-            fontFamily="Georgia, serif"
-            letterSpacing={-0.02}
-            lineStyle="solid"
-            strokeWidth={1.5}
-            bounce={0.75}
-            color={isDark ? "#f8fafc" : "#0f172a"}
-            accentColor={isDark ? "#a78bfa" : "#005797"}
-            style={{ width: "100%", height: "100%" }}
-          />
-        </div>
-      </section>
-
-      {/* 2. Top Metric KPI Grid (4 primary enterprise cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {/* Card 1: Total Submissions */}
-        <div
-          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
-                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-              }`}
-            >
-              Total Submissions
-            </span>
-            <div
-              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                isDark ? "bg-blue-500/15 text-blue-400" : "bg-blue-50 text-blue-600"
-              }`}
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1" />
-                <path d="M18 8h4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4" />
-                <path d="M4 10h8" />
-                <path d="M4 14h6" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="my-3 flex items-baseline justify-between">
-            <span
-              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
-                isDark ? "text-white" : "text-[#111827]"
-              }`}
-            >
-              {isLoading ? "..." : totalSubmissions}
-            </span>
-            <span
-              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
-                totalSubmissions > 0
-                  ? isDark
-                    ? "bg-[#7c3aed]/20 text-[#d2bbff]"
-                    : "bg-[#ebf6ff] text-primary"
-                  : isDark
-                  ? "bg-[#292a2d] text-[#9ca3af]"
-                  : "bg-[#f1f5f9] text-[#64748b]"
-              }`}
-            >
-              {totalSubmissions > 0 ? "Audited Assets" : "No Audits Yet"}
-            </span>
-          </div>
-
-          <div
-            className={`pt-2.5 border-t font-sans text-xs ${
-              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
+                ? "bg-gradient-to-br from-[#1b1b1f] via-[#1a1b22] to-[#14151a] border-[#383a45]"
+                : "bg-gradient-to-br from-emerald-50/70 via-white to-blue-50/40 border-[#cbd5e1]"
             }`}
           >
-            <span>Assets ingested for brand governance</span>
-          </div>
-        </div>
-
-        {/* Card 2: Compliance Score */}
-        <div
-          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
-                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-              }`}
-            >
-              Compliance Score
-            </span>
-            <div
-              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-600"
-              }`}
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="my-3 flex items-baseline justify-between">
-            <span
-              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
-                isDark ? "text-white" : "text-[#111827]"
-              }`}
-            >
-              {isLoading ? "..." : totalSubmissions === 0 ? "—" : `${avgComplianceScore.toFixed(1)}%`}
-            </span>
-            <span
-              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
-                totalSubmissions === 0
-                  ? isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
-                  : avgComplianceScore >= 90
-                  ? "bg-[#00A36C]/15 text-[#00A36C] border border-[#00A36C]/30"
-                  : avgComplianceScore >= 75
-                  ? "bg-amber-500/15 text-amber-500 border border-amber-500/30"
-                  : "bg-[#dc2626]/15 text-[#dc2626] border border-[#dc2626]/30"
-              }`}
-            >
-              {totalSubmissions === 0
-                ? "Unrated"
-                : avgComplianceScore >= 90
-                ? "Target Met"
-                : avgComplianceScore >= 75
-                ? "Review Needed"
-                : "Action Required"}
-            </span>
-          </div>
-
-          <div
-            className={`pt-2.5 border-t font-sans text-xs flex items-center justify-between ${
-              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-            }`}
-          >
-            <span>Policy benchmark: ≥90%</span>
-            <span className={avgComplianceScore >= 90 ? "text-[#00A36C] font-semibold" : ""}>
-              {totalSubmissions === 0 ? "Grade: —" : avgComplianceScore >= 90 ? "Grade: AAA" : avgComplianceScore >= 75 ? "Grade: AA" : "Grade: A-"}
-            </span>
-          </div>
-        </div>
-
-        {/* Card 3: Pending Reviews */}
-        <div
-          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
-                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-              }`}
-            >
-              Pending Reviews
-            </span>
-            <div
-              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                isDark ? "bg-amber-500/15 text-amber-400" : "bg-amber-50 text-amber-600"
-              }`}
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="my-3 flex items-baseline justify-between">
-            <span
-              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
-                isDark ? "text-white" : "text-[#111827]"
-              }`}
-            >
-              {isLoading ? "..." : openFindingsCount}
-            </span>
-            <span
-              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
-                openFindingsCount > 0
-                  ? isDark ? "bg-amber-950/40 text-amber-400 border border-amber-500/30" : "bg-[#fffbeb] text-[#b45309] border border-amber-500/30"
-                  : isDark ? "bg-[#00A36C]/15 text-[#4edea3]" : "bg-[#f0faf3] text-[#00A36C]"
-              }`}
-            >
-              {openFindingsCount > 0 ? "Requires Review" : "Queue Clear"}
-            </span>
-          </div>
-
-          <div
-            className={`pt-2.5 border-t font-sans text-xs flex items-center justify-between ${
-              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-            }`}
-          >
-            <span>{overriddenCount} manual overrides</span>
-            <Link
-              href="/audit"
-              className={`font-semibold hover:underline flex items-center gap-0.5 ${
-                isDark ? "text-[#d2bbff]" : "text-primary"
-              }`}
-            >
-              Queue &rarr;
-            </Link>
-          </div>
-        </div>
-
-        {/* Card 4: Auto-Fix Rate */}
-        <div
-          className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className={`font-sans text-xs uppercase tracking-wider font-semibold ${
-                isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-              }`}
-            >
-              Auto-Fix Rate
-            </span>
-            <div
-              className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                isDark ? "bg-[#7c3aed]/15 text-[#d2bbff]" : "bg-purple-50 text-[#7c3aed]"
-              }`}
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-                <path d="M5 3v4" />
-                <path d="M19 17v4" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="my-3 flex items-baseline justify-between">
-            <span
-              className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${
-                isDark ? "text-white" : "text-[#111827]"
-              }`}
-            >
-              {isLoading ? "..." : autoRemediationRate !== null ? `${autoRemediationRate}%` : "—"}
-            </span>
-            <span
-              className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${
-                autoRemediationRate !== null && autoRemediationRate >= 80
-                  ? isDark ? "bg-[#00A36C]/15 text-[#4edea3]" : "bg-[#f0faf3] text-[#00A36C]"
-                  : isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
-              }`}
-            >
-              {totalFindings > 0 ? "Automated" : "Zero Findings"}
-            </span>
-          </div>
-
-          <div
-            className={`pt-2.5 border-t font-sans text-xs ${
-              isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-            }`}
-          >
-            <span>{totalFindings > 0 ? `${totalFindings} total findings evaluated` : "Dual-gate engine active"}</span>
-          </div>
-        </div>
-      </div>
-      {/* 3. Main Data Visualizations & Analytics (2-Column Grid) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
-        {/* LEFT COLUMN (8 cols) */}
-        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-6">
-          {/* Enterprise Interactive Telemetry Chart (Modern Shadcn / Recharts Pattern) */}
-          <div
-            className={`rounded-xl border shadow-xs transition-colors overflow-hidden ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}
-          >
-            {/* Header with Integrated Metric Switcher Tabs */}
-            <div className={`flex flex-col sm:flex-row sm:items-stretch justify-between border-b ${
-              isDark ? "border-[#3b3c44]" : "border-[#e2e8f0]"
-            }`}>
-              <div className="p-4 sm:p-5 flex flex-col justify-center">
-                <div className="flex items-center gap-2">
-                  <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                    Compliance Trajectory
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold ${
-                    isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
-                  }`}>
-                    Live
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                    Creator Studio · Blinkit Demo Partner
                   </span>
+                  <span className="text-xs font-medium text-text-muted">Diwali 2026 Campaign</span>
                 </div>
-                <span className={`font-sans text-xs mt-0.5 ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
-                  Historical audit performance against 90% brand governance threshold
-                </span>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
+                  Your Creative Submissions & Compliance Feedback
+                </h1>
+                <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-2xl leading-relaxed">
+                  Track your uploaded copy briefs, festive banners, and video reels. Inspect automated AI pre-flight checks, review judge feedback, and fix flagged policy issues.
+                </p>
               </div>
-
-              {/* Integrated Metric Switcher Tabs */}
-              <div className={`flex border-t sm:border-t-0 sm:border-l divide-x ${
-                isDark ? "border-[#3b3c44] divide-[#3b3c44]" : "border-[#e2e8f0] divide-[#e2e8f0]"
-              }`}>
-                <button
-                  type="button"
-                  onClick={() => setActiveMetric("compliance")}
-                  className={`flex flex-col justify-center px-5 py-3 text-left transition-all cursor-pointer ${
-                    activeMetric === "compliance"
-                      ? isDark
-                        ? "bg-[#7c3aed]/15 border-b-2 border-[#7c3aed]"
-                        : "bg-[#ebf6ff] border-b-2 border-primary"
-                      : isDark
-                      ? "hover:bg-[#1f1f23]"
-                      : "hover:bg-[#f8fafc]"
-                  }`}
-                >
-                  <span className={`text-[10px] uppercase font-mono tracking-wider font-semibold ${
-                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                  }`}>
-                    Compliance Score
-                  </span>
-                  <span className={`font-mono text-lg font-bold leading-tight ${
-                    activeMetric === "compliance"
-                      ? isDark ? "text-[#d2bbff]" : "text-primary"
-                      : isDark ? "text-white" : "text-[#111827]"
-                  }`}>
-                    {totalSubmissions === 0 ? "—" : `${avgComplianceScore.toFixed(1)}%`}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveMetric("violations")}
-                  className={`flex flex-col justify-center px-5 py-3 text-left transition-all cursor-pointer ${
-                    activeMetric === "violations"
-                      ? isDark
-                        ? "bg-[#7c3aed]/15 border-b-2 border-[#7c3aed]"
-                        : "bg-[#ebf6ff] border-b-2 border-primary"
-                      : isDark
-                      ? "hover:bg-[#1f1f23]"
-                      : "hover:bg-[#f8fafc]"
-                  }`}
-                >
-                  <span className={`text-[10px] uppercase font-mono tracking-wider font-semibold ${
-                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                  }`}>
-                    Policy Flags
-                  </span>
-                  <span className={`font-mono text-lg font-bold leading-tight ${
-                    activeMetric === "violations"
-                      ? isDark ? "text-[#d2bbff]" : "text-primary"
-                      : isDark ? "text-white" : "text-[#111827]"
-                  }`}>
-                    {openFindingsCount}
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Recharts Canvas */}
-            <div className="p-4 sm:p-5">
-              {!isMounted ? (
-                <div className="w-full h-72 flex items-center justify-center">
-                  <span className={`text-xs font-mono ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
-                    Loading analytics visualization...
-                  </span>
-                </div>
-              ) : chartData.length === 0 ? (
-                <div className="w-full h-72 flex flex-col items-center justify-center text-center p-4">
-                  <span className="material-symbols-outlined text-[32px] text-[#9ca3af] mb-1">query_stats</span>
-                  <span className={`text-xs font-semibold ${isDark ? "text-white" : "text-[#111827]"}`}>
-                    Insufficient Telemetry Data
-                  </span>
-                  <span className={`text-[11px] mt-0.5 ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
-                    Submit assets for auditing to populate the compliance trajectory curve.
-                  </span>
-                </div>
-              ) : activeMetric === "compliance" ? (
-                /* Natural Spline Area Chart (Shadcn Style) */
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart
-                    data={chartData}
-                    margin={{ top: 16, right: 16, left: -20, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="fillCompliance" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.45} />
-                        <stop offset="95%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={isDark ? "#3b3c44" : "#e2e8f0"} />
-                    <XAxis
-                      dataKey="run"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
-                    />
-                    <YAxis
-                      domain={[50, 100]}
-                      unit="%"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
-                    />
-                    <ReferenceLine
-                      y={90}
-                      stroke="#dc2626"
-                      strokeDasharray="4 4"
-                      strokeWidth={1.5}
-                      label={{
-                        value: "Policy 90%",
-                        position: "insideTopRight",
-                        fill: "#dc2626",
-                        fontSize: 10,
-                        fontFamily: "monospace",
-                        fontWeight: "bold",
-                        offset: 8,
-                      }}
-                    />
-                    <Tooltip
-                      cursor={{ stroke: isDark ? "#4f515c" : "#cbd5e1", strokeWidth: 1, strokeDasharray: "4 4" }}
-                      content={({ active, payload }) => {
-                        if (!active || !payload || !payload.length) return null;
-                        const data = payload[0].payload;
-                        const isTargetMet = data.compliance >= 90;
-                        const delta = data.compliance - 90;
-                        return (
-                          <div
-                            className={`p-3 rounded-xl border shadow-xl text-xs font-sans min-w-[200px] backdrop-blur-md ${
-                              isDark
-                                ? "bg-[#1b1b1f]/95 border-[#3b3c44] text-white"
-                                : "bg-white/95 border-[#cbd5e1] text-[#111827]"
-                            }`}
-                          >
-                            <div className="font-bold border-b pb-1.5 mb-2 flex items-center justify-between gap-2">
-                              <span className="font-mono text-[11px]">{data.run}</span>
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  isTargetMet
-                                    ? "bg-[#00A36C]/20 text-[#00A36C]"
-                                    : "bg-[#dc2626]/20 text-[#dc2626]"
-                                }`}
-                              >
-                                {isTargetMet ? "Target Met" : "Below Target"}
-                              </span>
-                            </div>
-                            {data.title && (
-                              <p className={`font-medium text-[11px] mb-2 truncate ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
-                                {data.title}
-                              </p>
-                            )}
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className={isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}>Compliance Score:</span>
-                                <span className="font-mono font-bold text-sm text-[#00A36C]">{data.compliance}%</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className={isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}>90% Policy Target:</span>
-                                <span className={`font-mono font-bold text-xs ${delta >= 0 ? "text-[#00A36C]" : "text-[#dc2626]"}`}>
-                                  {delta >= 0 ? `+${delta}%` : `${delta}%`}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }}
-                    />
-                    <Area
-                      dataKey="compliance"
-                      type="natural"
-                      fill="url(#fillCompliance)"
-                      stroke={isDark ? "#d2bbff" : "#005797"}
-                      strokeWidth={2.5}
-                      dot={{
-                        r: 4,
-                        fill: isDark ? "#121316" : "#ffffff",
-                        stroke: isDark ? "#d2bbff" : "#005797",
-                        strokeWidth: 2,
-                      }}
-                      activeDot={{
-                        r: 6,
-                        fill: "#00A36C",
-                        stroke: isDark ? "#1b1b1f" : "#ffffff",
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                /* Modern Rounded Bar Chart for Policy Flags */
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 16, right: 16, left: -20, bottom: 0 }}
-                  >
-                    <defs>
-                      <linearGradient id="fillViolations" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={isDark ? "#a78bfa" : "#005797"} stopOpacity={0.9} />
-                        <stop offset="100%" stopColor={isDark ? "#7c3aed" : "#003a66"} stopOpacity={0.7} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={isDark ? "#3b3c44" : "#e2e8f0"} />
-                    <XAxis
-                      dataKey="run"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={10}
-                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11, fontFamily: "monospace" }}
-                    />
-                    <Tooltip
-                      cursor={{ fill: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)" }}
-                      content={({ active, payload }) => {
-                        if (!active || !payload || !payload.length) return null;
-                        const data = payload[0].payload;
-                        return (
-                          <div
-                            className={`p-3 rounded-xl border shadow-xl text-xs font-sans min-w-[200px] backdrop-blur-md ${
-                              isDark
-                                ? "bg-[#1b1b1f]/95 border-[#3b3c44] text-white"
-                                : "bg-white/95 border-[#cbd5e1] text-[#111827]"
-                            }`}
-                          >
-                            <div className="font-bold border-b pb-1.5 mb-2 flex items-center justify-between gap-2">
-                              <span className="font-mono text-[11px]">{data.run}</span>
-                              <span className={`font-mono text-[10px] font-bold ${isDark ? "text-[#d2bbff]" : "text-primary"}`}>
-                                {data.violations} Flags
-                              </span>
-                            </div>
-                            {data.title && (
-                              <p className={`font-medium text-[11px] mb-2 truncate ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
-                                {data.title}
-                              </p>
-                            )}
-                            <div className="flex items-center justify-between">
-                              <span className={isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}>Compliance:</span>
-                              <span className="font-mono font-bold text-[#00A36C]">{data.compliance}%</span>
-                            </div>
-                          </div>
-                        );
-                      }}
-                    />
-                    <ReferenceLine
-                      y={3}
-                      stroke={isDark ? "#d2bbff" : "#005797"}
-                      strokeDasharray="4 4"
-                      strokeWidth={1.5}
-                      label={{
-                        value: "Warning (3+ Flags)",
-                        position: "insideTopRight",
-                        fill: isDark ? "#d2bbff" : "#005797",
-                        fontSize: 10,
-                        fontFamily: "monospace",
-                        fontWeight: "bold",
-                        offset: 8,
-                      }}
-                    />
-                    <Bar
-                      dataKey="violations"
-                      name="Violations"
-                      fill="url(#fillViolations)"
-                      radius={[6, 6, 0, 0]}
-                      maxBarSize={32}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-          {/* Recent Flagged Audits & Review Queue Table */}
-          <div
-            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <h3
-                className={`font-sans text-sm font-bold tracking-tight ${
-                  isDark ? "text-white" : "text-[#111827]"
-                }`}
+              <Link
+                href="/content"
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer shrink-0"
               >
-                Review Queue
-              </h3>
+                <span className="material-symbols-outlined text-[20px]">upload_file</span>
+                + Upload New Creative
+              </Link>
+            </div>
+          </div>
+
+          {/* Creator KPI Bar */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-text-muted mb-1 font-medium">
+                <span>Total Uploads</span>
+                <span className="material-symbols-outlined text-text-muted text-[18px]">folder_copy</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-on-surface">{submissions.length}</div>
+              <p className="text-[11px] text-text-muted mt-1">Collateral submitted</p>
             </div>
 
-            {/* Responsive Data Table */}
-            <div className="overflow-x-auto">
-              {topSubmissions.length === 0 && !isLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center">
-                  <span className={`material-symbols-outlined text-[36px] mb-2 ${isDark ? "text-[#6b7280]" : "text-[#9ca3af]"}`}>
-                    inbox
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 mb-1 font-medium">
+                <span>Approved by Judge</span>
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                {approvedSubmissions.length}
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">Ready for publication</p>
+            </div>
+
+            <div
+              className={`p-4 rounded-2xl border ${
+                rejectedSubmissions.length > 0
+                  ? isDark
+                    ? "bg-red-950/20 border-red-800/40"
+                    : "bg-red-50/70 border-red-200"
+                  : isDark
+                  ? "bg-[#1b1b1f] border-[#383a45]"
+                  : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mb-1 font-medium">
+                <span>Action Required / Rejected</span>
+                <span className="material-symbols-outlined text-[18px]">warning</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-red-600 dark:text-red-400">
+                {rejectedSubmissions.length}
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">See reasons below to fix</p>
+            </div>
+
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">
+                <span>Under Review</span>
+                <span className="material-symbols-outlined text-[18px]">pending</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+                {pendingReviewSubmissions.length}
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">Awaiting judge evaluation</p>
+            </div>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setCreatorTab("ALL")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                creatorTab === "ALL"
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-text-muted hover:text-on-surface hover:bg-palette-7/30"
+              }`}
+            >
+              All Submissions ({submissions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreatorTab("REJECTED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                creatorTab === "REJECTED"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">warning</span>
+              Rejected by Judge ({rejectedSubmissions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreatorTab("APPROVED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                creatorTab === "APPROVED"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              Approved ({approvedSubmissions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCreatorTab("REVIEW")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                creatorTab === "REVIEW"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">hourglass_empty</span>
+              In Review ({pendingReviewSubmissions.length})
+            </button>
+          </div>
+
+          {/* Submissions Cards List with Rejection Feedback */}
+          {filteredCreatorSubmissions.length === 0 ? (
+            <div className="py-16 text-center border-2 border-dashed border-border rounded-3xl">
+              <span className="material-symbols-outlined text-[48px] text-text-muted mb-2">folder_open</span>
+              <p className="text-base font-bold text-on-surface">No submissions found in this view</p>
+              <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+                {creatorTab === "REJECTED"
+                  ? "Awesome! None of your submissions are currently marked as rejected."
+                  : "Start by submitting your first creative asset for the Blinkit Diwali campaign."}
+              </p>
+              <Link
+                href="/content"
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+              >
+                + Upload Creative Now
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {filteredCreatorSubmissions.map((sub) => {
+                const isRejected =
+                  sub.status === "CHANGES_REQUESTED" ||
+                  sub.status === "REJECTED" ||
+                  sub.verdict === "FAIL";
+                const isApproved = sub.status === "APPROVED";
+                const criticalCount =
+                  sub.findings?.filter((f) => f.severity === "CRITICAL").length || 0;
+                const warningCount =
+                  sub.findings?.filter((f) => f.severity === "WARNING").length || 0;
+
+                return (
+                  <div
+                    key={sub.id}
+                    className={`rounded-2xl border p-5 sm:p-6 transition-all ${
+                      isRejected
+                        ? isDark
+                          ? "bg-[#1f1b20] border-red-800/50 shadow-sm"
+                          : "bg-red-50/30 border-red-200 shadow-sm"
+                        : isApproved
+                        ? isDark
+                          ? "bg-[#18201a] border-emerald-800/40"
+                          : "bg-emerald-50/30 border-emerald-200"
+                        : isDark
+                        ? "bg-[#1b1b1f] border-[#383a45]"
+                        : "bg-white border-[#cbd5e1]"
+                    }`}
+                  >
+                    {/* Header Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                            sub.content_format === "IMAGE"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                              : sub.content_format === "VIDEO"
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                              : sub.content_format === "AUDIO"
+                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[20px]">
+                            {sub.content_format === "IMAGE"
+                              ? "image"
+                              : sub.content_format === "VIDEO"
+                              ? "movie"
+                              : sub.content_format === "AUDIO"
+                              ? "volume_up"
+                              : "description"}
+                          </span>
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-sm sm:text-base text-on-surface flex items-center gap-2">
+                            {sub.title}
+                          </h3>
+                          <div className="flex items-center gap-2 text-[11px] text-text-muted mt-0.5">
+                            <span className="font-mono">SUB-#{sub.id}</span>
+                            <span>•</span>
+                            <span className="font-semibold uppercase tracking-wider">
+                              {sub.content_format}
+                            </span>
+                            <span>•</span>
+                            <span>v{sub.current_version}</span>
+                            <span>•</span>
+                            <span>{new Date(sub.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Badge & Score */}
+                      <div className="flex items-center gap-3">
+                        {sub.compliance_score != null && (
+                          <div className="text-right">
+                            <span className="text-[10px] font-mono text-text-muted uppercase block">Score</span>
+                            <span
+                              className={`font-mono text-sm font-bold ${
+                                sub.compliance_score >= 80
+                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  : sub.compliance_score >= 60
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : "text-red-600 dark:text-red-400"
+                              }`}
+                            >
+                              {sub.compliance_score}%
+                            </span>
+                          </div>
+                        )}
+
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold font-sans flex items-center gap-1.5 ${
+                            isApproved
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300"
+                              : isRejected
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 border border-red-300"
+                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300"
+                          }`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              isApproved ? "bg-emerald-500" : isRejected ? "bg-red-500" : "bg-amber-500 animate-pulse"
+                            }`}
+                          />
+                          {isApproved
+                            ? "Approved"
+                            : isRejected
+                            ? "Rejected by Judge / Needs Changes"
+                            : "Under Review"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* REJECTION REASON & JUDGE FEEDBACK BOX */}
+                    {isRejected && (
+                      <div className="mt-4 p-4 rounded-xl border border-red-300 dark:border-red-900/70 bg-red-50/70 dark:bg-red-950/30 text-left space-y-3">
+                        <div className="flex items-start gap-2.5">
+                          <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-[20px] shrink-0 mt-0.5">
+                            gavel
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-xs font-sans text-red-900 dark:text-red-200 uppercase tracking-wider">
+                              Why the Judge / Reviewer Rejected This Submission:
+                            </h4>
+                            <p className="text-xs text-red-800 dark:text-red-300 mt-1 leading-relaxed">
+                              This asset failed Blinkit Diwali brand governance rules. Review the specific policy violations below and update the draft before re-submitting.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Findings list explaining exact reason */}
+                        {sub.findings && sub.findings.length > 0 && (
+                          <div className="space-y-2 pt-1 border-t border-red-200 dark:border-red-900/50">
+                            {sub.findings.slice(0, 3).map((f) => (
+                              <div
+                                key={f.id}
+                                className="p-2.5 rounded-lg bg-white/80 dark:bg-[#121316]/60 border border-red-200 dark:border-red-900/40 text-xs space-y-1"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                                        f.severity === "CRITICAL"
+                                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                          : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                                      }`}
+                                    >
+                                      {f.severity}
+                                    </span>
+                                    <span className="font-semibold text-on-surface">
+                                      {f.category.replace("_", " ")} Policy
+                                    </span>
+                                  </div>
+                                </div>
+                                {f.flagged_excerpt && (
+                                  <p className="font-mono text-[11px] text-red-700 dark:text-red-300 bg-red-100/50 dark:bg-red-950/40 px-2 py-0.5 rounded">
+                                    "{f.flagged_excerpt}"
+                                  </p>
+                                )}
+                                <p className="text-text-muted text-[11px] leading-relaxed">
+                                  <span className="font-semibold text-on-surface">Reason: </span>
+                                  {f.explanation}
+                                </p>
+                                {f.suggested_correction && (
+                                  <p className="text-emerald-700 dark:text-emerald-400 text-[11px] leading-relaxed">
+                                    <span className="font-semibold">How to fix: </span>
+                                    {f.suggested_correction}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Action CTA */}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[11px] text-red-700 dark:text-red-300 font-medium">
+                            {criticalCount} Critical, {warningCount} Warning issues detected
+                          </span>
+                          <Link
+                            href={`/audit?id=${sub.id}&event=diwali`}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-xs"
+                          >
+                            <span>Fix & Re-Audit in Workspace</span>
+                            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* APPROVED NOTICE */}
+                    {isApproved && (
+                      <div className="mt-4 p-3 rounded-xl border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300">
+                          <span className="material-symbols-outlined text-emerald-600 text-[18px]">verified</span>
+                          <span>Passed brand compliance checks. Cleared for publication across Blinkit marketing channels.</span>
+                        </div>
+                        <Link
+                          href={`/audit?id=${sub.id}`}
+                          className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline shrink-0"
+                        >
+                          View Certificate →
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* IN REVIEW NOTICE */}
+                    {!isApproved && !isRejected && (
+                      <div className="mt-4 p-3 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-300">
+                          <span className="material-symbols-outlined text-amber-600 text-[18px]">hourglass_top</span>
+                          <span>AI pre-flight check completed. Currently in queue for Blinkit Brand Reviewer sign-off.</span>
+                        </div>
+                        <Link
+                          href={`/audit?id=${sub.id}`}
+                          className="text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline shrink-0"
+                        >
+                          Inspect Pre-Flight →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. BRAND REVIEWER VIEW                                                    */}
+      {/* ========================================================================= */}
+      {isBrand && (
+        <div className="space-y-6">
+          {/* Brand Hero Header */}
+          <div
+            className={`p-6 sm:p-8 rounded-3xl border shadow-sm relative overflow-hidden transition-all ${
+              isDark
+                ? "bg-gradient-to-br from-[#1b1b1f] via-[#1a1b22] to-[#14151a] border-[#383a45]"
+                : "bg-gradient-to-br from-blue-50/70 via-white to-amber-50/40 border-[#cbd5e1]"
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
+                    Brand Governance Panel
                   </span>
-                  <p className={`text-sm font-bold ${isDark ? "text-white" : "text-[#111827]"}`}>
-                    No Past Submissions Found
-                  </p>
-                  <p className={`text-xs mt-0.5 max-w-sm ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                    Select an active brand from the header brand selector to view its audit history.
-                  </p>
+                  <span className="text-xs font-semibold text-primary">
+                    {brands.find((b) => b.id === activeBrandId)?.name || "Blinkit"} Active
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
+                  Content Uploaded by Creators
+                </h1>
+                <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-2xl leading-relaxed">
+                  Review, approve, or request revisions on multi-modal copy, posters, and reels uploaded by agency creators before they go live on public channels.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href="/guidelines"
+                  className="px-4 py-2.5 rounded-xl border border-border hover:border-primary text-xs font-bold font-sans transition-colors"
+                >
+                  Brand Guidelines
+                </Link>
+                <Link
+                  href="/audit"
+                  className="px-4 py-2.5 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold font-sans transition-colors shadow-xs"
+                >
+                  Full Audit Queue
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Brand KPI Bar */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-text-muted mb-1 font-medium">
+                <span>Avg Compliance Score</span>
+                <span className="material-symbols-outlined text-text-muted text-[18px]">verified</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-primary">
+                {Math.round(avgComplianceScore) || 92}%
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">Across all audited assets</p>
+            </div>
+
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">
+                <span>Awaiting Review</span>
+                <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+                {pendingReviewSubmissions.length}
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">Needs reviewer action</p>
+            </div>
+
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 mb-1 font-medium">
+                <span>Approved Content</span>
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                {approvedSubmissions.length}
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">Authorized for publication</p>
+            </div>
+
+            <div
+              className={`p-4 rounded-2xl border ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mb-1 font-medium">
+                <span>Changes Requested</span>
+                <span className="material-symbols-outlined text-[18px]">replay</span>
+              </div>
+              <div className="text-2xl font-bold font-mono text-red-600 dark:text-red-400">
+                {rejectedSubmissions.length}
+              </div>
+              <p className="text-[11px] text-text-muted mt-1">Revisions sent to creator</p>
+            </div>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setBrandTab("ALL")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                brandTab === "ALL"
+                  ? "bg-primary text-white shadow-xs"
+                  : "text-text-muted hover:text-on-surface hover:bg-palette-7/30"
+              }`}
+            >
+              All Creator Submissions ({submissions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setBrandTab("PENDING")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                brandTab === "PENDING"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">hourglass_top</span>
+              Awaiting Review ({pendingReviewSubmissions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setBrandTab("APPROVED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                brandTab === "APPROVED"
+                  ? "bg-emerald-600 text-white shadow-xs"
+                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">check_circle</span>
+              Approved ({approvedSubmissions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setBrandTab("REJECTED")}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                brandTab === "REJECTED"
+                  ? "bg-red-600 text-white shadow-xs"
+                  : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">cancel</span>
+              Changes Requested ({rejectedSubmissions.length})
+            </button>
+          </div>
+
+          {/* Submissions Table for Brand Reviewer */}
+          <div
+            className={`rounded-2xl border overflow-hidden shadow-xs ${
+              isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
+            }`}
+          >
+            <div className="overflow-x-auto">
+              {filteredBrandSubmissions.length === 0 ? (
+                <div className="py-12 text-center">
+                  <span className="material-symbols-outlined text-[36px] text-text-muted mb-1">inbox</span>
+                  <p className="text-sm font-bold text-on-surface">No creator submissions in this queue</p>
+                  <p className="text-xs text-text-muted mt-0.5">Submissions will show up here as creators upload content.</p>
                 </div>
               ) : (
-                <table className="w-full min-w-[620px] text-left border-collapse">
+                <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
                     <tr
-                      className={`font-mono text-[10px] uppercase tracking-wider font-semibold border-y ${
-                        isDark
-                          ? "bg-[#121316] text-[#9ca3af] border-[#3b3c44]"
-                          : "bg-[#f8fafc] text-[#6b7280] border-[#cbd5e1]"
+                      className={`text-[10px] font-mono uppercase tracking-wider font-semibold border-b ${
+                        isDark ? "bg-[#14151a] text-text-muted border-[#2e2f38]" : "bg-slate-50 text-slate-500 border-slate-200"
                       }`}
                     >
-                      <th className="py-2.5 px-3">Asset Title</th>
-                      <th className="py-2.5 px-3">Format / Author</th>
-                      <th className="py-2.5 px-3">Findings</th>
-                      <th className="py-2.5 px-3">Score</th>
-                      <th className="py-2.5 px-3">Review Status</th>
-                      <th className="py-2.5 px-3 text-right">Action</th>
+                      <th className="py-3 px-4">Asset / Title</th>
+                      <th className="py-3 px-4">Creator / Format</th>
+                      <th className="py-3 px-4">Audit Score</th>
+                      <th className="py-3 px-4">Findings</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Review Action</th>
                     </tr>
                   </thead>
-                  <tbody className={`font-sans text-xs divide-y ${isDark ? "divide-[#313238]" : "divide-[#e2e8f0]"}`}>
-                    {topSubmissions.map((sub) => {
+                  <tbody className="text-xs divide-y divide-border">
+                    {filteredBrandSubmissions.map((sub) => {
                       const criticalFindings =
                         sub.findings?.filter((f) => f.severity === "CRITICAL").length || 0;
                       const warningFindings =
@@ -881,141 +871,105 @@ export default function GovernanceDashboardPage() {
                       return (
                         <tr
                           key={sub.id}
-                          className={`transition-colors ${
-                            isDark ? "hover:bg-[#1f1f23]" : "hover:bg-[#f8fafc]"
+                          className={`hover:bg-palette-7/20 transition-colors ${
+                            updatingId === sub.id ? "opacity-50" : ""
                           }`}
                         >
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-on-surface text-sm">{sub.title}</div>
+                            <div className="text-[11px] font-mono text-text-muted">
+                              SUB-#{sub.id} · v{sub.current_version} · {new Date(sub.created_at).toLocaleDateString()}
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-on-surface">{sub.creator_name || "Agency Creator"}</div>
+                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-palette-7/40 text-text-muted">
+                              {sub.content_format}
+                            </span>
+                          </td>
+
+                          <td className="py-3 px-4 font-mono font-bold">
+                            {sub.compliance_score != null ? (
                               <span
-                                className={`p-1.5 rounded-md flex items-center justify-center shrink-0 ${
-                                  isDark ? "bg-[#1f1f23] text-[#d2bbff]" : "bg-[#ebf6ff] text-primary"
-                                }`}
+                                className={
+                                  sub.compliance_score >= 80
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : sub.compliance_score >= 60
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-red-600 dark:text-red-400"
+                                }
                               >
-                                <span className="material-symbols-outlined text-[16px]">
-                                  {sub.content_format === "MARKDOWN"
-                                    ? "markdown"
-                                    : sub.content_format === "HTML"
-                                    ? "code"
-                                    : "description"}
-                                </span>
+                                {sub.compliance_score}%
                               </span>
-                              <div className="flex flex-col min-w-0">
-                                <span className={`font-semibold truncate max-w-xs ${isDark ? "text-white" : "text-[#111827]"}`}>
-                                  {sub.title}
-                                </span>
-                                <span className={`font-mono text-[10px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                                  SUB-#{sub.id} · v{sub.current_version}
-                                </span>
-                              </div>
-                            </div>
+                            ) : (
+                              <span className="text-text-muted">—</span>
+                            )}
                           </td>
 
-                          <td className="py-2.5 px-3">
-                            <div className="flex flex-col">
-                              <span className={`font-medium ${isDark ? "text-[#d1d5db]" : "text-[#111827]"}`}>
-                                {sub.creator_name}
-                              </span>
-                              <span className={`font-mono text-[10px] ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                                {sub.content_format}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="py-2.5 px-3">
+                          <td className="py-3 px-4">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {criticalFindings > 0 && (
-                                <span className="px-2 py-0.5 rounded-md bg-[#dc2626]/20 text-[#ffb4ab] border border-[#dc2626]/30 font-mono text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-[10px] font-mono font-bold">
                                   {criticalFindings} Crit
                                 </span>
                               )}
                               {warningFindings > 0 && (
-                                <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono text-[10px] font-bold">
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-mono font-bold">
                                   {warningFindings} Warn
                                 </span>
                               )}
                               {criticalFindings === 0 && warningFindings === 0 && (
-                                <span className="px-2 py-0.5 rounded-md bg-[#00A36C]/20 text-[#4edea3] border border-[#00A36C]/30 font-mono text-[10px] font-semibold">
-                                  {sub.findings?.length || 0} Flags
+                                <span className="text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+                                  ✓ Clean
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          <td className="py-2.5 px-3">
+                          <td className="py-3 px-4">
                             <span
-                              className={`font-mono text-xs font-bold tabular-nums ${
-                                sub.compliance_score != null && sub.compliance_score >= 80
-                                  ? "text-[#00A36C]"
-                                  : sub.compliance_score != null && sub.compliance_score >= 60
-                                  ? "text-amber-400"
-                                  : "text-[#dc2626]"
-                              }`}
-                            >
-                              {sub.compliance_score != null ? `${sub.compliance_score}%` : "—"}
-                            </span>
-                          </td>
-
-                          <td className="py-2.5 px-3">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-sans text-[11px] font-semibold ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                                 sub.status === "APPROVED"
-                                  ? "bg-[#00A36C]/15 text-[#4edea3] border border-[#00A36C]/30"
-                                  : sub.status === "NEEDS_REVIEW"
-                                  ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-                                  : sub.status === "CHANGES_REQUESTED"
-                                  ? "bg-[#dc2626]/15 text-[#ffb4ab] border border-[#dc2626]/30"
-                                  : isDark
-                                  ? "bg-[#292a2d] text-[#d1d5db]"
-                                  : "bg-[#f1f5f9] text-[#4b5563]"
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300"
+                                  : sub.status === "CHANGES_REQUESTED" || sub.status === "REJECTED"
+                                  ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border border-red-300"
+                                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
                               }`}
                             >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  sub.status === "APPROVED"
-                                    ? "bg-[#00A36C]"
-                                    : sub.status === "NEEDS_REVIEW"
-                                    ? "bg-amber-400 animate-pulse"
-                                    : sub.status === "CHANGES_REQUESTED"
-                                    ? "bg-[#dc2626]"
-                                    : "bg-[#9ca3af]"
-                                }`}
-                              />
                               {sub.status.replace("_", " ")}
                             </span>
                           </td>
 
-                          <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
                               {sub.status !== "APPROVED" && (
                                 <button
                                   type="button"
                                   onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
                                   disabled={updatingId === sub.id}
-                                  className="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                  title="Admin Quick Approve"
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer shadow-2xs"
+                                  title="Approve for publication"
                                 >
                                   ✓ Approve
                                 </button>
                               )}
+
                               {sub.status !== "CHANGES_REQUESTED" && (
                                 <button
                                   type="button"
-                                  onClick={() => handleQuickStatusUpdate(sub.id, "CHANGES_REQUESTED")}
+                                  onClick={() => setRejectingSub(sub)}
                                   disabled={updatingId === sub.id}
-                                  className="px-2 py-1 rounded-md text-[10px] font-bold bg-red-500/15 text-red-600 hover:bg-red-600 hover:text-white border border-red-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                  title="Admin Request Changes / Reject"
+                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-all cursor-pointer shadow-2xs"
+                                  title="Reject with notes"
                                 >
                                   ✕ Reject
                                 </button>
                               )}
+
                               <Link
                                 href={`/audit?id=${sub.id}`}
-                                className={`px-2.5 py-1 rounded-md font-sans text-[11px] font-semibold transition-all inline-block cursor-pointer whitespace-nowrap shadow-2xs ${
-                                  isDark
-                                    ? "bg-[#7c3aed]/20 text-[#d2bbff] hover:bg-[#7c3aed] hover:text-white"
-                                    : "bg-[#ebf6ff] text-primary hover:bg-primary hover:text-white"
-                                }`}
+                                className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-border hover:border-primary text-on-surface hover:text-primary transition-colors"
                               >
                                 Audit Workspace
                               </Link>
@@ -1028,234 +982,428 @@ export default function GovernanceDashboardPage() {
                 </table>
               )}
             </div>
-
-            <div
-              className={`mt-3 flex items-center justify-between font-mono text-[11px] pt-2.5 border-t ${
-                isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#6b7280]"
-              }`}
-            >
-              <span>Showing {topSubmissions.length} submissions for Brand #{activeBrandId}</span>
-              
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN (4 cols: Intelligence Widgets) */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-6">
-          {/* Widget 1: Top Recurring Violations */}
-          <div
-            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Top Violations
-              </h3>
-              <span className={`font-mono text-[11px] font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                {totalCategoryViolations} Total
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-3.5">
-              {categoryEntries.length === 0 ? (
-                <div className={`py-4 text-center text-xs ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                  No violations logged for this brand.
-                </div>
-              ) : (
-                categoryEntries.map(([category, count], idx) => {
-                  const pct = Math.round((count / totalCategoryViolations) * 100);
-                  const colors = [
-                    { bar: "bg-[#dc2626]", text: "text-[#dc2626]" },
-                    { bar: "bg-amber-500", text: "text-amber-400" },
-                    { bar: isDark ? "bg-[#7c3aed]" : "bg-primary", text: isDark ? "text-[#d2bbff]" : "text-primary" },
-                    { bar: "bg-[#00A36C]", text: "text-[#00A36C]" },
-                  ];
-                  const c = colors[idx % colors.length];
-
-                  return (
-                    <div key={category} className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${c.bar}`} />
-                          <span
-                            className={`font-sans text-xs font-semibold capitalize ${
-                              isDark ? "text-white" : "text-[#111827]"
-                            }`}
-                          >
-                            {category.replace("_", " ")} Policy
-                          </span>
-                        </div>
-                        <span className={`font-mono text-xs font-bold tabular-nums ${c.text}`}>
-                          {pct}% ({count})
-                        </span>
-                      </div>
-                      <div
-                        className={`w-full rounded-full h-1.5 overflow-hidden ${
-                          isDark ? "bg-[#292a2d]" : "bg-[#f1f5f9]"
-                        }`}
-                      >
-                        <div className={`${c.bar} h-full rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
-                      </div>
-
-                    </div>
-                  );
-                })
-              )}
-            </div>
           </div>
 
-          {/* Widget 2: Ambiguous Guidelines Table */}
-          <div
-            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Flagged Rules
-              </h3>
-              <span
-                className={`font-mono text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  isDark ? "bg-amber-950/40 text-amber-300" : "bg-[#fffbeb] text-[#b45309]"
+          {/* Rejection Modal for Brand Reviewer */}
+          {rejectingSub && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+              <div
+                className={`relative w-full max-w-lg p-6 rounded-3xl border shadow-2xl ${
+                  isDark ? "bg-[#18191d] border-[#383a45] text-white" : "bg-white border-[#cbd5e1] text-[#111827]"
                 }`}
               >
-                {analytics?.ambiguous_guidelines?.length || 0} Override
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              {!analytics?.ambiguous_guidelines || analytics.ambiguous_guidelines.length === 0 ? (
-                <div className={`py-4 text-center text-xs ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                  No guidelines flagged with excessive override rates.
-                </div>
-              ) : (
-                analytics.ambiguous_guidelines.slice(0, 3).map((g) => (
-                  <div
-                    key={g.chunk_id}
-                    className={`p-3 rounded-lg flex flex-col gap-1 border transition-colors ${
-                      isDark
-                        ? "bg-[#121316] border-[#3b3c44] hover:bg-[#1f1f23]"
-                        : "bg-[#f8fafc] border-[#cbd5e1] hover:bg-[#f1f5f9]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`font-mono text-[10px] uppercase font-bold ${
-                          isDark ? "text-[#d2bbff]" : "text-primary"
-                        }`}
-                      >
-                        {g.rule_category} · {g.source_document}
-                      </span>
-                      <span className="font-mono text-[11px] text-[#dc2626] font-bold tabular-nums">
-                        {Math.round(g.override_rate * 100)}% Override
-                      </span>
-                    </div>
-                    <p className={`text-xs font-medium leading-relaxed line-clamp-2 ${isDark ? "text-white" : "text-[#111827]"}`}>
-                      {g.content_excerpt}
-                    </p>
-                    <div className={`flex items-center justify-between text-[10px] font-mono pt-1 ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                      <span>Triggered: {g.times_triggered} times</span>
-                      <span>Overridden: {g.times_overridden} times</span>
-                    </div>
+                <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
+                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <span className="material-symbols-outlined">feedback</span>
+                    <h3 className="font-bold text-base">Request Changes on Submission</h3>
                   </div>
-                ))
-              )}
+                  <button
+                    onClick={() => setRejectingSub(null)}
+                    className="p-1 rounded-full text-text-muted hover:text-on-surface"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">close</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-xs text-text-muted">Target Asset:</span>
+                    <p className="font-bold text-sm text-on-surface">{rejectingSub.title}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-on-surface mb-1">
+                      Reason for Rejection / Revision Instructions:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={rejectionNotes}
+                      onChange={(e) => setRejectionNotes(e.target.value)}
+                      placeholder="e.g. Please replace fireworks imagery with diya lamps to comply with Blinkit Green Diwali guideline, and remove the unverified claim."
+                      className="w-full p-3 rounded-xl border border-border bg-palette-7/20 text-xs text-on-surface focus:outline-none focus:border-red-500"
+                    />
+                    <p className="text-[11px] text-text-muted mt-1">
+                      The creator will immediately see this note in their Creator Dashboard under "Why Judge Rejected This Submission".
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                    <button
+                      type="button"
+                      onClick={() => setRejectingSub(null)}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-text-muted hover:text-on-surface"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmRejection}
+                      disabled={isSubmittingReject}
+                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmittingReject ? "Submitting..." : "Send Rejection Feedback"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. ADMIN / JUDGE VIEW (FULL ENTERPRISE CONSOLE)                            */}
+      {/* ========================================================================= */}
+      {isAdmin && (
+        <>
+          {/* Hero Banner with DriftWall and TechText */}
+          <section className="mb-6 relative w-full h-[290px] sm:h-[330px] lg:h-[360px] overflow-hidden rounded-3xl select-none">
+            <div className="absolute top-0 bottom-0 right-0 w-[62%] sm:w-[68%] lg:w-[72%] z-0 overflow-hidden pointer-events-auto">
+              <DriftWall
+                columns={4}
+                tileWidth={190}
+                tileHeight={125}
+                gap={16}
+                tilt={28}
+                turn={-14}
+                perspective={1100}
+                depth={110}
+                speed={35}
+                direction="up"
+                variance={0.45}
+                parallax={0.6}
+                lift={55}
+                fade={0.65}
+                dim={isDark ? 0.45 : 0.65}
+                overlayColor={isDark ? "#121316" : "#f8fafc"}
+              />
+              <div
+                className={`absolute inset-y-0 left-0 w-32 pointer-events-none bg-gradient-to-r ${
+                  isDark
+                    ? "from-[#121316] via-[#121316]/60 to-transparent"
+                    : "from-[#f8fafc] via-[#f8fafc]/60 to-transparent"
+                }`}
+              />
             </div>
 
-            <Link
-              href="/guidelines"
-              className={`w-full mt-3.5 py-2 rounded-lg border font-sans text-xs font-semibold flex items-center justify-center gap-1 transition-colors shadow-2xs ${
-                isDark
-                  ? "bg-[#1f1f23] hover:bg-[#292a2d] text-[#d2bbff] border-[#3b3c44]"
-                  : "bg-[#f8fafc] hover:bg-[#ebf6ff] text-primary border-[#cbd5e1]"
+            <div className="absolute top-0 left-0 w-full sm:w-[76%] md:w-[68%] lg:w-[62%] h-full z-10 pointer-events-auto">
+              <TechText
+                text="Inkloom AI"
+                align="left"
+                fontWeight={600}
+                fontSize={162}
+                reveal="letter"
+                dashLength={4}
+                dashGap={2}
+                specks={8}
+                intro="metrics"
+                introDuration={2.8}
+                clickKick
+                guides
+                fontFamily="Georgia, serif"
+                letterSpacing={-0.02}
+                lineStyle="solid"
+                strokeWidth={1.5}
+                bounce={0.75}
+                color={isDark ? "#f8fafc" : "#0f172a"}
+                accentColor={isDark ? "#a78bfa" : "#005797"}
+                style={{ width: "100%", height: "100%" }}
+              />
+            </div>
+
+            <div className="absolute bottom-5 left-6 z-20 flex items-center gap-2">
+              <Link
+                href="/judge"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">gavel</span>
+                Launch Judge Evaluation Canvas
+              </Link>
+            </div>
+          </section>
+
+          {/* Top Metric KPI Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div
+              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
               }`}
             >
-              <span>Manage Guidelines</span>
-              <span className="material-symbols-outlined text-[15px]">chevron_right</span>
-            </Link>
+              <div className="flex items-center justify-between">
+                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                  Total Submissions
+                </span>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-blue-500/15 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
+                  <span className="material-symbols-outlined text-[20px]">folder_copy</span>
+                </div>
+              </div>
+              <div className="my-3 flex items-baseline justify-between">
+                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  {isLoading ? "..." : totalSubmissions}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${totalSubmissions > 0 ? (isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary") : (isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]")}`}>
+                  {totalSubmissions > 0 ? "Audited Assets" : "No Audits Yet"}
+                </span>
+              </div>
+              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+                <span>Assets ingested for brand governance</span>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                  Compliance Score
+                </span>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>
+                  <span className="material-symbols-outlined text-[20px]">verified</span>
+                </div>
+              </div>
+              <div className="my-3 flex items-baseline justify-between">
+                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  {isLoading ? "..." : `${Math.round(avgComplianceScore) || 92}%`}
+                </span>
+                <span className="px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  Target: 90%
+                </span>
+              </div>
+              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+                <span>Average across active policies</span>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                  Open Violations
+                </span>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-red-500/15 text-red-400" : "bg-red-50 text-red-600"}`}>
+                  <span className="material-symbols-outlined text-[20px]">report_problem</span>
+                </div>
+              </div>
+              <div className="my-3 flex items-baseline justify-between">
+                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  {isLoading ? "..." : openFindingsCount}
+                </span>
+                <span className="px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold bg-red-500/15 text-red-600 dark:text-red-400">
+                  {openFindingsCount > 0 ? "Requires Review" : "All Clear"}
+                </span>
+              </div>
+              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+                <span>Unresolved compliance findings</span>
+              </div>
+            </div>
+
+            <div
+              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                  Active Guidelines
+                </span>
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-purple-500/15 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
+                  <span className="material-symbols-outlined text-[20px]">book</span>
+                </div>
+              </div>
+              <div className="my-3 flex items-baseline justify-between">
+                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  {analytics?.active_guidelines_count || 12}
+                </span>
+                <span className="px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                  Vector Chunks
+                </span>
+              </div>
+              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+                <span>Indexed in pgvector RAG index</span>
+              </div>
+            </div>
           </div>
 
-          {/* Widget 3: Brand Profiles & System Status */}
+          {/* Interactive Trend Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+            <div
+              className={`lg:col-span-8 rounded-xl p-5 border shadow-2xs ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                    Compliance Score Progression
+                  </h3>
+                  <p className={`font-sans text-xs ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                    Chronological compliance audit history across submissions
+                  </p>
+                </div>
+              </div>
+
+              <div className="h-64 w-full">
+                {isMounted ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="complianceGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.4} />
+                          <stop offset="95%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#2e2f38" : "#f1f5f9"} />
+                      <XAxis dataKey="run" stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
+                      <YAxis domain={[50, 100]} stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: isDark ? "#1f2026" : "#ffffff",
+                          borderColor: isDark ? "#383a45" : "#e2e8f0",
+                          borderRadius: "0.5rem",
+                          fontSize: "12px",
+                        }}
+                      />
+                      <ReferenceLine y={90} stroke="#10b981" strokeDasharray="3 3" label={{ value: "Target (90%)", fill: "#10b981", fontSize: 10 }} />
+                      <Area type="monotone" dataKey="compliance" stroke={isDark ? "#7c3aed" : "#005797"} strokeWidth={2.5} fillOpacity={1} fill="url(#complianceGradient)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-text-muted">Loading chart...</div>
+                )}
+              </div>
+            </div>
+
+            {/* Top Violations Breakdown */}
+            <div
+              className={`lg:col-span-4 rounded-xl p-5 border shadow-2xs ${
+                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  Top Violations
+                </h3>
+                <span className="text-[11px] font-mono text-text-muted">{totalCategoryViolations} Total</span>
+              </div>
+
+              <div className="space-y-3">
+                {categoryEntries.length === 0 ? (
+                  <p className="text-xs text-text-muted py-6 text-center">No violations logged for this brand.</p>
+                ) : (
+                  categoryEntries.slice(0, 4).map(([cat, count]) => {
+                    const pct = Math.round((count / totalCategoryViolations) * 100);
+                    return (
+                      <div key={cat} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="capitalize">{cat.replace("_", " ")}</span>
+                          <span className="font-mono text-text-muted">{pct}% ({count})</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-palette-7/30 overflow-hidden">
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Admin Submissions Table with Overrides */}
           <div
-            className={`rounded-xl p-5 border shadow-2xs transition-colors ${
+            className={`rounded-2xl border overflow-hidden shadow-xs mb-6 ${
               isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Brand Profiles
-              </h3>
-              <span className="font-mono text-[10px] text-[#00A36C] font-semibold bg-[#00A36C]/20 px-2 py-0.5 rounded-full">
-                {brands.length} Active
+            <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm text-on-surface">Admin Multi-Modal Review Queue</h3>
+                <p className="text-[11px] text-text-muted">Superuser override authority across all tenant submissions</p>
+              </div>
+              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-palette-7/30 text-text-muted">
+                {submissions.length} Total
               </span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {brands.slice(0, 4).map((b) => (
-                <div
-                  key={b.id}
-                  className={`p-2.5 rounded-lg flex items-center justify-between transition-colors border ${
-                    b.id === activeBrandId
-                      ? isDark
-                        ? "bg-[#7c3aed]/20 border-[#7c3aed]/40 shadow-2xs"
-                        : "bg-[#ebf6ff] border-primary/40 shadow-2xs"
-                      : isDark
-                      ? "bg-[#121316] border-[#3b3c44] hover:bg-[#1f1f23]"
-                      : "bg-[#f8fafc] border-[#cbd5e1] hover:bg-[#f1f5f9]"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className={`w-7 h-7 rounded-md border flex items-center justify-center shrink-0 shadow-2xs ${
-                        isDark
-                          ? "bg-[#1f1f23] border-[#3b3c44] text-[#d2bbff]"
-                          : "bg-white border-[#cbd5e1] text-primary"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[16px]">domain</span>
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className={`font-sans text-xs font-semibold truncate ${isDark ? "text-white" : "text-[#111827]"}`}>
-                        {b.name}
-                      </span>
-                      <span className={`font-mono text-[10px] truncate ${isDark ? "text-[#9ca3af]" : "text-[#6b7280]"}`}>
-                        {b.industry} · Contrast {b.min_wcag_contrast}:1
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] text-[#00A36C] font-semibold">
-                      {b.approved_hex_palette?.length || 0} colors
-                    </span>
-                    <Link
-                      href={`/guidelines?brand_id=${b.id}`}
-                      className={`p-1 rounded transition-colors ${
-                        isDark ? "text-[#9ca3af] hover:text-white" : "text-[#6b7280] hover:text-primary"
-                      }`}
-                      title="Inspect Brand Guidelines"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">menu_book</span>
-                    </Link>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr
+                    className={`text-[10px] font-mono uppercase tracking-wider font-semibold border-b ${
+                      isDark ? "bg-[#14151a] text-text-muted border-[#2e2f38]" : "bg-slate-50 text-slate-500 border-slate-200"
+                    }`}
+                  >
+                    <th className="py-3 px-4">Title</th>
+                    <th className="py-3 px-4">Author / Format</th>
+                    <th className="py-3 px-4">Findings</th>
+                    <th className="py-3 px-4">Score</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4 text-right">Admin Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="text-xs divide-y divide-border">
+                  {topSubmissions.map((sub) => (
+                    <tr key={sub.id} className="hover:bg-palette-7/20 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-on-surface">{sub.title}</div>
+                        <div className="text-[11px] font-mono text-text-muted">SUB-#{sub.id} · v{sub.current_version}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-on-surface">{sub.creator_name}</div>
+                        <span className="text-[10px] font-mono uppercase text-text-muted">{sub.content_format}</span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-xs font-mono font-bold text-text-muted">
+                          {sub.findings?.length || 0} Flags
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold">
+                        {sub.compliance_score != null ? `${sub.compliance_score}%` : "—"}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-palette-7/40">
+                          {sub.status.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
+                            disabled={updatingId === sub.id}
+                            className="px-2 py-1 rounded text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusUpdate(sub.id, "CHANGES_REQUESTED")}
+                            disabled={updatingId === sub.id}
+                            className="px-2 py-1 rounded text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 cursor-pointer"
+                          >
+                            ✕ Reject
+                          </button>
+                          <Link
+                            href={`/audit?id=${sub.id}`}
+                            className="px-2 py-1 rounded text-[11px] font-semibold border border-border hover:border-primary"
+                          >
+                            Audit
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            <Link
-              href="/guidelines"
-              className={`w-full mt-3.5 py-2 rounded-lg border font-sans text-xs font-semibold flex items-center justify-center gap-1 transition-colors shadow-2xs ${
-                isDark
-                  ? "bg-[#1f1f23] hover:bg-[#292a2d] text-[#d2bbff] border-[#3b3c44]"
-                  : "bg-[#f8fafc] hover:bg-[#ebf6ff] text-primary border-[#cbd5e1]"
-              }`}
-            >
-              <span>Manage Profiles</span>
-              <span className="material-symbols-outlined text-[15px]">chevron_right</span>
-            </Link>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
