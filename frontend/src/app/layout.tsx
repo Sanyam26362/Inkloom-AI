@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 import { AppContextProvider } from "@/context/AppContext";
 import { AppShell } from "@/components/shell/AppShell";
 
@@ -37,9 +38,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full antialiased font-sans bg-surface text-on-surface" suppressHydrationWarning>
-        <AppContextProvider>
-          <AppShell>{children}</AppShell>
-        </AppContextProvider>
+        <ClerkProvider>
+          <AppContextProvider>
+            <AppShell>{children}</AppShell>
+          </AppContextProvider>
+        </ClerkProvider>
       </body>
     </html>
   );
