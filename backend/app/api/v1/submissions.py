@@ -499,21 +499,26 @@ async def upload_image_and_audit(
         }
 
     # Synchronous
-    audit_result = await AuditService.run_image_audit(
-        session=session,
-        submission=submission,
-        revision=current_rev,
-        image_bytes=image_bytes,
-        mime_type=content_type,
-        actor_id=user.user_id,
-        actor_name=user.user_name,
-        actor_role=user.role.value,
-        additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
-        campaign_event=event,
-        campaign_id=campaign_id,
-    )
-    audit_job_manager.set_done(submission.id, audit_result)
-    return audit_result
+    try:
+        audit_result = await AuditService.run_image_audit(
+            session=session,
+            submission=submission,
+            revision=current_rev,
+            image_bytes=image_bytes,
+            mime_type=content_type,
+            actor_id=user.user_id,
+            actor_name=user.user_name,
+            actor_role=user.role.value,
+            additional_metadata={"storage": cloudinary_asset, "campaign_event": event},
+            campaign_event=event,
+            campaign_id=campaign_id,
+        )
+        audit_job_manager.set_done(submission.id, audit_result)
+        return audit_result
+    except ValueError as val_err:
+        submission.status = "NEEDS_REVIEW"
+        await session.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(val_err)) from val_err
 
 
 @router.post("/{submission_id}/upload-audio", response_model=AuditExecutionResponse)
