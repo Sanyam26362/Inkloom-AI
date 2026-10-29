@@ -117,7 +117,7 @@ export function LandingNav() {
               onClick={() => openAuthModal()}
               className="px-6 py-2 bg-[var(--nb-pink)] text-[var(--nb-ink)] font-bold text-[13px] tracking-wider uppercase hover:bg-[#ff8ec0] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer flex items-center gap-1.5 transition-colors"
             >
-              LOGIN ↗
+              Start ↗
             </button>
           </Show>
 
@@ -194,7 +194,7 @@ export function LandingNav() {
                 }}
                 className="w-full py-4 bg-[var(--nb-pink)] text-[var(--nb-ink)] font-bold text-base uppercase tracking-wider border-[3px] border-[var(--nb-ink)] shadow-[4px_4px_0_var(--nb-ink)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
               >
-                LOGIN ↗
+                Start ↗
               </button>
             </Show>
 
