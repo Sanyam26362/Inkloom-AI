@@ -895,6 +895,7 @@ class AuditService:
         effective_prohibited_subjects = list(dict.fromkeys(effective_prohibited_subjects))
 
         image_metadata = DocumentService.analyze_image(image_bytes)
+        all_draft_findings: List[FindingDraft] = []
 
         # Retrieve visual and accessibility guidelines
         img_retrieval_meta: Dict[str, Any] = {}
@@ -933,8 +934,6 @@ class AuditService:
             for c in retrieved_chunks
         ]
         retrieved_map = {c.id: c for c in retrieved_chunks}
-
-        all_draft_findings: List[FindingDraft] = []
 
         # ── Pre-check: deterministic scan on submission text metadata ─────────────────
         scan_targets = [
