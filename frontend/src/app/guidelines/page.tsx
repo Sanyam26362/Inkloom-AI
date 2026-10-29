@@ -385,61 +385,131 @@ function BrandGuidelinesContent() {
   const paletteList = activeBrand?.approved_hex_palette || [];
 
   return (
-    <div className={`min-h-screen px-4 sm:px-6 lg:px-8 py-6 font-sans transition-colors ${
-      isDark ? "bg-[#121316] text-[#e3e2e6]" : "bg-[#f8fafc] text-[#111827]"
-    }`}>
-      {/* Toast Notification with Lucide Icons */}
+    <div
+      className={`min-h-screen px-4 sm:px-6 lg:px-8 py-6 font-mono transition-colors ${
+        isDark ? "bg-[#101010] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
+      }`}
+    >
+      {/* Toast Notification */}
       {notification && (
         <div
-          className={`fixed bottom-6 right-6 z-50 p-4 rounded-xl shadow-xl border flex items-center gap-3 max-w-md transition-all ${
+          className={`fixed bottom-6 right-6 z-50 p-4 border-3 border-black shadow-[6px_6px_0px_#000000] flex items-center gap-3 max-w-md transition-all ${
             notification.type === "success"
-              ? isDark
-                ? "bg-[#1b1b1f] border-[#00A36C]/40 text-white"
-                : "bg-white border-[#00A36C]/40 text-[#111827]"
-              : isDark
-              ? "bg-[#1b1b1f] border-[#dc2626]/40 text-white"
-              : "bg-white border-[#dc2626]/40 text-[#111827]"
+              ? "bg-[var(--green)] text-black"
+              : "bg-[var(--red)] text-white"
           }`}
         >
           {notification.type === "success" ? (
-            <CheckCircle2 size={18} className="text-[#00A36C] shrink-0" />
+            <CheckCircle2 size={20} className="text-black shrink-0" />
           ) : (
-            <AlertCircle size={18} className="text-[#dc2626] shrink-0" />
+            <AlertCircle size={20} className="text-white shrink-0" />
           )}
-          <p className="text-xs leading-snug flex-1">{notification.text}</p>
+          <p className="text-xs font-mono font-bold leading-snug flex-1">{notification.text}</p>
           <button
             onClick={() => setNotification(null)}
-            className={`p-1 rounded-md cursor-pointer transition-colors ${
-              isDark ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]" : "text-[#64748b] hover:text-[#111827] hover:bg-[#f1f5f9]"
-            }`}
+            className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer shrink-0"
           >
-            <X size={14} />
+            ✕
           </button>
         </div>
       )}
 
+      {/* Header Bar */}
+      <header
+        className={`p-5 sm:p-6 border-4 ${
+          isDark
+            ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+            : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+        } flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6`}
+      >
+        <div>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="px-2.5 py-0.5 border-2 border-black bg-[var(--yellow)] text-black text-[10px] font-mono font-black uppercase tracking-wider shadow-[2px_2px_0px_#000]">
+              POLICY REPOSITORY
+            </span>
+            <span className="text-xs font-mono font-black text-[#555] dark:text-[#a0a5b5]">
+              GOVERNING BRAND:{" "}
+              <strong className="text-[var(--ink)] dark:text-white uppercase">
+                {activeBrand?.name || "Blinkit"}
+              </strong>{" "}
+              · SECTOR:{" "}
+              <strong className="text-[var(--ink)] dark:text-white uppercase">
+                {activeBrand?.industry || "Retail & E-Commerce"}
+              </strong>
+            </span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-archivo font-black uppercase tracking-tight text-[var(--ink)] dark:text-white">
+            Brand Guidelines &amp; Policy Studio
+          </h1>
+          <p className="mt-1 text-xs font-mono text-[#555] dark:text-[#a0a5b5] max-w-2xl leading-relaxed">
+            Manage deterministic compliance rules, RAG vector embeddings, approved palettes, and terminology standards for autonomous brand governance.
+          </p>
+        </div>
+
+        {/* Action Button Palette */}
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <button
+            onClick={() => setShowAddRuleModal(true)}
+            type="button"
+            className="h-10 px-3.5 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <PlusCircle size={15} />
+            <span>Add Rule</span>
+          </button>
+
+          <button
+            onClick={openEditBrandModal}
+            type="button"
+            className="h-10 px-3.5 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Pencil size={15} />
+            <span>Edit Brand</span>
+          </button>
+
+          <button
+            onClick={() => setShowCreateBrandModal(true)}
+            type="button"
+            className="h-10 px-3.5 border-2 border-black bg-[var(--pink)] hover:opacity-95 text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <Building2 size={15} />
+            <span>New Brand</span>
+          </button>
+        </div>
+      </header>
+
       {/* 1. Ingestion & Semantic Search Tools */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
         {/* Left: PDF Styleguide Ingestion Box (6 cols) */}
-        <div className={`lg:col-span-6 rounded-xl p-5 border shadow-2xs flex flex-col justify-between transition-colors ${
-          isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-        }`}>
+        <div
+          className={`lg:col-span-6 p-5 sm:p-6 border-4 ${
+            isDark
+              ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+              : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+          } flex flex-col justify-between`}
+        >
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Upload Brand Guide
-              </h2>
-              <span className={`text-[11px] font-mono ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
-                PDF format
+            <div className="flex items-center justify-between mb-3 border-b-2 border-black pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-black dark:text-white">
+                  upload_file
+                </span>
+                <h2 className="font-archivo font-black text-sm uppercase text-[var(--ink)] dark:text-white">
+                  Ingest Brand Guide (PDF)
+                </h2>
+              </div>
+              <span className="text-[10px] font-mono font-black uppercase text-[#666] dark:text-[#888]">
+                VECTOR RAG PIPELINE
               </span>
             </div>
 
-            {/* Dropzone Container with Sharp High-Contrast Border */}
-            <div className={`relative p-5 rounded-lg border-2 border-dashed transition-all flex flex-col items-center justify-center text-center ${
-              isDark
-                ? "bg-[#121316] border-[#3b3c44] hover:border-[#7c3aed]"
-                : "bg-[#f8fafc] border-[#cbd5e1] hover:border-[#005797]"
-            }`}>
+            {/* Dropzone Container */}
+            <div
+              className={`relative p-6 border-3 border-dashed border-black transition-all flex flex-col items-center justify-center text-center shadow-[3px_3px_0px_#000] ${
+                isDark
+                  ? "bg-[#141518] hover:bg-[#1c1d22]"
+                  : "bg-[var(--paper)] hover:bg-white"
+              }`}
+            >
               <input
                 type="file"
                 accept=".pdf,application/pdf"
@@ -451,20 +521,17 @@ function BrandGuidelinesContent() {
                 className="absolute inset-0 opacity-0 cursor-pointer z-20"
               />
 
-              <UploadCloud
-                size={28}
-                className={`mb-2 transition-transform duration-200 group-hover:scale-105 ${
-                  isDark ? "text-[#d2bbff]" : "text-[#005797]"
-                }`}
-              />
+              <div className="w-12 h-12 border-2 border-black bg-[var(--yellow)] text-black flex items-center justify-center mx-auto mb-2 shadow-[2px_2px_0px_#000]">
+                <UploadCloud size={24} />
+              </div>
 
-              <span className={`text-xs font-semibold mb-0.5 ${isDark ? "text-white" : "text-[#111827]"}`}>
-                {uploadFile ? uploadFile.name : "Drag & drop styleguide PDF or browse"}
+              <span className="text-xs font-mono font-black uppercase mb-0.5 text-[var(--ink)] dark:text-white">
+                {uploadFile ? uploadFile.name : "Drag & drop brand PDF or click to browse"}
               </span>
-              <p className={`text-[11px] ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#888]">
                 {uploadFile
-                  ? `${(uploadFile.size / 1024 / 1024).toFixed(2)} MB · Ready to parse`
-                  : "PDF manuals, tone guides, or policy books"}
+                  ? `${(uploadFile.size / 1024 / 1024).toFixed(2)} MB · Ready for pgvector indexing`
+                  : "PDF design systems, brand manuals, and campaign briefs"}
               </p>
 
               {uploadFile && (
@@ -475,25 +542,19 @@ function BrandGuidelinesContent() {
                     e.stopPropagation();
                     handlePdfUpload();
                   }}
-                  className={`mt-3 z-30 px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50 ${
-                    isDark
-                      ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                      : "bg-[#005797] text-white hover:bg-[#004578]"
-                  }`}
+                  className="mt-3.5 z-30 px-4 py-2 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   {isUploading ? (
-                    <Loader2 size={14} />
+                    <Loader2 size={14} className="animate-spin" />
                   ) : (
                     <ArrowUpCircle size={14} />
                   )}
-                  <span>{isUploading ? "Extracting..." : "Ingest PDF"}</span>
+                  <span>{isUploading ? "Extracting..." : "Ingest PDF to Vector DB"}</span>
                 </button>
               )}
 
               {uploadProgressMsg && (
-                <span className={`mt-2 text-[11px] font-mono animate-pulse ${
-                  isDark ? "text-[#d2bbff]" : "text-[#005797]"
-                }`}>
+                <span className="mt-2 text-[10px] font-mono font-bold text-[var(--yellow)] dark:text-[#ffdb1f] animate-pulse">
                   {uploadProgressMsg}
                 </span>
               )}
@@ -501,36 +562,41 @@ function BrandGuidelinesContent() {
           </div>
 
           {/* Active Source File Footer */}
-          <div className={`mt-3 pt-2.5 border-t flex items-center justify-between text-[11px] font-mono ${
-            isDark ? "border-[#313238] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-          }`}>
-            <span className="truncate max-w-[280px]">
-              Active: {chunks[0]?.source_document || "Blinkit Brand Voice & Tone Guide 2024.pdf"}
+          <div className="mt-4 pt-3 border-t-2 border-black flex items-center justify-between text-[10px] font-mono">
+            <span className="truncate max-w-[280px] text-[#555] dark:text-[#a0a5b5]">
+              Active: <strong className="text-[var(--ink)] dark:text-white">{chunks[0]?.source_document || "Blinkit Brand Voice & Tone Guide 2024.pdf"}</strong>
             </span>
             <button
               onClick={reloadGuidelines}
               type="button"
-              className={`hover:underline flex items-center gap-1 cursor-pointer transition-colors ${
-                isDark ? "text-[#d2bbff]" : "text-[#005797]"
-              }`}
+              className="px-2.5 py-1 border border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black uppercase shadow-[1px_1px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 flex items-center gap-1 cursor-pointer transition-all"
             >
-              <RefreshCw size={12} />
-              <span>Sync</span>
+              <RefreshCw size={11} />
+              <span>Sync Rules</span>
             </button>
           </div>
         </div>
 
         {/* Right: Policy Semantic Search (6 cols) */}
-        <div className={`lg:col-span-6 rounded-xl p-5 border shadow-2xs flex flex-col justify-between transition-colors ${
-          isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-        }`}>
+        <div
+          className={`lg:col-span-6 p-5 sm:p-6 border-4 ${
+            isDark
+              ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]"
+              : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+          } flex flex-col justify-between`}
+        >
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Policy Search
-              </h2>
-              <span className={`text-[11px] font-mono ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
-                Semantic match
+            <div className="flex items-center justify-between mb-3 border-b-2 border-black pb-2">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px] text-black dark:text-white">
+                  troubleshoot
+                </span>
+                <h2 className="font-archivo font-black text-sm uppercase text-[var(--ink)] dark:text-white">
+                  Semantic Policy Search
+                </h2>
+              </div>
+              <span className="text-[10px] font-mono font-black uppercase text-[#666] dark:text-[#888]">
+                COSINE SIMILARITY TEST
               </span>
             </div>
 
@@ -538,33 +604,25 @@ function BrandGuidelinesContent() {
               <div className="relative flex-1">
                 <Search
                   size={15}
-                  className={`absolute left-2.5 top-2.5 pointer-events-none ${
-                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                  }`}
+                  className="absolute left-3 top-2.5 pointer-events-none text-[#666] dark:text-[#888]"
                 />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search rules, tone, claims, or accessibility..."
-                  className={`w-full h-9 pl-8 pr-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark
-                      ? "bg-[#121316] border-[#3b3c44] text-white placeholder:text-[#9ca3af] focus:border-[#7c3aed]"
-                      : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827] placeholder:text-[#64748b] focus:border-[#005797]"
+                  placeholder="Query brand rules, tone, claims, or accessibility..."
+                  className={`w-full h-10 pl-9 pr-3 border-2 border-black font-mono text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none ${
+                    isDark ? "bg-[#141518] text-white" : "bg-white text-[var(--ink)]"
                   }`}
                 />
               </div>
               <button
                 type="submit"
                 disabled={isSearching || !searchQuery.trim()}
-                className={`h-9 px-3.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs disabled:opacity-50 cursor-pointer ${
-                  isDark
-                    ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                    : "bg-[#005797] text-white hover:bg-[#004578]"
-                }`}
+                className="h-10 px-4 border-2 border-black bg-[var(--blue)] hover:bg-[#8cc7ff] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 flex items-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all shrink-0"
               >
                 {isSearching ? (
-                  <Loader2 size={14} />
+                  <Loader2 size={14} className="animate-spin" />
                 ) : (
                   <Sparkles size={14} />
                 )}
@@ -574,87 +632,66 @@ function BrandGuidelinesContent() {
 
             {/* Results container */}
             {searchResults ? (
-              <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
-                <div className={`flex items-center justify-between text-[11px] font-mono pb-1 border-b ${
-                  isDark ? "border-[#313238] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-                }`}>
-                  <span>{searchResults.length} matches found</span>
+              <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
+                <div className="flex items-center justify-between text-[10px] font-mono uppercase font-black pb-1 border-b-2 border-black text-[#555] dark:text-[#a0a5b5]">
+                  <span>{searchResults.length} Semantic Matches Found</span>
                   <button
                     type="button"
                     onClick={() => setSearchResults(null)}
-                    className="hover:underline cursor-pointer"
+                    className="hover:underline cursor-pointer text-[var(--red)]"
                   >
-                    Clear
+                    Clear Search
                   </button>
                 </div>
 
                 {searchResults.map((res, idx) => (
                   <div
                     key={idx}
-                    className={`p-2.5 rounded-lg border text-xs flex flex-col gap-1 ${
-                      isDark ? "bg-[#121316] border-[#3b3c44]" : "bg-[#f8fafc] border-[#cbd5e1]"
-                    }`}
+                    className="p-3 border-2 border-black bg-white dark:bg-[#141518] text-xs font-mono shadow-[2px_2px_0px_#000] flex flex-col gap-1"
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`font-mono text-[10px] font-bold uppercase ${
-                        isDark ? "text-[#d2bbff]" : "text-[#005797]"
-                      }`}>
+                      <span className="px-2 py-0.5 border border-black text-[9px] font-black uppercase bg-[var(--yellow)] text-black">
                         {res.chunk.rule_category}
                       </span>
-                      <span className="font-mono text-[10px] text-[#00A36C] font-bold">
+                      <span className="font-mono text-[10px] font-black text-[var(--green)] dark:text-[#b9f4a8]">
                         {(res.similarity_score * 100).toFixed(1)}% Match
                       </span>
                     </div>
-                    <p className={`line-clamp-2 leading-relaxed ${isDark ? "text-[#d1d5db]" : "text-[#374151]"}`}>
+                    <p className="line-clamp-2 leading-relaxed text-[var(--ink)] dark:text-[#c9d1d9] mt-0.5">
                       {res.chunk.content_text}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className={`p-4 rounded-lg border border-dashed text-center text-xs ${
-                isDark ? "border-[#313238] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-              }`}>
-                Enter any query above to test real-time guideline matching.
+              <div className="p-4 border-2 border-dashed border-black bg-[var(--paper)]/50 dark:bg-[#141518] text-center text-xs font-mono text-[#555] dark:text-[#888]">
+                Type a query above to test live semantic vector retrieval against the knowledge base.
               </div>
             )}
           </div>
 
-          <div className={`mt-3 pt-2.5 border-t text-[11px] font-mono ${
-            isDark ? "border-[#313238] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-          }`}>
-            Target Brand: <span className="font-semibold text-[#00A36C]">{activeBrand?.name}</span>
+          <div className="mt-4 pt-3 border-t-2 border-black text-[10px] font-mono text-[#555] dark:text-[#a0a5b5]">
+            Target Workspace: <strong className="text-[var(--ink)] dark:text-white uppercase">{activeBrand?.name}</strong>
           </div>
         </div>
       </div>
 
       {/* 2. High-Contrast Tabbed Policy Inspector */}
       <div className="flex flex-col gap-5">
-        {/* Navigation Tabs Bar & Action Controls */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className={`flex items-center gap-1.5 p-1 rounded-xl border max-w-full overflow-x-auto ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-          }`}>
+        {/* Navigation Tabs Bar */}
+        <div className="flex items-center gap-2 p-1.5 border-3 border-black bg-white dark:bg-[#18191f] shadow-[4px_4px_0px_#000] max-w-full overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab("CHUNKS")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
               activeTab === "CHUNKS"
-                ? isDark
-                  ? "bg-[#7c3aed] text-white shadow-2xs"
-                  : "bg-[#005797] text-white shadow-2xs"
-                : isDark
-                ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]"
-                : "text-[#64748b] hover:text-[#111827] hover:bg-[#f8fafc]"
+                ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                : "bg-white dark:bg-[#141518] text-black dark:text-white hover:bg-black/5"
             }`}
           >
             <BookOpen size={14} />
             <span>Brand Rules</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-              activeTab === "CHUNKS"
-                ? "bg-white/20 text-white"
-                : isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
-            }`}>
+            <span className="px-1.5 py-0.2 border border-black bg-black text-white text-[9px]">
               {chunks.length}
             </span>
           </button>
@@ -662,23 +699,15 @@ function BrandGuidelinesContent() {
           <button
             type="button"
             onClick={() => setActiveTab("TERMINOLOGY")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
               activeTab === "TERMINOLOGY"
-                ? isDark
-                  ? "bg-[#7c3aed] text-white shadow-2xs"
-                  : "bg-[#005797] text-white shadow-2xs"
-                : isDark
-                ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]"
-                : "text-[#64748b] hover:text-[#111827] hover:bg-[#f8fafc]"
+                ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                : "bg-white dark:bg-[#141518] text-black dark:text-white hover:bg-black/5"
             }`}
           >
             <Languages size={14} />
             <span>Terminology</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-              activeTab === "TERMINOLOGY"
-                ? "bg-white/20 text-white"
-                : isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
-            }`}>
+            <span className="px-1.5 py-0.2 border border-black bg-black text-white text-[9px]">
               {preferredTermEntries.length}
             </span>
           </button>
@@ -686,23 +715,15 @@ function BrandGuidelinesContent() {
           <button
             type="button"
             onClick={() => setActiveTab("BANNED")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
               activeTab === "BANNED"
-                ? isDark
-                  ? "bg-[#7c3aed] text-white shadow-2xs"
-                  : "bg-[#005797] text-white shadow-2xs"
-                : isDark
-                ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]"
-                : "text-[#64748b] hover:text-[#111827] hover:bg-[#f8fafc]"
+                ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                : "bg-white dark:bg-[#141518] text-black dark:text-white hover:bg-black/5"
             }`}
           >
             <Ban size={14} />
             <span>Banned Terms</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${
-              activeTab === "BANNED"
-                ? "bg-white/20 text-white"
-                : isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]"
-            }`}>
+            <span className="px-1.5 py-0.2 border border-black bg-black text-white text-[9px]">
               {bannedTermsList.length}
             </span>
           </button>
@@ -710,14 +731,10 @@ function BrandGuidelinesContent() {
           <button
             type="button"
             onClick={() => setActiveTab("VISUAL")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all whitespace-nowrap cursor-pointer ${
               activeTab === "VISUAL"
-                ? isDark
-                  ? "bg-[#7c3aed] text-white shadow-2xs"
-                  : "bg-[#005797] text-white shadow-2xs"
-                : isDark
-                ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]"
-                : "text-[#64748b] hover:text-[#111827] hover:bg-[#f8fafc]"
+                ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                : "bg-white dark:bg-[#141518] text-black dark:text-white hover:bg-black/5"
             }`}
           >
             <Palette size={14} />
@@ -725,67 +742,20 @@ function BrandGuidelinesContent() {
           </button>
         </div>
 
-        {/* Action Button Palette with Lucide Icons */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          <button
-            onClick={() => setShowAddRuleModal(true)}
-            type="button"
-            className={`h-9 px-3.5 rounded-lg text-xs font-semibold border shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 ${
-              isDark
-                ? "bg-[#1f1f23] border-[#3b3c44] text-white hover:bg-[#292a2d]"
-                : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f8fafc]"
-            }`}
-          >
-            <PlusCircle size={15} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-            <span>Add Rule</span>
-          </button>
-
-          <button
-            onClick={openEditBrandModal}
-            type="button"
-            className={`h-9 px-3 rounded-lg text-xs font-semibold border shadow-2xs transition-all cursor-pointer flex items-center gap-1.5 ${
-              isDark
-                ? "bg-[#1f1f23] border-[#3b3c44] text-white hover:bg-[#292a2d]"
-                : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f8fafc]"
-            }`}
-          >
-            <Pencil size={15} className={isDark ? "text-[#9ca3af]" : "text-[#64748b]"} />
-            <span>Edit Brand</span>
-          </button>
-
-          <button
-            onClick={() => setShowCreateBrandModal(true)}
-            type="button"
-            className={`h-9 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-              isDark
-                ? "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
-                : "bg-[#005797] hover:bg-[#004578] text-white"
-            }`}
-          >
-            <Building2 size={15} />
-            <span>New Brand</span>
-          </button>
-        </div>
-      </div>
-
         {/* TAB 1: BRAND RULES */}
         {activeTab === "CHUNKS" && (
           <div className="flex flex-col gap-4">
             {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
               {Object.keys(categoryCounts).map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setChunkFilter(cat)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer border ${
+                  className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase transition-all cursor-pointer whitespace-nowrap ${
                     chunkFilter === cat
-                      ? isDark
-                        ? "bg-[#7c3aed]/20 text-[#d2bbff] border-[#7c3aed] font-bold"
-                        : "bg-[#ebf6ff] text-[#005797] border-[#005797] font-bold"
-                      : isDark
-                      ? "bg-[#1b1b1f] border-[#3b3c44] text-[#9ca3af] hover:text-white"
-                      : "bg-white border-[#cbd5e1] text-[#64748b] hover:text-[#111827]"
+                      ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                      : "bg-white dark:bg-[#18191f] text-black dark:text-white shadow-[2px_2px_0px_#000]"
                   }`}
                 >
                   {cat} ({categoryCounts[cat]})
@@ -793,58 +763,50 @@ function BrandGuidelinesContent() {
               ))}
             </div>
 
-            {/* Rules Grid (Sharp High-Contrast Cards) */}
+            {/* Rules Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {isLoadingChunks ? (
-                <div className={`col-span-2 py-12 text-center text-xs font-mono ${
-                  isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                }`}>
-                  Loading guideline rules...
+                <div className="col-span-2 py-12 text-center text-xs font-mono border-3 border-dashed border-black bg-white dark:bg-[#18191f]">
+                  Loading guideline rules from knowledge base...
                 </div>
               ) : filteredChunks.length === 0 ? (
-                <div className={`col-span-2 py-12 text-center text-xs rounded-xl border border-dashed ${
-                  isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#cbd5e1] text-[#64748b]"
-                }`}>
+                <div className="col-span-2 py-12 text-center text-xs font-mono border-3 border-dashed border-black bg-white dark:bg-[#18191f]">
                   No rules found for this category.
                 </div>
               ) : (
                 filteredChunks.map((chunk) => (
                   <div
                     key={chunk.id}
-                    className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between gap-3 transition-colors ${
-                      isDark
-                        ? "bg-[#1b1b1f] border-[#3b3c44] hover:border-[#4f515c]"
-                        : "bg-white border-[#cbd5e1] hover:border-[#94a3b8]"
+                    className={`p-5 border-3 border-black shadow-[4px_4px_0px_#000] flex flex-col justify-between gap-3 ${
+                      isDark ? "bg-[#18191f]" : "bg-white"
                     }`}
                   >
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <span
-                          className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold uppercase tracking-wider ${
+                          className={`px-2 py-0.5 border border-black font-mono text-[9px] font-black uppercase tracking-wider shadow-[1px_1px_0px_#000] ${
                             chunk.rule_category === "TONE"
-                              ? isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-purple-50 text-purple-700"
+                              ? "bg-[var(--pink)] text-black"
                               : chunk.rule_category === "TERMINOLOGY"
-                              ? isDark ? "bg-blue-500/20 text-blue-300" : "bg-blue-50 text-blue-700"
+                              ? "bg-[var(--blue)] text-black"
                               : chunk.rule_category === "ACCESSIBILITY"
-                              ? isDark ? "bg-[#00A36C]/20 text-[#4edea3]" : "bg-emerald-50 text-emerald-700"
-                              : isDark ? "bg-amber-500/20 text-amber-300" : "bg-amber-50 text-amber-700"
+                              ? "bg-[var(--green)] text-black"
+                              : "bg-[var(--yellow)] text-black"
                           }`}
                         >
                           {chunk.rule_category}
                         </span>
-                        <span className={`text-[10px] font-mono ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                        <span className="text-[10px] font-mono text-[#666] dark:text-[#888] font-bold">
                           Triggered: {chunk.times_triggered}x
                         </span>
                       </div>
 
-                      <p className={`text-xs leading-relaxed font-sans ${isDark ? "text-white" : "text-[#111827]"}`}>
+                      <p className="text-xs leading-relaxed font-mono text-[var(--ink)] dark:text-[#c9d1d9]">
                         {chunk.content_text}
                       </p>
                     </div>
 
-                    <div className={`flex items-center justify-between text-[10px] font-mono pt-2 border-t ${
-                      isDark ? "border-[#313238] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-                    }`}>
+                    <div className="flex items-center justify-between text-[10px] font-mono pt-2.5 border-t-2 border-black text-[#555] dark:text-[#888]">
                       <span className="truncate max-w-[200px]" title={chunk.source_document}>
                         {chunk.source_document}
                       </span>
@@ -863,42 +825,40 @@ function BrandGuidelinesContent() {
         {activeTab === "TERMINOLOGY" && (
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             {/* Left 8 cols: Terminology Table */}
-            <div className={`xl:col-span-8 rounded-xl border shadow-2xs overflow-hidden transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}>
-              <div className={`grid grid-cols-12 gap-2 px-4 py-2.5 font-mono text-[10px] uppercase font-semibold border-b ${
-                isDark ? "bg-[#121316] text-[#9ca3af] border-[#3b3c44]" : "bg-[#f8fafc] text-[#64748b] border-[#cbd5e1]"
-              }`}>
+            <div
+              className={`xl:col-span-8 border-4 border-black shadow-[6px_6px_0px_#000] overflow-hidden ${
+                isDark ? "bg-[#18191f]" : "bg-white"
+              }`}
+            >
+              <div className="grid grid-cols-12 gap-2 px-4 py-3 font-mono text-[10px] uppercase font-black border-b-3 border-black bg-[var(--yellow)] text-black">
                 <div className="col-span-5">Canonical Preferred Term</div>
-                <div className="col-span-5">Avoid / Deprecated</div>
+                <div className="col-span-5">Avoid / Deprecated Phrase</div>
                 <div className="col-span-2 text-right">Status</div>
               </div>
 
-              <div className={`divide-y text-xs ${isDark ? "divide-[#313238]" : "divide-[#e2e8f0]"}`}>
+              <div className="divide-y-2 divide-black text-xs font-mono">
                 {preferredTermEntries.length === 0 ? (
-                  <div className={`p-8 text-center ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                  <div className="p-8 text-center text-[#555] dark:text-[#888]">
                     No preferred terminology defined for this brand.
                   </div>
                 ) : (
                   preferredTermEntries.map(([deprecated, canonical]) => (
                     <div
                       key={deprecated}
-                      className={`grid grid-cols-12 gap-2 p-3.5 items-center transition-colors ${
-                        isDark ? "hover:bg-[#1f1f23]" : "hover:bg-[#f8fafc]"
-                      }`}
+                      className="grid grid-cols-12 gap-2 p-4 items-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                     >
                       <div className="col-span-5 flex items-center gap-2">
-                        <CheckCircle2 size={16} className="text-[#00A36C] shrink-0" />
-                        <span className={`font-semibold ${isDark ? "text-white" : "text-[#111827]"}`}>{canonical}</span>
+                        <CheckCircle2 size={16} className="text-[var(--ink)] dark:text-[#b9f4a8] shrink-0" />
+                        <span className="font-bold text-[var(--ink)] dark:text-white">{canonical}</span>
                       </div>
                       <div className="col-span-5 flex items-center gap-2">
-                        <XCircle size={15} className="text-[#dc2626] shrink-0" />
-                        <span className={`line-through font-mono text-[11px] ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                        <XCircle size={15} className="text-[var(--red)] shrink-0" />
+                        <span className="line-through text-[#666] dark:text-[#888]">
                           {deprecated}
                         </span>
                       </div>
                       <div className="col-span-2 text-right">
-                        <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-[#00A36C]/20 text-[#00A36C]">
+                        <span className="px-2 py-0.5 border border-black font-mono text-[9px] font-black uppercase bg-[var(--green)] text-black">
                           ACTIVE
                         </span>
                       </div>
@@ -909,18 +869,23 @@ function BrandGuidelinesContent() {
             </div>
 
             {/* Right 4 cols: Quick Add Terminology */}
-            <div className={`xl:col-span-4 rounded-xl p-5 border shadow-2xs flex flex-col gap-3 transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}>
-              <h3 className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Add Terminology
-              </h3>
+            <div
+              className={`xl:col-span-4 p-5 sm:p-6 border-4 border-black shadow-[6px_6px_0px_#000] flex flex-col gap-4 ${
+                isDark ? "bg-[#18191f]" : "bg-[var(--white)]"
+              }`}
+            >
+              <div className="flex items-center gap-2 border-b-2 border-black pb-2">
+                <span className="material-symbols-outlined text-[20px] text-black dark:text-white">
+                  spellcheck
+                </span>
+                <h3 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                  Add Terminology Rule
+                </h3>
+              </div>
 
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-3 font-mono">
                 <div>
-                  <label className={`text-[10px] uppercase font-mono font-semibold block mb-1 ${
-                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                  }`}>
+                  <label className="text-[10px] uppercase font-black block mb-1 text-[var(--ink)] dark:text-white">
                     Avoid Phrase:
                   </label>
                   <input
@@ -928,18 +893,12 @@ function BrandGuidelinesContent() {
                     value={quickTermKey}
                     onChange={(e) => setQuickTermKey(e.target.value)}
                     placeholder="e.g. delivery boy"
-                    className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                      isDark
-                        ? "bg-[#121316] border-[#3b3c44] text-white focus:border-[#7c3aed]"
-                        : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827] focus:border-[#005797]"
-                    }`}
+                    className="w-full h-9 px-3 border-2 border-black font-mono text-xs font-bold text-black dark:text-white bg-white dark:bg-[#141518] shadow-[2px_2px_0px_#000] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className={`text-[10px] uppercase font-mono font-semibold block mb-1 ${
-                    isDark ? "text-[#9ca3af]" : "text-[#64748b]"
-                  }`}>
+                  <label className="text-[10px] uppercase font-black block mb-1 text-[var(--ink)] dark:text-white">
                     Preferred Replacement:
                   </label>
                   <input
@@ -947,11 +906,7 @@ function BrandGuidelinesContent() {
                     value={quickTermVal}
                     onChange={(e) => setQuickTermVal(e.target.value)}
                     placeholder="e.g. delivery partner"
-                    className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                      isDark
-                        ? "bg-[#121316] border-[#3b3c44] text-white focus:border-[#7c3aed]"
-                        : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827] focus:border-[#005797]"
-                    }`}
+                    className="w-full h-9 px-3 border-2 border-black font-mono text-xs font-bold text-black dark:text-white bg-white dark:bg-[#141518] shadow-[2px_2px_0px_#000] focus:outline-none"
                   />
                 </div>
 
@@ -959,11 +914,7 @@ function BrandGuidelinesContent() {
                   type="button"
                   onClick={handleAddPreferredTerm}
                   disabled={!quickTermKey.trim() || !quickTermVal.trim()}
-                  className={`mt-1 w-full py-2 rounded-lg text-xs font-semibold shadow-2xs transition-all disabled:opacity-50 cursor-pointer ${
-                    isDark
-                      ? "bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
-                      : "bg-[#005797] hover:bg-[#004578] text-white"
-                  }`}
+                  className="mt-1 w-full py-2.5 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   Save Terminology
                 </button>
@@ -977,21 +928,19 @@ function BrandGuidelinesContent() {
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             {/* Left 8 cols: Banned Terms List */}
             <div className="xl:col-span-8 flex flex-col gap-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {bannedTermsList.map((term) => (
                   <div
                     key={term}
-                    className={`p-3.5 rounded-xl border shadow-2xs flex items-center justify-between transition-colors ${
-                      isDark ? "bg-[#1b1b1f] border-[#dc2626]/30" : "bg-white border-[#dc2626]/30"
-                    }`}
+                    className="p-4 border-3 border-black bg-[var(--red)]/10 dark:bg-[var(--red)]/15 shadow-[3px_3px_0px_#000] flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#dc2626]" />
-                      <span className={`font-mono text-xs font-semibold ${isDark ? "text-white" : "text-[#111827]"}`}>
+                      <span className="w-2.5 h-2.5 border border-black bg-[var(--red)]" />
+                      <span className="font-mono text-xs font-bold text-[var(--ink)] dark:text-white">
                         “{term}”
                       </span>
                     </div>
-                    <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-[#dc2626]/20 text-[#dc2626]">
+                    <span className="px-2 py-0.5 border border-black font-mono text-[9px] font-black uppercase bg-[var(--red)] text-white shadow-[1px_1px_0px_#000]">
                       BANNED
                     </span>
                   </div>
@@ -1000,31 +949,34 @@ function BrandGuidelinesContent() {
             </div>
 
             {/* Right 4 cols: Quick Add Banned Term */}
-            <div className={`xl:col-span-4 rounded-xl p-5 border shadow-2xs flex flex-col gap-3 transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}>
-              <h3 className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                Add Banned Term
-              </h3>
+            <div
+              className={`xl:col-span-4 p-5 sm:p-6 border-4 border-black shadow-[6px_6px_0px_#000] flex flex-col gap-4 ${
+                isDark ? "bg-[#18191f]" : "bg-[var(--white)]"
+              }`}
+            >
+              <div className="flex items-center gap-2 border-b-2 border-black pb-2">
+                <span className="material-symbols-outlined text-[20px] text-black dark:text-white">
+                  block
+                </span>
+                <h3 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                  Add Banned Term
+                </h3>
+              </div>
 
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-3 font-mono">
                 <input
                   type="text"
                   value={quickBannedTerm}
                   onChange={(e) => setQuickBannedTerm(e.target.value)}
-                  placeholder="e.g. unhackable, guaranteed, 100% free"
-                  className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark
-                      ? "bg-[#121316] border-[#3b3c44] text-white focus:border-[#dc2626]"
-                      : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827] focus:border-[#dc2626]"
-                  }`}
+                  placeholder="e.g. instant delivery, 100% free"
+                  className="w-full h-9 px-3 border-2 border-black font-mono text-xs font-bold text-black dark:text-white bg-white dark:bg-[#141518] shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
 
                 <button
                   type="button"
                   onClick={handleAddBannedTerm}
                   disabled={!quickBannedTerm.trim()}
-                  className="w-full py-2 rounded-lg text-xs font-semibold bg-[#dc2626] hover:bg-[#b91c1c] text-white shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="w-full py-2.5 border-2 border-black bg-[var(--red)] hover:opacity-95 text-white text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   Save Banned Term
                 </button>
@@ -1035,19 +987,21 @@ function BrandGuidelinesContent() {
 
         {/* TAB 4: VISUAL IDENTITY */}
         {activeTab === "VISUAL" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-mono">
             {/* Swatches Card */}
-            <div className={`p-5 rounded-xl border shadow-2xs flex flex-col gap-4 transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}>
-              <div className="flex items-center justify-between">
+            <div
+              className={`p-5 sm:p-6 border-4 border-black shadow-[6px_6px_0px_#000] flex flex-col gap-4 ${
+                isDark ? "bg-[#18191f]" : "bg-[var(--white)]"
+              }`}
+            >
+              <div className="flex items-center justify-between border-b-2 border-black pb-2">
                 <div className="flex items-center gap-2">
-                  <Palette size={16} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-                  <h3 className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                    Approved Palette
+                  <Palette size={16} />
+                  <h3 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                    Approved Brand Palette
                   </h3>
                 </div>
-                <span className="font-mono text-[11px] text-[#00A36C] font-semibold">
+                <span className="font-mono text-[10px] font-black uppercase text-[var(--green)] dark:text-[#b9f4a8]">
                   WCAG Contrast: {activeBrand?.min_wcag_contrast || 4.5}:1
                 </span>
               </div>
@@ -1056,64 +1010,58 @@ function BrandGuidelinesContent() {
                 {paletteList.map((hex) => (
                   <div
                     key={hex}
-                    className={`flex flex-col items-center gap-1.5 p-2.5 rounded-lg border shadow-2xs ${
-                      isDark ? "bg-[#121316] border-[#3b3c44]" : "bg-[#f8fafc] border-[#cbd5e1]"
-                    }`}
+                    className="flex flex-col items-center gap-1.5 p-2.5 border-2 border-black bg-white dark:bg-[#141518] shadow-[2px_2px_0px_#000]"
                   >
                     <div
-                      className="w-12 h-12 rounded-lg shadow-inner border border-black/10"
+                      className="w-12 h-12 border-2 border-black shadow-[2px_2px_0px_#000]"
                       style={{ backgroundColor: hex }}
                     />
-                    <span className={`font-mono text-[11px] font-bold uppercase ${
-                      isDark ? "text-white" : "text-[#111827]"
-                    }`}>
+                    <span className="font-mono text-[10px] font-black uppercase text-[var(--ink)] dark:text-white">
                       {hex}
                     </span>
                   </div>
                 ))}
               </div>
 
-              <div className={`p-3 rounded-lg border text-xs leading-relaxed ${
-                isDark ? "bg-[#121316] border-[#3b3c44] text-[#d1d5db]" : "bg-[#f8fafc] border-[#cbd5e1] text-[#4b5563]"
-              }`}>
-                <div className="flex items-center gap-1.5 mb-1 font-semibold text-xs">
-                  <Sliders size={13} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-                  <span className={isDark ? "text-white" : "text-[#111827]"}>Visual Summary</span>
+              <div className="p-3.5 border-2 border-black bg-[var(--paper)] dark:bg-[#141518] text-xs leading-relaxed">
+                <div className="flex items-center gap-1.5 mb-1 font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                  <Sliders size={13} />
+                  <span>Visual Guidelines Summary</span>
                 </div>
-                {activeBrand?.visual_guidelines_summary ||
-                  "Ensure all interactive UI elements meet minimum 4.5:1 contrast against dark background."}
+                <p className="text-[11px] text-[#555] dark:text-[#a0a5b5]">
+                  {activeBrand?.visual_guidelines_summary ||
+                    "Ensure all interactive UI elements meet minimum 4.5:1 contrast against dark background."}
+                </p>
               </div>
             </div>
 
             {/* Tone Persona Card */}
-            <div className={`p-5 rounded-xl border shadow-2xs flex flex-col gap-4 transition-colors ${
-              isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-            }`}>
-              <div className="flex items-center gap-2">
-                <MessageSquare size={16} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-                <h3 className={`text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
-                  Tone & Editorial Voice
+            <div
+              className={`p-5 sm:p-6 border-4 border-black shadow-[6px_6px_0px_#000] flex flex-col gap-4 ${
+                isDark ? "bg-[#18191f]" : "bg-[var(--white)]"
+              }`}
+            >
+              <div className="flex items-center gap-2 border-b-2 border-black pb-2">
+                <MessageSquare size={16} />
+                <h3 className="font-archivo font-black text-xs uppercase text-[var(--ink)] dark:text-white">
+                  Tone &amp; Editorial Voice
                 </h3>
               </div>
 
-              <div className={`p-3.5 rounded-lg border text-xs leading-relaxed ${
-                isDark ? "bg-[#121316] border-[#3b3c44] text-[#d1d5db]" : "bg-[#f8fafc] border-[#cbd5e1] text-[#4b5563]"
-              }`}>
+              <div className="p-3.5 border-2 border-black bg-[var(--paper)] dark:bg-[#141518] text-xs leading-relaxed text-[var(--ink)] dark:text-[#c9d1d9]">
                 {activeBrand?.tone_persona || "Clear, authoritative, empathetic, and evidence-backed."}
               </div>
 
-              <div className={`flex flex-col gap-2 font-mono text-[11px] pt-2 border-t ${
-                isDark ? "border-[#313238] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"
-              }`}>
+              <div className="flex flex-col gap-2 font-mono text-[11px] pt-3 border-t-2 border-black text-[#555] dark:text-[#a0a5b5]">
                 <div className="flex items-center justify-between">
                   <span>Industry Sector:</span>
-                  <span className={`font-semibold ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  <strong className="text-[var(--ink)] dark:text-white uppercase font-black">
                     {activeBrand?.industry}
-                  </span>
+                  </strong>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Registered:</span>
-                  <span className={isDark ? "text-white" : "text-[#111827]"}>
+                  <span className="text-[var(--ink)] dark:text-white font-bold">
                     {activeBrand ? new Date(activeBrand.created_at).toLocaleDateString() : "—"}
                   </span>
                 </div>
@@ -1125,113 +1073,96 @@ function BrandGuidelinesContent() {
 
       {/* CREATE BRAND MODAL */}
       {showCreateBrandModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg rounded-2xl p-6 shadow-2xl border flex flex-col gap-4 ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44] text-white" : "bg-white border-[#cbd5e1] text-[#111827]"
-          }`}>
-            <div className={`flex items-center justify-between border-b pb-3 ${
-              isDark ? "border-[#313238]" : "border-[#e2e8f0]"
-            }`}>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-lg border-4 border-black p-6 shadow-[8px_8px_0px_#000] flex flex-col gap-4 font-mono ${
+              isDark ? "bg-[#18191f] text-white" : "bg-[var(--white)] text-[var(--ink)]"
+            }`}
+          >
+            <div className="flex items-center justify-between border-b-2 border-black pb-3">
               <div className="flex items-center gap-2">
-                <Building2 size={18} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-                <h3 className="text-sm font-bold">Create Brand</h3>
+                <Building2 size={18} />
+                <h3 className="font-archivo font-black text-sm uppercase">Create Brand Workspace</h3>
               </div>
               <button
                 onClick={() => setShowCreateBrandModal(false)}
-                className={`p-1 rounded-md cursor-pointer transition-colors ${isDark ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]" : "text-[#64748b] hover:text-[#111827] hover:bg-[#f1f5f9]"}`}
+                className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Brand Name:</label>
+                <label className="text-[10px] font-black uppercase">Brand Name *</label>
                 <input
                   type="text"
                   value={newBrandName}
                   onChange={(e) => setNewBrandName(e.target.value)}
                   placeholder="e.g. CyberDefense Global"
-                  className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Industry:</label>
+                <label className="text-[10px] font-black uppercase">Industry Sector *</label>
                 <input
                   type="text"
                   value={newBrandIndustry}
                   onChange={(e) => setNewBrandIndustry(e.target.value)}
                   placeholder="e.g. Enterprise Security"
-                  className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Tone Persona:</label>
+                <label className="text-[10px] font-black uppercase">Tone &amp; Persona</label>
                 <textarea
+                  rows={2}
                   value={newBrandTone}
                   onChange={(e) => setNewBrandTone(e.target.value)}
                   placeholder="e.g. Authoritative, direct, research-backed."
-                  className={`w-full h-18 p-2.5 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full p-2.5 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Approved Palette (Hex comma-separated):</label>
+                <label className="text-[10px] font-black uppercase">Approved Palette (Hex comma-separated)</label>
                 <input
                   type="text"
                   value={newBrandPalette}
                   onChange={(e) => setNewBrandPalette(e.target.value)}
-                  className={`w-full h-9 px-3 rounded-lg text-xs font-mono border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Banned Terms (Comma-separated):</label>
+                <label className="text-[10px] font-black uppercase">Banned Terms (Comma-separated)</label>
                 <input
                   type="text"
                   value={newBrandBanned}
                   onChange={(e) => setNewBrandBanned(e.target.value)}
-                  className={`w-full h-9 px-3 rounded-lg text-xs font-mono border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Minimum WCAG Contrast:</label>
+                <label className="text-[10px] font-black uppercase">Minimum WCAG Contrast</label>
                 <input
                   type="number"
                   step="0.1"
                   value={newBrandWcag}
                   onChange={(e) => setNewBrandWcag(parseFloat(e.target.value))}
-                  className={`w-full h-9 px-3 rounded-lg text-xs font-mono border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className={`flex items-center justify-end gap-2 pt-3 border-t ${
-              isDark ? "border-[#313238]" : "border-[#e2e8f0]"
-            }`}>
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t-2 border-black">
               <button
                 type="button"
                 onClick={() => setShowCreateBrandModal(false)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
-                  isDark
-                    ? "bg-[#1f1f23] border-[#3b3c44] text-white hover:bg-[#292a2d]"
-                    : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f8fafc]"
-                }`}
+                className="px-4 py-2 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1239,11 +1170,7 @@ function BrandGuidelinesContent() {
                 type="button"
                 disabled={isSubmittingBrand || !newBrandName.trim()}
                 onClick={handleCreateBrand}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold shadow-2xs disabled:opacity-50 cursor-pointer ${
-                  isDark
-                    ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                    : "bg-[#005797] text-white hover:bg-[#004578]"
-                }`}
+                className="px-5 py-2 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black text-xs font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmittingBrand ? "Creating..." : "Save Brand"}
               </button>
@@ -1254,85 +1181,73 @@ function BrandGuidelinesContent() {
 
       {/* EDIT BRAND MODAL */}
       {showEditBrandModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg rounded-2xl p-6 shadow-2xl border flex flex-col gap-4 ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44] text-white" : "bg-white border-[#cbd5e1] text-[#111827]"
-          }`}>
-            <div className={`flex items-center justify-between border-b pb-3 ${
-              isDark ? "border-[#313238]" : "border-[#e2e8f0]"
-            }`}>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-lg border-4 border-black p-6 shadow-[8px_8px_0px_#000] flex flex-col gap-4 font-mono ${
+              isDark ? "bg-[#18191f] text-white" : "bg-[var(--white)] text-[var(--ink)]"
+            }`}
+          >
+            <div className="flex items-center justify-between border-b-2 border-black pb-3">
               <div className="flex items-center gap-2">
-                <Pencil size={18} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-                <h3 className="text-sm font-bold">Edit Brand</h3>
+                <Pencil size={18} />
+                <h3 className="font-archivo font-black text-sm uppercase">Edit Brand Parameters</h3>
               </div>
               <button
                 onClick={() => setShowEditBrandModal(false)}
-                className={`p-1 rounded-md cursor-pointer transition-colors ${isDark ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]" : "text-[#64748b] hover:text-[#111827] hover:bg-[#f1f5f9]"}`}
+                className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Tone Persona:</label>
+                <label className="text-[10px] font-black uppercase">Tone &amp; Persona</label>
                 <textarea
+                  rows={2}
                   value={editTone}
                   onChange={(e) => setEditTone(e.target.value)}
-                  className={`w-full h-20 p-2.5 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full p-2.5 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Visual Summary:</label>
+                <label className="text-[10px] font-black uppercase">Visual Guidelines Summary</label>
                 <textarea
+                  rows={2}
                   value={editVisualSummary}
                   onChange={(e) => setEditVisualSummary(e.target.value)}
-                  className={`w-full h-18 p-2.5 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full p-2.5 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Banned Terms (Comma-separated):</label>
+                <label className="text-[10px] font-black uppercase">Banned Terms (Comma-separated)</label>
                 <input
                   type="text"
                   value={editBannedText}
                   onChange={(e) => setEditBannedText(e.target.value)}
-                  className={`w-full h-9 px-3 rounded-lg text-xs font-mono border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Minimum WCAG Contrast:</label>
+                <label className="text-[10px] font-black uppercase">Minimum WCAG Contrast</label>
                 <input
                   type="number"
                   step="0.1"
                   value={editWcag}
                   onChange={(e) => setEditWcag(parseFloat(e.target.value))}
-                  className={`w-full h-9 px-3 rounded-lg text-xs font-mono border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className={`flex items-center justify-end gap-2 pt-3 border-t ${
-              isDark ? "border-[#313238]" : "border-[#e2e8f0]"
-            }`}>
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t-2 border-black">
               <button
                 type="button"
                 onClick={() => setShowEditBrandModal(false)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
-                  isDark
-                    ? "bg-[#1f1f23] border-[#3b3c44] text-white hover:bg-[#292a2d]"
-                    : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f8fafc]"
-                }`}
+                className="px-4 py-2 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1340,11 +1255,7 @@ function BrandGuidelinesContent() {
                 type="button"
                 disabled={isSavingBrand}
                 onClick={handleSaveBrandProfile}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold shadow-2xs disabled:opacity-50 cursor-pointer ${
-                  isDark
-                    ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                    : "bg-[#005797] text-white hover:bg-[#004578]"
-                }`}
+                className="px-5 py-2 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black text-xs font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 disabled:opacity-50 cursor-pointer"
               >
                 {isSavingBrand ? "Saving..." : "Save Changes"}
               </button>
@@ -1355,35 +1266,33 @@ function BrandGuidelinesContent() {
 
       {/* ADD MANUAL RULE MODAL */}
       {showAddRuleModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg rounded-2xl p-6 shadow-2xl border flex flex-col gap-4 ${
-            isDark ? "bg-[#1b1b1f] border-[#3b3c44] text-white" : "bg-white border-[#cbd5e1] text-[#111827]"
-          }`}>
-            <div className={`flex items-center justify-between border-b pb-3 ${
-              isDark ? "border-[#313238]" : "border-[#e2e8f0]"
-            }`}>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div
+            className={`w-full max-w-lg border-4 border-black p-6 shadow-[8px_8px_0px_#000] flex flex-col gap-4 font-mono ${
+              isDark ? "bg-[#18191f] text-white" : "bg-[var(--white)] text-[var(--ink)]"
+            }`}
+          >
+            <div className="flex items-center justify-between border-b-2 border-black pb-3">
               <div className="flex items-center gap-2">
-                <PlusCircle size={18} className={isDark ? "text-[#d2bbff]" : "text-[#005797]"} />
-                <h3 className="text-sm font-bold">Add Guideline Rule</h3>
+                <PlusCircle size={18} />
+                <h3 className="font-archivo font-black text-sm uppercase">Add Guideline Rule</h3>
               </div>
               <button
                 onClick={() => setShowAddRuleModal(false)}
-                className={`p-1 rounded-md cursor-pointer transition-colors ${isDark ? "text-[#9ca3af] hover:text-white hover:bg-[#292a2d]" : "text-[#64748b] hover:text-[#111827] hover:bg-[#f1f5f9]"}`}
+                className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Category:</label>
+                  <label className="text-[10px] font-black uppercase">Category</label>
                   <select
                     value={ruleCategory}
                     onChange={(e) => setRuleCategory(e.target.value)}
-                    className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                      isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                    }`}
+                    className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                   >
                     <option value="TONE">TONE</option>
                     <option value="TERMINOLOGY">TERMINOLOGY</option>
@@ -1393,66 +1302,53 @@ function BrandGuidelinesContent() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Page Number:</label>
+                  <label className="text-[10px] font-black uppercase">Page Number</label>
                   <input
                     type="number"
                     value={rulePage}
                     onChange={(e) => setRulePage(parseInt(e.target.value, 10))}
-                    className={`w-full h-9 px-3 rounded-lg text-xs font-mono border transition-all focus:outline-none ${
-                      isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                    }`}
+                    className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-mono font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Source Document:</label>
+                <label className="text-[10px] font-black uppercase">Source Document</label>
                 <input
                   type="text"
                   value={ruleSourceDoc}
                   onChange={(e) => setRuleSourceDoc(e.target.value)}
-                  className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Section Reference:</label>
+                <label className="text-[10px] font-black uppercase">Section Reference</label>
                 <input
                   type="text"
                   value={ruleSection}
                   onChange={(e) => setRuleSection(e.target.value)}
-                  className={`w-full h-9 px-3 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full h-9 px-3 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className={`text-xs font-semibold ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>Rule Content:</label>
+                <label className="text-[10px] font-black uppercase">Rule Content *</label>
                 <textarea
+                  rows={3}
                   value={ruleContent}
                   onChange={(e) => setRuleContent(e.target.value)}
                   placeholder="e.g. Do not use absolute superlatives. Back resilience claims with empirical metrics."
-                  className={`w-full h-20 p-2.5 rounded-lg text-xs border transition-all focus:outline-none ${
-                    isDark ? "bg-[#121316] border-[#3b3c44] text-white" : "bg-[#f8fafc] border-[#cbd5e1] text-[#111827]"
-                  }`}
+                  className="w-full p-2.5 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-bold shadow-[2px_2px_0px_#000] focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className={`flex items-center justify-end gap-2 pt-3 border-t ${
-              isDark ? "border-[#313238]" : "border-[#e2e8f0]"
-            }`}>
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t-2 border-black">
               <button
                 type="button"
                 onClick={() => setShowAddRuleModal(false)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
-                  isDark
-                    ? "bg-[#1f1f23] border-[#3b3c44] text-white hover:bg-[#292a2d]"
-                    : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f8fafc]"
-                }`}
+                className="px-4 py-2 border-2 border-black bg-white dark:bg-[#141518] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 Cancel
               </button>
@@ -1460,11 +1356,7 @@ function BrandGuidelinesContent() {
                 type="button"
                 disabled={isSubmittingRule || !ruleContent.trim()}
                 onClick={handleCreateRule}
-                className={`px-4 py-1.5 rounded-lg text-xs font-semibold shadow-2xs disabled:opacity-50 cursor-pointer ${
-                  isDark
-                    ? "bg-[#7c3aed] text-white hover:bg-[#6d28d9]"
-                    : "bg-[#005797] text-white hover:bg-[#004578]"
-                }`}
+                className="px-5 py-2 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black text-xs font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmittingRule ? "Saving..." : "Commit Rule"}
               </button>
@@ -1480,10 +1372,12 @@ export default function BrandGuidelinesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 size={32} className="text-[#005797] dark:text-[#7c3aed]" />
-            <span className="text-xs text-[#64748b] dark:text-[#9ca3af] font-mono">Loading Brand Guidelines...</span>
+        <div className="flex items-center justify-center min-h-[60vh] font-mono">
+          <div className="flex flex-col items-center gap-2 p-6 border-3 border-black bg-[var(--yellow)] shadow-[4px_4px_0px_#000]">
+            <Loader2 size={32} className="animate-spin text-black" />
+            <span className="text-xs text-black font-black uppercase tracking-wider">
+              Loading Brand Guidelines...
+            </span>
           </div>
         </div>
       }

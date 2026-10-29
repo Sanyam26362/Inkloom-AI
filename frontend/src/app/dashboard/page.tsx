@@ -6,8 +6,6 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,7 +15,7 @@ import {
 
 import { useApp } from "@/context/AppContext";
 import { api } from "@/lib/api";
-import { GovernanceAnalytics, Submission, SubmissionStatus, UserRole } from "@/lib/types";
+import { GovernanceAnalytics, Submission, SubmissionStatus } from "@/lib/types";
 import TechText from "@/components/ui/TechText";
 import DriftWall from "@/components/ui/DriftWall";
 
@@ -34,7 +32,6 @@ export default function GovernanceDashboardPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeMetric, setActiveMetric] = useState<"compliance" | "violations">("compliance");
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   // Future Clients & Enterprise Prospects Pipeline
@@ -236,7 +233,6 @@ export default function GovernanceDashboardPage() {
   const totalSubmissions = analytics?.total_submissions ?? submissions.length;
   const avgComplianceScore = analytics?.avg_compliance_score ?? 0;
   const openFindingsCount = analytics?.resolution_breakdown?.["OPEN"] ?? 0;
-  const totalFindings = analytics?.total_findings_generated ?? 0;
 
   const rejectedSubmissions = useMemo(
     () =>
@@ -327,31 +323,25 @@ export default function GovernanceDashboardPage() {
 
   return (
     <div
-      className={`relative w-full px-4 sm:px-6 lg:px-8 py-6 font-sans transition-colors duration-200 ${
-        isDark ? "bg-[#121316] text-[#e3e2e6]" : "bg-[#f8fafc] text-[#111827]"
+      className={`w-full min-h-screen p-4 sm:p-6 lg:p-8 font-mono ${
+        isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
       }`}
     >
       {/* Error Banner */}
       {error && (
-        <div
-          className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${
-            isDark
-              ? "bg-[#991b1b]/20 border-[#dc2626]/40 text-[#f3f4f6]"
-              : "bg-[#fef2f2] border-[#dc2626]/30 text-[#111827]"
-          }`}
-        >
-          <span className="material-symbols-outlined text-[#dc2626] text-[20px] shrink-0 mt-0.5">error</span>
-          <div className="flex flex-col flex-1">
-            <span className="font-sans text-sm font-bold text-[#dc2626]">
-              Backend Communication Warning
-            </span>
-            <p className={`font-sans text-xs mt-0.5 ${isDark ? "text-[#d1d5db]" : "text-[#4b5563]"}`}>
-              {error}
-            </p>
+        <div className="mb-6 p-4 border-3 border-black bg-[var(--red)] text-white shadow-[4px_4px_0px_#000000] flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-[24px] shrink-0 mt-0.5">error</span>
+            <div>
+              <span className="font-mono text-xs uppercase font-black tracking-wider block">
+                BACKEND COMMUNICATION WARNING
+              </span>
+              <p className="font-mono text-xs mt-0.5 leading-relaxed">{error}</p>
+            </div>
           </div>
           <button
             onClick={loadDashboardData}
-            className="px-3 py-1 rounded-md bg-[#dc2626] text-white text-xs font-semibold hover:bg-[#b91c1c] transition-colors cursor-pointer"
+            className="px-3 py-1 border-2 border-black bg-white text-black text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer shrink-0"
           >
             Retry
           </button>
@@ -365,113 +355,96 @@ export default function GovernanceDashboardPage() {
         <div className="space-y-6">
           {/* Creator Hero Header */}
           <div
-            className={`p-6 sm:p-8 rounded-3xl border shadow-sm relative overflow-hidden transition-all ${
-              isDark
-                ? "bg-gradient-to-br from-[#1b1b1f] via-[#1a1b22] to-[#14151a] border-[#383a45]"
-                : "bg-gradient-to-br from-emerald-50/70 via-white to-blue-50/40 border-[#cbd5e1]"
-            }`}
+            className={`p-5 sm:p-6 border-4 ${
+              isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[11px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                    Creator Studio · Blinkit Demo Partner
-                  </span>
-                  <span className="text-xs font-medium text-text-muted">Diwali 2026 Campaign</span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
-                  Your Creative Submissions & Compliance Feedback
-                </h1>
-                <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-2xl leading-relaxed">
-                  Track your uploaded copy briefs, festive banners, and video reels. Inspect automated AI pre-flight checks, review judge feedback, and fix flagged policy issues.
-                </p>
+            <div>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="px-2.5 py-0.5 border-2 border-black bg-[var(--green)] text-[var(--ink)] text-[10px] font-mono font-black uppercase tracking-wider shadow-[2px_2px_0px_#000]">
+                  CREATOR STUDIO // BLINKIT PARTNER
+                </span>
+                <span className="text-xs font-mono font-bold text-[#666] dark:text-[#999]">DIWALI 2026 CAMPAIGN</span>
               </div>
-              <Link
-                href="/content"
-                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer shrink-0"
-              >
-                <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                + Upload New Creative
-              </Link>
+              <h1 className="text-xl sm:text-2xl font-archivo font-black uppercase tracking-tight text-[var(--ink)] dark:text-white">
+                Creative Submissions &amp; Policy Feedback
+              </h1>
+              <p className="mt-1 text-xs font-mono text-[#555] dark:text-[#a0a5b5] max-w-2xl leading-relaxed">
+                Track promotional briefs, posters, audio voiceovers, and video reels. Inspect automated pre-flight checks, review judge decisions, and resolve policy issues.
+              </p>
             </div>
+
+            <Link
+              href="/content"
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 border-3 border-black bg-[var(--yellow)] text-[var(--ink)] font-mono font-black text-xs uppercase shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined text-[18px]">upload_file</span>
+              + Upload New Creative
+            </Link>
           </div>
 
           {/* Creator KPI Bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-text-muted mb-1 font-medium">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#666] dark:text-[#888] mb-1">
                 <span>Total Uploads</span>
-                <span className="material-symbols-outlined text-text-muted text-[18px]">folder_copy</span>
+                <span className="material-symbols-outlined text-[18px]">folder_copy</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-on-surface">{submissions.length}</div>
-              <p className="text-[11px] text-text-muted mt-1">Collateral submitted</p>
+              <div className="text-3xl font-mono font-black text-[var(--ink)] dark:text-white">{submissions.length}</div>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Collateral submitted</p>
             </div>
 
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 mb-1 font-medium">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[var(--ink)] dark:text-[#b9f4a8] mb-1">
                 <span>Approved by Judge</span>
                 <span className="material-symbols-outlined text-[18px]">check_circle</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+              <div className="text-3xl font-mono font-black text-[var(--ink)] dark:text-[#b9f4a8]">
                 {approvedSubmissions.length}
               </div>
-              <p className="text-[11px] text-text-muted mt-1">Ready for publication</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Ready for publication</p>
             </div>
 
             <div
-              className={`p-4 rounded-2xl border ${
+              className={`p-4 border-3 border-black ${
                 rejectedSubmissions.length > 0
-                  ? isDark
-                    ? "bg-red-950/20 border-red-800/40"
-                    : "bg-red-50/70 border-red-200"
+                  ? "bg-[var(--red)]/20 shadow-[4px_4px_0px_#000]"
                   : isDark
-                  ? "bg-[#1b1b1f] border-[#383a45]"
-                  : "bg-white border-[#cbd5e1]"
+                  ? "bg-[#1c1d22] shadow-[4px_4px_0px_#000]"
+                  : "bg-[var(--white)] shadow-[4px_4px_0px_#000]"
               }`}
             >
-              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mb-1 font-medium">
-                <span>Action Required / Rejected</span>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[var(--red)] dark:text-[#ff7b72] mb-1">
+                <span>Action Required</span>
                 <span className="material-symbols-outlined text-[18px]">warning</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-red-600 dark:text-red-400">
+              <div className="text-3xl font-mono font-black text-[var(--red)] dark:text-[#ff7b72]">
                 {rejectedSubmissions.length}
               </div>
-              <p className="text-[11px] text-text-muted mt-1">See reasons below to fix</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">See reasons below to fix</p>
             </div>
 
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#666] dark:text-[#ffdb1f] mb-1">
                 <span>Under Review</span>
                 <span className="material-symbols-outlined text-[18px]">pending</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+              <div className="text-3xl font-mono font-black text-[var(--ink)] dark:text-[#ffdb1f]">
                 {pendingReviewSubmissions.length}
               </div>
-              <p className="text-[11px] text-text-muted mt-1">Awaiting judge evaluation</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Awaiting judge evaluation</p>
             </div>
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto">
+          <div className="flex items-center gap-2 border-b-3 border-black pb-3 overflow-x-auto">
             <button
               type="button"
               onClick={() => setCreatorTab("ALL")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
                 creatorTab === "ALL"
-                  ? "bg-primary text-white shadow-xs"
-                  : "text-text-muted hover:text-on-surface hover:bg-palette-7/30"
+                  ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               All Submissions ({submissions.length})
@@ -479,10 +452,10 @@ export default function GovernanceDashboardPage() {
             <button
               type="button"
               onClick={() => setCreatorTab("REJECTED")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 creatorTab === "REJECTED"
-                  ? "bg-red-600 text-white shadow-xs"
-                  : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  ? "bg-[var(--red)] text-white shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-[var(--red)] dark:text-[#ff7b72] shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">warning</span>
@@ -491,10 +464,10 @@ export default function GovernanceDashboardPage() {
             <button
               type="button"
               onClick={() => setCreatorTab("APPROVED")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 creatorTab === "APPROVED"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  ? "bg-[var(--green)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-black dark:text-[#b9f4a8] shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">check_circle</span>
@@ -503,10 +476,10 @@ export default function GovernanceDashboardPage() {
             <button
               type="button"
               onClick={() => setCreatorTab("REVIEW")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 creatorTab === "REVIEW"
-                  ? "bg-amber-600 text-white shadow-xs"
-                  : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  ? "bg-[var(--blue)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">hourglass_empty</span>
@@ -516,17 +489,19 @@ export default function GovernanceDashboardPage() {
 
           {/* Submissions Cards List with Rejection Feedback */}
           {filteredCreatorSubmissions.length === 0 ? (
-            <div className="py-16 text-center border-2 border-dashed border-border rounded-3xl">
-              <span className="material-symbols-outlined text-[48px] text-text-muted mb-2">folder_open</span>
-              <p className="text-base font-bold text-on-surface">No submissions found in this view</p>
-              <p className="text-xs text-text-muted mt-1 max-w-sm mx-auto">
+            <div className={`py-12 text-center border-4 border-dashed border-black ${isDark ? "bg-[#18191f]" : "bg-[var(--white)]"}`}>
+              <span className="material-symbols-outlined text-[42px] text-[#666] dark:text-[#888] mb-2">folder_open</span>
+              <p className="text-sm font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                No submissions found in this view
+              </p>
+              <p className="text-xs font-mono text-[#666] dark:text-[#999] mt-1 max-w-sm mx-auto">
                 {creatorTab === "REJECTED"
-                  ? "Awesome! None of your submissions are currently marked as rejected."
-                  : "Start by submitting your first creative asset for the Blinkit Diwali campaign."}
+                  ? "Zero rejections! None of your creative submissions are currently marked as rejected."
+                  : "Submit your first creative asset for the Blinkit Diwali campaign."}
               </p>
               <Link
                 href="/content"
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               >
                 + Upload Creative Now
               </Link>
@@ -547,32 +522,28 @@ export default function GovernanceDashboardPage() {
                 return (
                   <div
                     key={sub.id}
-                    className={`rounded-2xl border p-5 sm:p-6 transition-all ${
+                    className={`p-4 sm:p-5 border-3 border-black transition-all ${
                       isRejected
-                        ? isDark
-                          ? "bg-[#1f1b20] border-red-800/50 shadow-sm"
-                          : "bg-red-50/30 border-red-200 shadow-sm"
+                        ? "bg-[var(--red)]/10 shadow-[4px_4px_0px_#000]"
                         : isApproved
-                        ? isDark
-                          ? "bg-[#18201a] border-emerald-800/40"
-                          : "bg-emerald-50/30 border-emerald-200"
+                        ? "bg-[var(--green)]/10 shadow-[4px_4px_0px_#000]"
                         : isDark
-                        ? "bg-[#1b1b1f] border-[#383a45]"
-                        : "bg-white border-[#cbd5e1]"
+                        ? "bg-[#18191f] shadow-[4px_4px_0px_#000]"
+                        : "bg-[var(--white)] shadow-[4px_4px_0px_#000]"
                     }`}
                   >
                     {/* Header Row */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b-2 border-black">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                          className={`w-10 h-10 border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#000] ${
                             sub.content_format === "IMAGE"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                              ? "bg-[var(--blue)] text-black"
                               : sub.content_format === "VIDEO"
-                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                              ? "bg-[var(--pink)] text-black"
                               : sub.content_format === "AUDIO"
-                              ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                              ? "bg-[var(--yellow)] text-black"
+                              : "bg-[var(--green)] text-black"
                           }`}
                         >
                           <span className="material-symbols-outlined text-[20px]">
@@ -586,15 +557,13 @@ export default function GovernanceDashboardPage() {
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-bold text-sm sm:text-base text-on-surface flex items-center gap-2">
+                          <h3 className="font-mono font-black text-sm uppercase text-[var(--ink)] dark:text-white">
                             {sub.title}
                           </h3>
-                          <div className="flex items-center gap-2 text-[11px] text-text-muted mt-0.5">
-                            <span className="font-mono">SUB-#{sub.id}</span>
+                          <div className="flex items-center gap-2 text-[10px] font-mono text-[#666] dark:text-[#999] mt-0.5 flex-wrap">
+                            <span className="font-bold">SUB-#{sub.id}</span>
                             <span>•</span>
-                            <span className="font-semibold uppercase tracking-wider">
-                              {sub.content_format}
-                            </span>
+                            <span className="font-black uppercase">{sub.content_format}</span>
                             <span>•</span>
                             <span>v{sub.current_version}</span>
                             <span>•</span>
@@ -607,14 +576,14 @@ export default function GovernanceDashboardPage() {
                       <div className="flex items-center gap-3">
                         {sub.compliance_score != null && (
                           <div className="text-right">
-                            <span className="text-[10px] font-mono text-text-muted uppercase block">Score</span>
+                            <span className="text-[9px] font-mono uppercase text-[#666] dark:text-[#888] block">SCORE</span>
                             <span
-                              className={`font-mono text-sm font-bold ${
+                              className={`font-mono text-sm font-black ${
                                 sub.compliance_score >= 80
-                                  ? "text-emerald-600 dark:text-emerald-400"
+                                  ? "text-[var(--ink)] dark:text-[#b9f4a8]"
                                   : sub.compliance_score >= 60
-                                  ? "text-amber-600 dark:text-amber-400"
-                                  : "text-red-600 dark:text-red-400"
+                                  ? "text-black dark:text-[#ffdb1f]"
+                                  : "text-[var(--red)] dark:text-[#ff7b72]"
                               }`}
                             >
                               {sub.compliance_score}%
@@ -623,23 +592,18 @@ export default function GovernanceDashboardPage() {
                         )}
 
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold font-sans flex items-center gap-1.5 ${
+                          className={`px-2.5 py-1 border-2 border-black text-[10px] font-mono font-black uppercase shadow-[2px_2px_0px_#000] ${
                             isApproved
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 border border-emerald-300"
+                              ? "bg-[var(--green)] text-black"
                               : isRejected
-                              ? "bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 border border-red-300"
-                              : "bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300"
+                              ? "bg-[var(--red)] text-white"
+                              : "bg-[var(--yellow)] text-black"
                           }`}
                         >
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              isApproved ? "bg-emerald-500" : isRejected ? "bg-red-500" : "bg-amber-500 animate-pulse"
-                            }`}
-                          />
                           {isApproved
                             ? "Approved"
                             : isRejected
-                            ? "Rejected by Judge / Needs Changes"
+                            ? "Rejected by Judge"
                             : "Under Review"}
                         </span>
                       </div>
@@ -647,58 +611,55 @@ export default function GovernanceDashboardPage() {
 
                     {/* REJECTION REASON & JUDGE FEEDBACK BOX */}
                     {isRejected && (
-                      <div className="mt-4 p-4 rounded-xl border border-red-300 dark:border-red-900/70 bg-red-50/70 dark:bg-red-950/30 text-left space-y-3">
-                        <div className="flex items-start gap-2.5">
-                          <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-[20px] shrink-0 mt-0.5">
+                      <div className="mt-3.5 p-3.5 border-2 border-black bg-[var(--red)]/15 space-y-2.5">
+                        <div className="flex items-start gap-2">
+                          <span className="material-symbols-outlined text-[20px] text-[var(--red)] shrink-0">
                             gavel
                           </span>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-bold text-xs font-sans text-red-900 dark:text-red-200 uppercase tracking-wider">
+                          <div>
+                            <h4 className="font-mono font-black text-xs uppercase text-[var(--red)] dark:text-[#ff7b72]">
                               Why the Judge / Reviewer Rejected This Submission:
                             </h4>
-                            <p className="text-xs text-red-800 dark:text-red-300 mt-1 leading-relaxed">
-                              This asset failed Blinkit Diwali brand governance rules. Review the specific policy violations below and update the draft before re-submitting.
+                            <p className="text-xs font-mono text-[#333] dark:text-[#c9d1d9] mt-0.5 leading-relaxed">
+                              This asset failed Blinkit Diwali brand governance rules. Review policy findings below and revise copy or visual elements before re-submitting.
                             </p>
                           </div>
                         </div>
 
                         {/* Findings list explaining exact reason */}
                         {sub.findings && sub.findings.length > 0 && (
-                          <div className="space-y-2 pt-1 border-t border-red-200 dark:border-red-900/50">
+                          <div className="space-y-2 pt-1 border-t-2 border-black/20">
                             {sub.findings.slice(0, 3).map((f) => (
                               <div
                                 key={f.id}
-                                className="p-2.5 rounded-lg bg-white/80 dark:bg-[#121316]/60 border border-red-200 dark:border-red-900/40 text-xs space-y-1"
+                                className="p-2.5 border border-black bg-white dark:bg-[#121316] text-xs space-y-1 font-mono"
                               >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="flex items-center gap-1.5">
-                                    <span
-                                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
-                                        f.severity === "CRITICAL"
-                                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                          : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
-                                      }`}
-                                    >
-                                      {f.severity}
-                                    </span>
-                                    <span className="font-semibold text-on-surface">
-                                      {f.category.replace("_", " ")} Policy
-                                    </span>
-                                  </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`px-1.5 py-0.5 border border-black text-[9px] font-black uppercase ${
+                                      f.severity === "CRITICAL"
+                                        ? "bg-[var(--red)] text-white"
+                                        : "bg-[var(--yellow)] text-black"
+                                    }`}
+                                  >
+                                    {f.severity}
+                                  </span>
+                                  <span className="font-bold text-[var(--ink)] dark:text-white uppercase">
+                                    {f.category.replace("_", " ")} Policy
+                                  </span>
                                 </div>
                                 {f.flagged_excerpt && (
-                                  <p className="font-mono text-[11px] text-red-700 dark:text-red-300 bg-red-100/50 dark:bg-red-950/40 px-2 py-0.5 rounded">
-                                    "{f.flagged_excerpt}"
+                                  <p className="p-1 border border-black bg-[var(--red)]/10 text-[11px] font-bold text-[var(--red)]">
+                                    “{f.flagged_excerpt}”
                                   </p>
                                 )}
-                                <p className="text-text-muted text-[11px] leading-relaxed">
-                                  <span className="font-semibold text-on-surface">Reason: </span>
+                                <p className="text-[11px] text-[#444] dark:text-[#a0a5b5] leading-relaxed">
+                                  <span className="font-bold text-black dark:text-white">Reason: </span>
                                   {f.explanation}
                                 </p>
                                 {f.suggested_correction && (
-                                  <p className="text-emerald-700 dark:text-emerald-400 text-[11px] leading-relaxed">
-                                    <span className="font-semibold">How to fix: </span>
-                                    {f.suggested_correction}
+                                  <p className="text-[11px] font-bold text-[var(--ink)] dark:text-[#b9f4a8] leading-relaxed">
+                                    <span>Fix: </span>“{f.suggested_correction}”
                                   </p>
                                 )}
                               </div>
@@ -707,16 +668,15 @@ export default function GovernanceDashboardPage() {
                         )}
 
                         {/* Action CTA */}
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[11px] text-red-700 dark:text-red-300 font-medium">
-                            {criticalCount} Critical, {warningCount} Warning issues detected
+                        <div className="flex items-center justify-between pt-1 border-t border-black/20 text-xs font-mono">
+                          <span className="font-bold text-[var(--red)] dark:text-[#ff7b72]">
+                            {criticalCount} Critical, {warningCount} Warning flags
                           </span>
                           <Link
                             href={`/audit?id=${sub.id}&event=diwali`}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors shadow-xs"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 border-2 border-black bg-[var(--red)] text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                           >
-                            <span>Fix & Re-Audit in Workspace</span>
-                            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                            <span>Fix &amp; Re-Audit in Workspace →</span>
                           </Link>
                         </div>
                       </div>
@@ -724,14 +684,14 @@ export default function GovernanceDashboardPage() {
 
                     {/* APPROVED NOTICE */}
                     {isApproved && (
-                      <div className="mt-4 p-3 rounded-xl border border-emerald-300 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-emerald-800 dark:text-emerald-300">
-                          <span className="material-symbols-outlined text-emerald-600 text-[18px]">verified</span>
-                          <span>Passed brand compliance checks. Cleared for publication across Blinkit marketing channels.</span>
+                      <div className="mt-3.5 p-3 border-2 border-black bg-[var(--green)]/20 flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center gap-2 font-bold text-black dark:text-white">
+                          <span className="material-symbols-outlined text-[18px]">verified</span>
+                          <span>Passed brand compliance checks. Cleared for Blinkit marketing channels.</span>
                         </div>
                         <Link
                           href={`/audit?id=${sub.id}`}
-                          className="text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline shrink-0"
+                          className="font-black uppercase underline hover:opacity-80 shrink-0"
                         >
                           View Certificate →
                         </Link>
@@ -740,14 +700,14 @@ export default function GovernanceDashboardPage() {
 
                     {/* IN REVIEW NOTICE */}
                     {!isApproved && !isRejected && (
-                      <div className="mt-4 p-3 rounded-xl border border-amber-300 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-amber-800 dark:text-amber-300">
-                          <span className="material-symbols-outlined text-amber-600 text-[18px]">hourglass_top</span>
-                          <span>AI pre-flight check completed. Currently in queue for Blinkit Brand Reviewer sign-off.</span>
+                      <div className="mt-3.5 p-3 border-2 border-black bg-[var(--yellow)]/20 flex items-center justify-between text-xs font-mono">
+                        <div className="flex items-center gap-2 font-bold text-black dark:text-white">
+                          <span className="material-symbols-outlined text-[18px]">hourglass_top</span>
+                          <span>AI pre-flight check completed. In queue for Blinkit Brand Reviewer sign-off.</span>
                         </div>
                         <Link
                           href={`/audit?id=${sub.id}`}
-                          className="text-xs font-bold text-amber-700 dark:text-amber-300 hover:underline shrink-0"
+                          className="font-black uppercase underline hover:opacity-80 shrink-0"
                         >
                           Inspect Pre-Flight →
                         </Link>
@@ -768,130 +728,110 @@ export default function GovernanceDashboardPage() {
         <div className="space-y-6">
           {/* Brand Hero Header */}
           <div
-            className={`p-6 sm:p-8 rounded-3xl border shadow-sm relative overflow-hidden transition-all ${
-              isDark
-                ? "bg-gradient-to-br from-[#1b1b1f] via-[#1a1b22] to-[#14151a] border-[#383a45]"
-                : "bg-gradient-to-br from-blue-50/70 via-white to-amber-50/40 border-[#cbd5e1]"
-            }`}
+            className={`p-5 sm:p-6 border-4 ${
+              isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
           >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-[11px] font-mono uppercase tracking-wider font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800">
-                    Brand Governance Panel
-                  </span>
-                  <span className="text-xs font-semibold text-primary">
-                    {brands.find((b) => b.id === activeBrandId)?.name || "Blinkit"} Active
-                  </span>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">
-                  Content Uploaded by Creators
-                </h1>
-                <p className="mt-1 text-xs sm:text-sm text-text-muted max-w-2xl leading-relaxed">
-                  Review, approve, or request revisions on multi-modal copy, posters, and reels uploaded by agency creators before they go live on public channels.
-                </p>
+            <div>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="px-2.5 py-0.5 border-2 border-black bg-[var(--blue)] text-black text-[10px] font-mono font-black uppercase tracking-wider shadow-[2px_2px_0px_#000]">
+                  BRAND GOVERNANCE PANEL
+                </span>
+                <span className="text-xs font-mono font-black text-[var(--ink)] dark:text-white">
+                  {brands.find((b) => b.id === activeBrandId)?.name || "Blinkit"} ACTIVE TENANT
+                </span>
               </div>
+              <h1 className="text-xl sm:text-2xl font-archivo font-black uppercase tracking-tight text-[var(--ink)] dark:text-white">
+                Content Uploaded by Agency Creators
+              </h1>
+              <p className="mt-1 text-xs font-mono text-[#555] dark:text-[#a0a5b5] max-w-2xl leading-relaxed">
+                Review, approve, or request revisions on multi-modal copy, posters, and reels uploaded by agency creators before publication on public channels.
+              </p>
+            </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <Link
-                  href="/guidelines"
-                  className="px-4 py-2.5 rounded-xl border border-border hover:border-primary text-xs font-bold font-sans transition-colors"
-                >
-                  Brand Guidelines
-                </Link>
-                <Link
-                  href="/audit"
-                  className="px-4 py-2.5 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold font-sans transition-colors shadow-xs"
-                >
-                  Full Audit Queue
-                </Link>
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/guidelines"
+                className="px-3.5 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
+              >
+                Guidelines
+              </Link>
+              <Link
+                href="/audit"
+                className="px-3.5 py-2 border-2 border-black bg-[var(--yellow)] text-black text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
+              >
+                Full Audit Queue
+              </Link>
             </div>
           </div>
 
           {/* Brand KPI Bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-text-muted mb-1 font-medium">
-                <span>Avg Compliance Score</span>
-                <span className="material-symbols-outlined text-text-muted text-[18px]">verified</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#666] dark:text-[#888] mb-1">
+                <span>Avg Compliance</span>
+                <span className="material-symbols-outlined text-[18px]">verified</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-primary">
+              <div className="text-3xl font-mono font-black text-[var(--ink)] dark:text-[#b9f4a8]">
                 {Math.round(avgComplianceScore) || 92}%
               </div>
-              <p className="text-[11px] text-text-muted mt-1">Across all audited assets</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Across all audited assets</p>
             </div>
 
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 mb-1 font-medium">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[#666] dark:text-[#ffdb1f] mb-1">
                 <span>Awaiting Review</span>
                 <span className="material-symbols-outlined text-[18px]">pending_actions</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-400">
+              <div className="text-3xl font-mono font-black text-[var(--ink)] dark:text-[#ffdb1f]">
                 {pendingReviewSubmissions.length}
               </div>
-              <p className="text-[11px] text-text-muted mt-1">Needs reviewer action</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Needs reviewer action</p>
             </div>
 
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 mb-1 font-medium">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[var(--ink)] dark:text-[#b9f4a8] mb-1">
                 <span>Approved Content</span>
                 <span className="material-symbols-outlined text-[18px]">check_circle</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+              <div className="text-3xl font-mono font-black text-[var(--ink)] dark:text-[#b9f4a8]">
                 {approvedSubmissions.length}
               </div>
-              <p className="text-[11px] text-text-muted mt-1">Authorized for publication</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Cleared for publication</p>
             </div>
 
-            <div
-              className={`p-4 rounded-2xl border ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
-              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mb-1 font-medium">
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000]`}>
+              <div className="flex items-center justify-between text-xs font-black uppercase text-[var(--red)] dark:text-[#ff7b72] mb-1">
                 <span>Changes Requested</span>
                 <span className="material-symbols-outlined text-[18px]">replay</span>
               </div>
-              <div className="text-2xl font-bold font-mono text-red-600 dark:text-red-400">
+              <div className="text-3xl font-mono font-black text-[var(--red)] dark:text-[#ff7b72]">
                 {rejectedSubmissions.length}
               </div>
-              <p className="text-[11px] text-text-muted mt-1">Revisions sent to creator</p>
+              <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">Revisions sent to creator</p>
             </div>
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex items-center gap-2 border-b border-border pb-2 overflow-x-auto">
+          <div className="flex items-center gap-2 border-b-3 border-black pb-3 overflow-x-auto">
             <button
               type="button"
               onClick={() => setBrandTab("ALL")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 ${
                 brandTab === "ALL"
-                  ? "bg-primary text-white shadow-xs"
-                  : "text-text-muted hover:text-on-surface hover:bg-palette-7/30"
+                  ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
-              All Creator Submissions ({submissions.length})
+              All Submissions ({submissions.length})
             </button>
             <button
               type="button"
               onClick={() => setBrandTab("PENDING")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 brandTab === "PENDING"
-                  ? "bg-amber-600 text-white shadow-xs"
-                  : "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">hourglass_top</span>
@@ -900,10 +840,10 @@ export default function GovernanceDashboardPage() {
             <button
               type="button"
               onClick={() => setBrandTab("APPROVED")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 brandTab === "APPROVED"
-                  ? "bg-emerald-600 text-white shadow-xs"
-                  : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  ? "bg-[var(--green)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">check_circle</span>
@@ -912,10 +852,10 @@ export default function GovernanceDashboardPage() {
             <button
               type="button"
               onClick={() => setBrandTab("REJECTED")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+              className={`px-3 py-1.5 border-2 border-black text-xs font-mono font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                 brandTab === "REJECTED"
-                  ? "bg-red-600 text-white shadow-xs"
-                  : "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  ? "bg-[var(--red)] text-white shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                  : "bg-white dark:bg-[#1c1d22] text-[var(--red)] dark:text-[#ff7b72] shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               }`}
             >
               <span className="material-symbols-outlined text-[16px]">cancel</span>
@@ -925,34 +865,34 @@ export default function GovernanceDashboardPage() {
 
           {/* Submissions Table for Brand Reviewer */}
           <div
-            className={`rounded-2xl border overflow-hidden shadow-xs ${
-              isDark ? "bg-[#1b1b1f] border-[#383a45]" : "bg-white border-[#cbd5e1]"
-            }`}
+            className={`border-4 ${
+              isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+            } overflow-hidden`}
           >
             <div className="overflow-x-auto">
               {filteredBrandSubmissions.length === 0 ? (
                 <div className="py-12 text-center">
-                  <span className="material-symbols-outlined text-[36px] text-text-muted mb-1">inbox</span>
-                  <p className="text-sm font-bold text-on-surface">No creator submissions in this queue</p>
-                  <p className="text-xs text-text-muted mt-0.5">Submissions will show up here as creators upload content.</p>
+                  <span className="material-symbols-outlined text-[36px] text-[#666] dark:text-[#888] mb-1">inbox</span>
+                  <p className="text-sm font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                    No creator submissions in this queue
+                  </p>
+                  <p className="text-xs font-mono text-[#666] dark:text-[#999] mt-0.5">
+                    Submissions will appear here as creators upload content.
+                  </p>
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse min-w-[700px]">
+                <table className="w-full text-left border-collapse min-w-[700px] font-mono text-xs">
                   <thead>
-                    <tr
-                      className={`text-[10px] font-mono uppercase tracking-wider font-semibold border-b ${
-                        isDark ? "bg-[#14151a] text-text-muted border-[#2e2f38]" : "bg-slate-50 text-slate-500 border-slate-200"
-                      }`}
-                    >
+                    <tr className="border-b-3 border-black bg-[var(--ink)] text-white uppercase text-[10px] font-black tracking-wider">
                       <th className="py-3 px-4">Asset / Title</th>
                       <th className="py-3 px-4">Creator / Format</th>
                       <th className="py-3 px-4">Audit Score</th>
                       <th className="py-3 px-4">Findings</th>
                       <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Review Action</th>
+                      <th className="py-3 px-4 text-right">Review Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="text-xs divide-y divide-border">
+                  <tbody className="divide-y-2 divide-black">
                     {filteredBrandSubmissions.map((sub) => {
                       const criticalFindings =
                         sub.findings?.filter((f) => f.severity === "CRITICAL").length || 0;
@@ -962,56 +902,56 @@ export default function GovernanceDashboardPage() {
                       return (
                         <tr
                           key={sub.id}
-                          className={`hover:bg-palette-7/20 transition-colors ${
+                          className={`hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
                             updatingId === sub.id ? "opacity-50" : ""
                           }`}
                         >
                           <td className="py-3 px-4">
-                            <div className="font-bold text-on-surface text-sm">{sub.title}</div>
-                            <div className="text-[11px] font-mono text-text-muted">
+                            <div className="font-bold text-sm text-[var(--ink)] dark:text-white uppercase">{sub.title}</div>
+                            <div className="text-[10px] text-[#666] dark:text-[#999]">
                               SUB-#{sub.id} · v{sub.current_version} · {new Date(sub.created_at).toLocaleDateString()}
                             </div>
                           </td>
 
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-on-surface">{sub.creator_name || "Agency Creator"}</div>
-                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-palette-7/40 text-text-muted">
+                            <div className="font-bold text-[var(--ink)] dark:text-white">{sub.creator_name || "Agency Creator"}</div>
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 border border-black bg-[var(--yellow)] text-black">
                               {sub.content_format}
                             </span>
                           </td>
 
-                          <td className="py-3 px-4 font-mono font-bold">
+                          <td className="py-3 px-4 font-black">
                             {sub.compliance_score != null ? (
                               <span
                                 className={
                                   sub.compliance_score >= 80
-                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    ? "text-[var(--ink)] dark:text-[#b9f4a8]"
                                     : sub.compliance_score >= 60
-                                    ? "text-amber-600 dark:text-amber-400"
-                                    : "text-red-600 dark:text-red-400"
+                                    ? "text-black dark:text-[#ffdb1f]"
+                                    : "text-[var(--red)] dark:text-[#ff7b72]"
                                 }
                               >
                                 {sub.compliance_score}%
                               </span>
                             ) : (
-                              <span className="text-text-muted">—</span>
+                              <span className="text-[#666]">—</span>
                             )}
                           </td>
 
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {criticalFindings > 0 && (
-                                <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-[10px] font-mono font-bold">
+                                <span className="px-1.5 py-0.5 border border-black bg-[var(--red)] text-white text-[9px] font-black">
                                   {criticalFindings} Crit
                                 </span>
                               )}
                               {warningFindings > 0 && (
-                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-mono font-bold">
+                                <span className="px-1.5 py-0.5 border border-black bg-[var(--yellow)] text-black text-[9px] font-black">
                                   {warningFindings} Warn
                                 </span>
                               )}
                               {criticalFindings === 0 && warningFindings === 0 && (
-                                <span className="text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+                                <span className="text-[var(--ink)] dark:text-[#b9f4a8] text-[10px] font-black">
                                   ✓ Clean
                                 </span>
                               )}
@@ -1020,12 +960,12 @@ export default function GovernanceDashboardPage() {
 
                           <td className="py-3 px-4">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              className={`px-2 py-0.5 border border-black text-[10px] font-black uppercase shadow-[1px_1px_0px_#000] ${
                                 sub.status === "APPROVED"
-                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300"
+                                  ? "bg-[var(--green)] text-black"
                                   : sub.status === "CHANGES_REQUESTED" || sub.status === "REJECTED"
-                                  ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border border-red-300"
-                                  : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
+                                  ? "bg-[var(--red)] text-white"
+                                  : "bg-[var(--yellow)] text-black"
                               }`}
                             >
                               {sub.status.replace("_", " ")}
@@ -1039,7 +979,7 @@ export default function GovernanceDashboardPage() {
                                   type="button"
                                   onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
                                   disabled={updatingId === sub.id}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer shadow-2xs"
+                                  className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--green)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                                   title="Approve for publication"
                                 >
                                   ✓ Approve
@@ -1051,7 +991,7 @@ export default function GovernanceDashboardPage() {
                                   type="button"
                                   onClick={() => setRejectingSub(sub)}
                                   disabled={updatingId === sub.id}
-                                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-all cursor-pointer shadow-2xs"
+                                  className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--red)] text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                                   title="Reject with notes"
                                 >
                                   ✕ Reject
@@ -1060,9 +1000,9 @@ export default function GovernanceDashboardPage() {
 
                               <Link
                                 href={`/audit?id=${sub.id}`}
-                                className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-border hover:border-primary text-on-surface hover:text-primary transition-colors"
+                                className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                               >
-                                Audit Workspace
+                                Audit
                               </Link>
                             </div>
                           </td>
@@ -1077,33 +1017,33 @@ export default function GovernanceDashboardPage() {
 
           {/* Rejection Modal for Brand Reviewer */}
           {rejectingSub && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs font-mono">
               <div
-                className={`relative w-full max-w-lg p-6 rounded-3xl border shadow-2xl ${
-                  isDark ? "bg-[#18191d] border-[#383a45] text-white" : "bg-white border-[#cbd5e1] text-[#111827]"
+                className={`relative w-full max-w-lg p-5 sm:p-6 border-4 border-black shadow-[8px_8px_0px_#000000] ${
+                  isDark ? "bg-[#141518] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
                 }`}
               >
-                <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
-                  <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                <div className="flex items-center justify-between pb-3 border-b-2 border-black mb-4">
+                  <div className="flex items-center gap-2 text-[var(--red)] dark:text-[#ff7b72]">
                     <span className="material-symbols-outlined">feedback</span>
-                    <h3 className="font-bold text-base">Request Changes on Submission</h3>
+                    <h3 className="font-mono font-black text-sm uppercase">REQUEST CHANGES ON SUBMISSION</h3>
                   </div>
                   <button
                     onClick={() => setRejectingSub(null)}
-                    className="p-1 rounded-full text-text-muted hover:text-on-surface"
+                    className="w-6 h-6 border-2 border-black bg-[var(--red)] text-white font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[18px]">close</span>
+                    ✕
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <span className="text-xs text-text-muted">Target Asset:</span>
-                    <p className="font-bold text-sm text-on-surface">{rejectingSub.title}</p>
+                    <span className="text-[10px] font-black uppercase text-[#666] dark:text-[#888]">TARGET ASSET:</span>
+                    <p className="font-bold text-sm text-[var(--ink)] dark:text-white uppercase">{rejectingSub.title}</p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-on-surface mb-1">
+                    <label className="block text-xs font-black uppercase text-[var(--ink)] dark:text-white mb-1">
                       Reason for Rejection / Revision Instructions:
                     </label>
                     <textarea
@@ -1111,18 +1051,18 @@ export default function GovernanceDashboardPage() {
                       value={rejectionNotes}
                       onChange={(e) => setRejectionNotes(e.target.value)}
                       placeholder="e.g. Please replace fireworks imagery with diya lamps to comply with Blinkit Green Diwali guideline, and remove the unverified claim."
-                      className="w-full p-3 rounded-xl border border-border bg-palette-7/20 text-xs text-on-surface focus:outline-none focus:border-red-500"
+                      className={`w-full p-2.5 border-2 border-black font-mono text-xs ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"} focus:outline-none`}
                     />
-                    <p className="text-[11px] text-text-muted mt-1">
+                    <p className="text-[10px] font-mono text-[#666] dark:text-[#999] mt-1">
                       The creator will immediately see this note in their Creator Dashboard under "Why Judge Rejected This Submission".
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t-2 border-black">
                     <button
                       type="button"
                       onClick={() => setRejectingSub(null)}
-                      className="px-4 py-2 rounded-xl text-xs font-bold text-text-muted hover:text-on-surface"
+                      className="px-3 py-1.5 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -1130,7 +1070,7 @@ export default function GovernanceDashboardPage() {
                       type="button"
                       onClick={handleConfirmRejection}
                       disabled={isSubmittingReject}
-                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
+                      className="px-4 py-1.5 border-2 border-black bg-[var(--red)] text-white text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
                     >
                       {isSubmittingReject ? "Submitting..." : "Send Rejection Feedback"}
                     </button>
@@ -1148,7 +1088,9 @@ export default function GovernanceDashboardPage() {
       {isAdmin && (
         <>
           {/* Hero Banner with DriftWall and TechText */}
-          <section className="mb-6 relative w-full h-[290px] sm:h-[330px] lg:h-[360px] overflow-hidden rounded-3xl select-none">
+          <section className={`mb-6 relative w-full h-[290px] sm:h-[330px] lg:h-[360px] overflow-hidden border-4 ${
+            isDark ? "border-[#383a45] bg-[#141518] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+          } select-none`}>
             <div className="absolute top-0 bottom-0 right-0 w-[62%] sm:w-[68%] lg:w-[72%] z-0 overflow-hidden pointer-events-auto">
               <DriftWall
                 columns={4}
@@ -1166,13 +1108,13 @@ export default function GovernanceDashboardPage() {
                 lift={55}
                 fade={0.65}
                 dim={isDark ? 0.45 : 0.65}
-                overlayColor={isDark ? "#121316" : "#f8fafc"}
+                overlayColor={isDark ? "#121316" : "#f5f0e7"}
               />
               <div
                 className={`absolute inset-y-0 left-0 w-32 pointer-events-none bg-gradient-to-r ${
                   isDark
-                    ? "from-[#121316] via-[#121316]/60 to-transparent"
-                    : "from-[#f8fafc] via-[#f8fafc]/60 to-transparent"
+                    ? "from-[#141518] via-[#141518]/60 to-transparent"
+                    : "from-[var(--white)] via-[var(--white)]/60 to-transparent"
                 }`}
               />
             </div>
@@ -1196,8 +1138,8 @@ export default function GovernanceDashboardPage() {
                 lineStyle="solid"
                 strokeWidth={1.5}
                 bounce={0.75}
-                color={isDark ? "#f8fafc" : "#0f172a"}
-                accentColor={isDark ? "#a78bfa" : "#005797"}
+                color={isDark ? "#f8fafc" : "#101010"}
+                accentColor={isDark ? "#ffdb1f" : "#101010"}
                 style={{ width: "100%", height: "100%" }}
               />
             </div>
@@ -1205,7 +1147,7 @@ export default function GovernanceDashboardPage() {
             <div className="absolute bottom-5 left-6 z-20 flex items-center gap-2">
               <Link
                 href="/judge"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 border-3 border-black bg-[var(--yellow)] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">gavel</span>
                 Launch Judge Evaluation Canvas
@@ -1215,106 +1157,90 @@ export default function GovernanceDashboardPage() {
 
           {/* Top Metric KPI Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div
-              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000] flex flex-col justify-between`}>
               <div className="flex items-center justify-between">
-                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                <span className="font-mono text-xs uppercase tracking-wider font-black text-[#666] dark:text-[#888]">
                   Total Submissions
                 </span>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-blue-500/15 text-blue-400" : "bg-blue-50 text-blue-600"}`}>
-                  <span className="material-symbols-outlined text-[20px]">folder_copy</span>
+                <div className="w-8 h-8 border-2 border-black bg-[var(--blue)] text-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#000]">
+                  <span className="material-symbols-outlined text-[18px]">folder_copy</span>
                 </div>
               </div>
-              <div className="my-3 flex items-baseline justify-between">
-                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+              <div className="my-2 flex items-baseline justify-between">
+                <span className="font-mono text-3xl font-black text-[var(--ink)] dark:text-white">
                   {isLoading ? "..." : totalSubmissions}
                 </span>
-                <span className={`px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold ${totalSubmissions > 0 ? (isDark ? "bg-[#7c3aed]/20 text-[#d2bbff]" : "bg-[#ebf6ff] text-primary") : (isDark ? "bg-[#292a2d] text-[#9ca3af]" : "bg-[#f1f5f9] text-[#64748b]")}`}>
-                  {totalSubmissions > 0 ? "Audited Assets" : "No Audits Yet"}
+                <span className="px-2 py-0.5 border border-black bg-[var(--blue)] text-black font-mono text-[10px] font-black uppercase shadow-[1px_1px_0px_#000]">
+                  {totalSubmissions > 0 ? "Audited Assets" : "No Audits"}
                 </span>
               </div>
-              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+              <div className="pt-2 border-t-2 border-black/20 text-[10px] font-mono text-[#666] dark:text-[#888]">
                 <span>Assets ingested for brand governance</span>
               </div>
             </div>
 
-            <div
-              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000] flex flex-col justify-between`}>
               <div className="flex items-center justify-between">
-                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                <span className="font-mono text-xs uppercase tracking-wider font-black text-[#666] dark:text-[#888]">
                   Compliance Score
                 </span>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-emerald-500/15 text-emerald-400" : "bg-emerald-50 text-emerald-600"}`}>
-                  <span className="material-symbols-outlined text-[20px]">verified</span>
+                <div className="w-8 h-8 border-2 border-black bg-[var(--green)] text-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#000]">
+                  <span className="material-symbols-outlined text-[18px]">verified</span>
                 </div>
               </div>
-              <div className="my-3 flex items-baseline justify-between">
-                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+              <div className="my-2 flex items-baseline justify-between">
+                <span className="font-mono text-3xl font-black text-[var(--ink)] dark:text-[#b9f4a8]">
                   {isLoading ? "..." : `${Math.round(avgComplianceScore) || 92}%`}
                 </span>
-                <span className="px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <span className="px-2 py-0.5 border border-black bg-[var(--green)] text-black font-mono text-[10px] font-black uppercase shadow-[1px_1px_0px_#000]">
                   Target: 90%
                 </span>
               </div>
-              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+              <div className="pt-2 border-t-2 border-black/20 text-[10px] font-mono text-[#666] dark:text-[#888]">
                 <span>Average across active policies</span>
               </div>
             </div>
 
-            <div
-              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000] flex flex-col justify-between`}>
               <div className="flex items-center justify-between">
-                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                <span className="font-mono text-xs uppercase tracking-wider font-black text-[#666] dark:text-[#888]">
                   Open Violations
                 </span>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-red-500/15 text-red-400" : "bg-red-50 text-red-600"}`}>
-                  <span className="material-symbols-outlined text-[20px]">report_problem</span>
+                <div className="w-8 h-8 border-2 border-black bg-[var(--red)] text-white flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#000]">
+                  <span className="material-symbols-outlined text-[18px]">report_problem</span>
                 </div>
               </div>
-              <div className="my-3 flex items-baseline justify-between">
-                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+              <div className="my-2 flex items-baseline justify-between">
+                <span className="font-mono text-3xl font-black text-[var(--red)] dark:text-[#ff7b72]">
                   {isLoading ? "..." : openFindingsCount}
                 </span>
-                <span className="px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold bg-red-500/15 text-red-600 dark:text-red-400">
-                  {openFindingsCount > 0 ? "Requires Review" : "All Clear"}
+                <span className="px-2 py-0.5 border border-black bg-[var(--red)] text-white font-mono text-[10px] font-black uppercase shadow-[1px_1px_0px_#000]">
+                  {openFindingsCount > 0 ? "Review Required" : "All Clear"}
                 </span>
               </div>
-              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+              <div className="pt-2 border-t-2 border-black/20 text-[10px] font-mono text-[#666] dark:text-[#888]">
                 <span>Unresolved compliance findings</span>
               </div>
             </div>
 
-            <div
-              className={`rounded-xl p-5 border shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all ${
-                isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-              }`}
-            >
+            <div className={`p-4 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"} shadow-[4px_4px_0px_#000] flex flex-col justify-between`}>
               <div className="flex items-center justify-between">
-                <span className={`font-sans text-xs uppercase tracking-wider font-semibold ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                <span className="font-mono text-xs uppercase tracking-wider font-black text-[#666] dark:text-[#888]">
                   Active Guidelines
                 </span>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isDark ? "bg-purple-500/15 text-purple-400" : "bg-purple-50 text-purple-600"}`}>
-                  <span className="material-symbols-outlined text-[20px]">book</span>
+                <div className="w-8 h-8 border-2 border-black bg-[var(--yellow)] text-black flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#000]">
+                  <span className="material-symbols-outlined text-[18px]">book</span>
                 </div>
               </div>
-              <div className="my-3 flex items-baseline justify-between">
-                <span className={`font-mono text-3xl font-bold tracking-tight tabular-nums ${isDark ? "text-white" : "text-[#111827]"}`}>
+              <div className="my-2 flex items-baseline justify-between">
+                <span className="font-mono text-3xl font-black text-[var(--ink)] dark:text-white">
                   {analytics?.active_guidelines_count || 12}
                 </span>
-                <span className="px-2 py-0.5 rounded-full font-sans text-[11px] font-semibold bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                <span className="px-2 py-0.5 border border-black bg-[var(--yellow)] text-black font-mono text-[10px] font-black uppercase shadow-[1px_1px_0px_#000]">
                   Vector Chunks
                 </span>
               </div>
-              <div className={`pt-2.5 border-t font-sans text-xs ${isDark ? "border-[#3b3c44] text-[#9ca3af]" : "border-[#e2e8f0] text-[#64748b]"}`}>
+              <div className="pt-2 border-t-2 border-black/20 text-[10px] font-mono text-[#666] dark:text-[#888]">
                 <span>Indexed in pgvector RAG index</span>
               </div>
             </div>
@@ -1322,14 +1248,14 @@ export default function GovernanceDashboardPage() {
 
           {/* Platform Admin View Selector: Our Clients | Submissions | Future Pipeline */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-palette-7/30 border border-border">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setAdminTab("clients")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-3.5 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
                   adminTab === "clients"
-                    ? "bg-primary text-white shadow-xs"
-                    : "text-text-muted hover:text-on-surface hover:bg-palette-7/40"
+                    ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                    : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                 }`}
               >
                 <span className="material-symbols-outlined text-[17px]">corporate_fare</span>
@@ -1338,10 +1264,10 @@ export default function GovernanceDashboardPage() {
               <button
                 type="button"
                 onClick={() => setAdminTab("submissions")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-3.5 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
                   adminTab === "submissions"
-                    ? "bg-primary text-white shadow-xs"
-                    : "text-text-muted hover:text-on-surface hover:bg-palette-7/40"
+                    ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                    : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                 }`}
               >
                 <span className="material-symbols-outlined text-[17px]">rule_folder</span>
@@ -1350,21 +1276,21 @@ export default function GovernanceDashboardPage() {
               <button
                 type="button"
                 onClick={() => setAdminTab("pipeline")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-3.5 py-2 border-2 border-black text-xs font-mono font-black uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
                   adminTab === "pipeline"
-                    ? "bg-primary text-white shadow-xs"
-                    : "text-text-muted hover:text-on-surface hover:bg-palette-7/40"
+                    ? "bg-[var(--yellow)] text-black shadow-[3px_3px_0px_#000] translate-x-0.5 translate-y-0.5"
+                    : "bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                 }`}
               >
                 <span className="material-symbols-outlined text-[17px]">rocket_launch</span>
-                Future Clients & Pipeline (5)
+                Future Pipeline (5)
               </button>
             </div>
 
             <div className="flex items-center gap-2">
               <Link
                 href="/setup"
-                className="px-4 py-2 rounded-xl bg-primary hover:bg-[#004578] text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                className="px-3.5 py-2 border-2 border-black bg-[var(--yellow)] text-black text-xs font-mono font-black uppercase flex items-center gap-1.5 shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
               >
                 <span className="material-symbols-outlined text-[16px]">add_circle</span>
                 + Onboard New Client
@@ -1382,51 +1308,51 @@ export default function GovernanceDashboardPage() {
                   return (
                     <div
                       key={b.id}
-                      className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
+                      className={`p-4 sm:p-5 border-3 border-black transition-all flex flex-col justify-between ${
                         isCurrentActive
-                          ? "border-primary/80 ring-2 ring-primary/20 bg-primary/5 shadow-sm"
+                          ? "bg-[var(--yellow)]/15 shadow-[4px_4px_0px_#000]"
                           : isDark
-                          ? "bg-[#1b1b1f] border-[#3b3c44] hover:border-[#4f505b]"
-                          : "bg-white border-[#cbd5e1] hover:border-slate-400"
+                          ? "bg-[#1c1d22] shadow-[3px_3px_0px_#000]"
+                          : "bg-[var(--white)] shadow-[3px_3px_0px_#000]"
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary font-black text-sm flex items-center justify-center">
+                            <div className="w-9 h-9 border-2 border-black bg-[var(--yellow)] text-black font-mono font-black text-sm flex items-center justify-center shadow-[2px_2px_0px_#000]">
                               {b.name.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <h4 className="font-bold text-sm text-on-surface leading-tight">{b.name}</h4>
-                              <span className="text-[11px] text-text-muted">{b.industry || "Enterprise Brand"}</span>
+                              <h4 className="font-mono font-black text-sm text-[var(--ink)] dark:text-white uppercase leading-tight">{b.name}</h4>
+                              <span className="text-[10px] font-mono text-[#666] dark:text-[#999] uppercase">{b.industry || "Enterprise Brand"}</span>
                             </div>
                           </div>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            className={`px-2 py-0.5 border border-black text-[9px] font-mono font-black uppercase shadow-[1px_1px_0px_#000] ${
                               isCurrentActive
-                                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                                : "bg-palette-7/40 text-text-muted"
+                                ? "bg-[var(--green)] text-black"
+                                : "bg-white dark:bg-[#121316] text-[#666] dark:text-[#999]"
                             }`}
                           >
                             {isCurrentActive ? "● Active Tenant" : "Configured"}
                           </span>
                         </div>
 
-                        <p className="text-xs text-text-muted line-clamp-2 mb-4 leading-relaxed">
+                        <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] line-clamp-2 mb-4 leading-relaxed">
                           {b.tone_persona || "Autonomous brand governance guidelines and multi-modal compliance configured."}
                         </p>
 
                         {/* Palette swatches */}
                         {b.approved_hex_palette && b.approved_hex_palette.length > 0 && (
                           <div className="mb-4">
-                            <span className="text-[10px] uppercase font-mono font-semibold text-text-muted block mb-1.5">
+                            <span className="text-[9px] uppercase font-mono font-black text-[#666] dark:text-[#888] block mb-1">
                               Approved Colors
                             </span>
                             <div className="flex items-center gap-1.5">
                               {b.approved_hex_palette.slice(0, 5).map((color, idx) => (
                                 <div
                                   key={idx}
-                                  className="w-5 h-5 rounded-md border border-border shadow-2xs"
+                                  className="w-5 h-5 border border-black shadow-[1px_1px_0px_#000]"
                                   style={{ backgroundColor: color }}
                                   title={color}
                                 />
@@ -1436,29 +1362,29 @@ export default function GovernanceDashboardPage() {
                         )}
 
                         {/* Client Metric Grid */}
-                        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border text-xs mb-4">
+                        <div className="grid grid-cols-2 gap-2 pt-3 border-t-2 border-black/20 text-xs mb-4">
                           <div>
-                            <span className="text-[10px] uppercase font-mono text-text-muted block">Submissions</span>
-                            <span className="font-mono font-bold text-on-surface">{clientSubs.length} Audited</span>
+                            <span className="text-[9px] uppercase font-mono font-black text-[#666] dark:text-[#888] block">Submissions</span>
+                            <span className="font-mono font-black text-[var(--ink)] dark:text-white">{clientSubs.length} Audited</span>
                           </div>
                           <div>
-                            <span className="text-[10px] uppercase font-mono text-text-muted block">Policy Chunks</span>
-                            <span className="font-mono font-bold text-primary">110 Indexed</span>
+                            <span className="text-[9px] uppercase font-mono font-black text-[#666] dark:text-[#888] block">Policy Chunks</span>
+                            <span className="font-mono font-black text-[var(--ink)] dark:text-white">110 Indexed</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-2">
+                      <div className="flex items-center gap-2 pt-2 border-t-2 border-black/20">
                         <button
                           type="button"
                           onClick={() => {
                             setActiveBrandId(b.id);
                             setAdminTab("submissions");
                           }}
-                          className={`w-full py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                          className={`w-full py-2 border-2 border-black text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer ${
                             isCurrentActive
-                              ? "bg-primary text-white hover:bg-[#004578]"
-                              : "border border-border text-on-surface hover:bg-palette-7/30"
+                              ? "bg-[var(--yellow)] text-black"
+                              : "bg-white dark:bg-[#121316] text-black dark:text-white"
                           }`}
                         >
                           {isCurrentActive ? "Active Workspace" : "Switch to Brand"}
@@ -1471,21 +1397,19 @@ export default function GovernanceDashboardPage() {
                 {/* Quick Add Client Card */}
                 <Link
                   href="/setup"
-                  className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center transition-all cursor-pointer group ${
-                    isDark
-                      ? "border-[#3b3c44] hover:border-primary bg-[#14151a]/50"
-                      : "border-slate-300 hover:border-primary bg-slate-50/50"
+                  className={`p-6 border-3 border-dashed border-black flex flex-col items-center justify-center text-center transition-all cursor-pointer group shadow-[3px_3px_0px_#000] ${
+                    isDark ? "bg-[#18191f] hover:bg-[#1c1d22]" : "bg-[var(--white)] hover:bg-white"
                   }`}
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 border-2 border-black bg-[var(--yellow)] text-black flex items-center justify-center mb-3 shadow-[2px_2px_0px_#000]">
                     <span className="material-symbols-outlined text-[28px]">add_business</span>
                   </div>
-                  <h4 className="font-bold text-sm text-on-surface mb-1">Onboard New Client</h4>
-                  <p className="text-xs text-text-muted max-w-xs mb-3">
+                  <h4 className="font-mono font-black text-sm uppercase text-[var(--ink)] dark:text-white mb-1">Onboard New Client</h4>
+                  <p className="text-xs font-mono text-[#666] dark:text-[#a0a5b5] max-w-xs mb-3 leading-relaxed">
                     Ingest brand guidelines, configure color palettes, extract policy rules and launch an autonomous tenant workspace.
                   </p>
-                  <span className="text-xs font-bold text-primary flex items-center gap-1 group-hover:underline">
-                    Launch Client Onboarding Wizard →
+                  <span className="text-xs font-mono font-black uppercase underline text-[var(--ink)] dark:text-white">
+                    Launch Client Wizard →
                   </span>
                 </Link>
               </div>
@@ -1498,16 +1422,16 @@ export default function GovernanceDashboardPage() {
               {/* Interactive Trend Chart */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div
-                  className={`lg:col-span-8 rounded-xl p-5 border shadow-2xs ${
-                    isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+                  className={`lg:col-span-8 p-5 border-4 ${
+                    isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-4 border-b-2 border-black pb-2">
                     <div>
-                      <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                      <h3 className="font-archivo font-black text-sm uppercase tracking-tight text-[var(--ink)] dark:text-white">
                         Compliance Score Progression
                       </h3>
-                      <p className={`font-sans text-xs ${isDark ? "text-[#9ca3af]" : "text-[#64748b]"}`}>
+                      <p className="font-mono text-xs text-[#666] dark:text-[#999]">
                         Chronological compliance audit history across submissions
                       </p>
                     </div>
@@ -1519,58 +1443,61 @@ export default function GovernanceDashboardPage() {
                         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <defs>
                             <linearGradient id="complianceGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.4} />
-                              <stop offset="95%" stopColor={isDark ? "#7c3aed" : "#005797"} stopOpacity={0.0} />
+                              <stop offset="5%" stopColor={isDark ? "#ffdb1f" : "#ffdb1f"} stopOpacity={0.8} />
+                              <stop offset="95%" stopColor={isDark ? "#ffdb1f" : "#ffdb1f"} stopOpacity={0.1} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#2e2f38" : "#f1f5f9"} />
-                          <XAxis dataKey="run" stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
-                          <YAxis domain={[50, 100]} stroke={isDark ? "#6b7280" : "#9ca3af"} fontSize={11} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#383a45" : "#e2e8f0"} />
+                          <XAxis dataKey="run" stroke={isDark ? "#9ca3af" : "#111827"} fontSize={11} fontFamily="monospace" />
+                          <YAxis domain={[50, 100]} stroke={isDark ? "#9ca3af" : "#111827"} fontSize={11} fontFamily="monospace" />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: isDark ? "#1f2026" : "#ffffff",
-                              borderColor: isDark ? "#383a45" : "#e2e8f0",
-                              borderRadius: "0.5rem",
-                              fontSize: "12px",
+                              backgroundColor: isDark ? "#1c1d22" : "#ffffff",
+                              borderColor: "#000000",
+                              borderWidth: "2px",
+                              boxShadow: "3px 3px 0px #000",
+                              borderRadius: "0px",
+                              fontFamily: "monospace",
+                              fontSize: "11px",
                             }}
                           />
-                          <ReferenceLine y={90} stroke="#10b981" strokeDasharray="3 3" label={{ value: "Target (90%)", fill: "#10b981", fontSize: 10 }} />
-                          <Area type="monotone" dataKey="compliance" stroke={isDark ? "#7c3aed" : "#005797"} strokeWidth={2.5} fillOpacity={1} fill="url(#complianceGradient)" />
+                          <ReferenceLine y={90} stroke="#10b981" strokeWidth={2} strokeDasharray="3 3" label={{ value: "TARGET (90%)", fill: "#10b981", fontSize: 10, fontFamily: "monospace", fontWeight: "bold" }} />
+                          <Area type="monotone" dataKey="compliance" stroke="#000000" strokeWidth={3} fillOpacity={1} fill="url(#complianceGradient)" />
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-text-muted">Loading chart...</div>
+                      <div className="h-full flex items-center justify-center text-xs font-mono text-[#666]">Loading chart...</div>
                     )}
                   </div>
                 </div>
 
                 {/* Top Violations Breakdown */}
                 <div
-                  className={`lg:col-span-4 rounded-xl p-5 border shadow-2xs ${
-                    isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
+                  className={`lg:col-span-4 p-5 border-4 ${
+                    isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className={`font-sans text-sm font-bold tracking-tight ${isDark ? "text-white" : "text-[#111827]"}`}>
+                  <div className="flex items-center justify-between mb-4 border-b-2 border-black pb-2">
+                    <h3 className="font-archivo font-black text-sm uppercase tracking-tight text-[var(--ink)] dark:text-white">
                       Top Violations
                     </h3>
-                    <span className="text-[11px] font-mono text-text-muted">{totalCategoryViolations} Total</span>
+                    <span className="text-[10px] font-mono font-black uppercase text-[#666] dark:text-[#999]">{totalCategoryViolations} Total</span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {categoryEntries.length === 0 ? (
-                      <p className="text-xs text-text-muted py-6 text-center">No violations logged for this brand.</p>
+                      <p className="text-xs font-mono text-[#666] py-6 text-center">No violations logged for this brand.</p>
                     ) : (
                       categoryEntries.slice(0, 4).map(([cat, count]) => {
                         const pct = Math.round((count / totalCategoryViolations) * 100);
                         return (
-                          <div key={cat} className="space-y-1">
-                            <div className="flex items-center justify-between text-xs font-semibold">
-                              <span className="capitalize">{cat.replace("_", " ")}</span>
-                              <span className="font-mono text-text-muted">{pct}% ({count})</span>
+                          <div key={cat} className="space-y-1 font-mono">
+                            <div className="flex items-center justify-between text-xs font-bold">
+                              <span className="uppercase text-[var(--ink)] dark:text-white">{cat.replace("_", " ")}</span>
+                              <span className="font-black text-[#666] dark:text-[#a0a5b5]">{pct}% ({count})</span>
                             </div>
-                            <div className="w-full h-1.5 rounded-full bg-palette-7/30 overflow-hidden">
-                              <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                            <div className="w-full h-3 border-2 border-black bg-black/10 overflow-hidden">
+                              <div className="h-full bg-[var(--yellow)] border-r border-black" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );
@@ -1582,28 +1509,24 @@ export default function GovernanceDashboardPage() {
 
               {/* Multi-Modal Submissions Table */}
               <div
-                className={`rounded-2xl border overflow-hidden shadow-xs ${
-                  isDark ? "bg-[#1b1b1f] border-[#3b3c44]" : "bg-white border-[#cbd5e1]"
-                }`}
+                className={`border-4 ${
+                  isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"
+                } overflow-hidden`}
               >
-                <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+                <div className="px-5 py-3.5 border-b-3 border-black flex items-center justify-between bg-[var(--ink)] text-white">
                   <div>
-                    <h3 className="font-bold text-sm text-on-surface">Client Submissions Review Queue</h3>
-                    <p className="text-[11px] text-text-muted">Direct superuser override authority — approve or reject submissions without leaving the dashboard</p>
+                    <h3 className="font-archivo font-black text-sm uppercase tracking-tight">Client Submissions Review Queue</h3>
+                    <p className="text-[10px] font-mono text-[#bbb]">Direct superuser override authority — approve or reject submissions instantly</p>
                   </div>
-                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-palette-7/30 text-text-muted">
+                  <span className="text-xs font-mono font-black px-2 py-0.5 border border-white bg-black text-white">
                     {submissions.length} Total
                   </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[700px]">
+                  <table className="w-full text-left border-collapse min-w-[700px] font-mono text-xs">
                     <thead>
-                      <tr
-                        className={`text-[10px] font-mono uppercase tracking-wider font-semibold border-b ${
-                          isDark ? "bg-[#14151a] text-text-muted border-[#2e2f38]" : "bg-slate-50 text-slate-500 border-slate-200"
-                        }`}
-                      >
+                      <tr className="border-b-2 border-black bg-black/10 dark:bg-white/10 uppercase text-[10px] font-black tracking-wider">
                         <th className="py-3 px-4">Title</th>
                         <th className="py-3 px-4">Author / Format</th>
                         <th className="py-3 px-4">Findings</th>
@@ -1612,27 +1535,27 @@ export default function GovernanceDashboardPage() {
                         <th className="py-3 px-4 text-right">Admin Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="text-xs divide-y divide-border">
+                    <tbody className="divide-y-2 divide-black">
                       {topSubmissions.map((sub) => (
-                        <tr key={sub.id} className="hover:bg-palette-7/20 transition-colors">
+                        <tr key={sub.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                           <td className="py-3 px-4">
-                            <div className="font-bold text-on-surface">{sub.title}</div>
-                            <div className="text-[11px] font-mono text-text-muted">SUB-#{sub.id} · v{sub.current_version}</div>
+                            <div className="font-bold text-[var(--ink)] dark:text-white uppercase">{sub.title}</div>
+                            <div className="text-[10px] text-[#666] dark:text-[#999]">SUB-#{sub.id} · v{sub.current_version}</div>
                           </td>
                           <td className="py-3 px-4">
-                            <div className="font-semibold text-on-surface">{sub.creator_name}</div>
-                            <span className="text-[10px] font-mono uppercase text-text-muted">{sub.content_format}</span>
+                            <div className="font-bold text-[var(--ink)] dark:text-white">{sub.creator_name}</div>
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 border border-black bg-[var(--yellow)] text-black">{sub.content_format}</span>
                           </td>
                           <td className="py-3 px-4">
-                            <span className="text-xs font-mono font-bold text-text-muted">
+                            <span className="font-bold text-[#666] dark:text-[#a0a5b5]">
                               {sub.findings?.length || 0} Flags
                             </span>
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold">
+                          <td className="py-3 px-4 font-black">
                             {sub.compliance_score != null ? `${sub.compliance_score}%` : "—"}
                           </td>
                           <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-palette-7/40">
+                            <span className="px-2 py-0.5 border border-black text-[10px] font-black uppercase shadow-[1px_1px_0px_#000] bg-[var(--yellow)] text-black">
                               {sub.status.replace("_", " ")}
                             </span>
                           </td>
@@ -1642,7 +1565,7 @@ export default function GovernanceDashboardPage() {
                                 type="button"
                                 onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
                                 disabled={updatingId === sub.id}
-                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer transition-colors shadow-2xs"
+                                className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--green)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                               >
                                 ✓ Approve
                               </button>
@@ -1650,13 +1573,13 @@ export default function GovernanceDashboardPage() {
                                 type="button"
                                 onClick={() => handleQuickStatusUpdate(sub.id, "CHANGES_REQUESTED")}
                                 disabled={updatingId === sub.id}
-                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-600 text-white hover:bg-red-700 cursor-pointer transition-colors shadow-2xs"
+                                className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--red)] text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                               >
                                 ✕ Reject
                               </button>
                               <Link
                                 href={`/audit?id=${sub.id}`}
-                                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold border border-border hover:border-primary text-text-muted hover:text-on-surface"
+                                className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                               >
                                 Audit
                               </Link>
@@ -1674,18 +1597,18 @@ export default function GovernanceDashboardPage() {
           {/* TAB 3: FUTURE CLIENTS & ENTERPRISE PIPELINE */}
           {adminTab === "pipeline" && (
             <div className="space-y-6 mb-8">
-              <div className="p-5 rounded-2xl border bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-transparent border-border">
+              <div className={`p-5 border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h3 className="font-bold text-base text-on-surface flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary text-[20px]">rocket_launch</span>
+                    <h3 className="font-archivo font-black text-base uppercase text-[var(--ink)] dark:text-white flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[22px]">rocket_launch</span>
                       Enterprise Expansion Pipeline
                     </h3>
-                    <p className="text-xs text-text-muted mt-1 max-w-xl">
-                      Future clients pre-analyzed for autonomous brand governance. Platform creators can provision an instant isolated workspace with one click.
+                    <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] mt-1 max-w-xl leading-relaxed">
+                      Future prospective brands pre-analyzed for autonomous brand governance. Platform admins can provision an instant isolated workspace with one click.
                     </p>
                   </div>
-                  <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 self-start sm:self-auto">
+                  <span className="text-xs font-mono font-black uppercase px-3 py-1 border-2 border-black bg-[var(--pink)] text-black shadow-[2px_2px_0px_#000] self-start sm:self-auto">
                     5 High-Value Prospects
                   </span>
                 </div>
@@ -1699,43 +1622,43 @@ export default function GovernanceDashboardPage() {
                   return (
                     <div
                       key={client.name}
-                      className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${
-                        isDark ? "bg-[#1b1b1f] border-[#3b3c44] hover:border-[#4f505b]" : "bg-white border-[#cbd5e1] hover:border-slate-400"
+                      className={`p-4 sm:p-5 border-3 border-black transition-all flex flex-col justify-between ${
+                        isDark ? "bg-[#1c1d22] shadow-[3px_3px_0px_#000]" : "bg-[var(--white)] shadow-[3px_3px_0px_#000]"
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2 mb-2.5">
                           <div>
-                            <h4 className="font-bold text-base text-on-surface leading-tight">{client.name}</h4>
-                            <span className="text-[11px] font-mono text-text-muted">{client.industry}</span>
+                            <h4 className="font-mono font-black text-base uppercase text-[var(--ink)] dark:text-white leading-tight">{client.name}</h4>
+                            <span className="text-[10px] font-mono text-[#666] dark:text-[#999] uppercase">{client.industry}</span>
                           </div>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold font-mono bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                          <span className="px-2 py-0.5 border border-black text-[10px] font-mono font-black uppercase bg-[var(--pink)] text-black shadow-[1px_1px_0px_#000]">
                             {client.fitScore}
                           </span>
                         </div>
 
-                        <p className="text-xs text-text-muted leading-relaxed mb-3">
+                        <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] leading-relaxed mb-3">
                           {client.description}
                         </p>
 
                         {/* Tone & Palette */}
-                        <div className="space-y-2 mb-4 text-xs">
+                        <div className="space-y-2 mb-4 text-xs font-mono">
                           <div>
-                            <span className="text-[10px] uppercase font-mono text-text-muted block font-semibold">
-                              Target Tone & Persona
+                            <span className="text-[9px] uppercase font-black text-[#666] dark:text-[#888] block">
+                              Target Tone &amp; Persona
                             </span>
-                            <span className="text-xs text-on-surface line-clamp-1">{client.tone}</span>
+                            <span className="text-xs text-[var(--ink)] dark:text-white line-clamp-1">{client.tone}</span>
                           </div>
 
                           <div>
-                            <span className="text-[10px] uppercase font-mono text-text-muted block font-semibold mb-1">
+                            <span className="text-[9px] uppercase font-black text-[#666] dark:text-[#888] block mb-1">
                               Proposed Palette
                             </span>
                             <div className="flex items-center gap-1.5">
                               {client.palette.map((hex, i) => (
                                 <div
                                   key={i}
-                                  className="w-4 h-4 rounded border border-border shadow-2xs"
+                                  className="w-4 h-4 border border-black shadow-[1px_1px_0px_#000]"
                                   style={{ backgroundColor: hex }}
                                   title={hex}
                                 />
@@ -1743,14 +1666,14 @@ export default function GovernanceDashboardPage() {
                             </div>
                           </div>
 
-                          <div className="pt-2 border-t border-border flex items-center justify-between">
-                            <span className="text-[11px] text-text-muted font-medium">Pipeline Stage:</span>
-                            <span className="text-[11px] font-bold text-primary font-mono">{client.pipelineStatus}</span>
+                          <div className="pt-2 border-t-2 border-black/20 flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase text-[#666] dark:text-[#888]">Pipeline Stage:</span>
+                            <span className="text-[10px] font-black text-[var(--ink)] dark:text-white uppercase">{client.pipelineStatus}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-border">
+                      <div className="pt-3 border-t-2 border-black/20">
                         {isAlreadyCreated ? (
                           <button
                             type="button"
@@ -1761,7 +1684,7 @@ export default function GovernanceDashboardPage() {
                                 setAdminTab("clients");
                               }
                             }}
-                            className="w-full py-2 rounded-xl text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25 transition-colors cursor-pointer"
+                            className="w-full py-2 border-2 border-black text-xs font-mono font-black uppercase bg-[var(--green)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                           >
                             ✓ Workspace Live (Switch)
                           </button>
@@ -1770,7 +1693,7 @@ export default function GovernanceDashboardPage() {
                             type="button"
                             onClick={() => handleProvisionProspect(client)}
                             disabled={isProcessing}
-                            className="w-full py-2 rounded-xl text-xs font-bold bg-primary hover:bg-[#004578] text-white transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center gap-1.5"
+                            className="w-full py-2 border-2 border-black text-xs font-mono font-black uppercase bg-[var(--yellow)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                           >
                             {isProcessing ? "Provisioning Workspace..." : "+ Provision Client Workspace"}
                           </button>

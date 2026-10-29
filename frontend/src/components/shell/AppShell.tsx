@@ -15,7 +15,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isSetupPage) {
     return (
-      <div className="min-h-screen w-full overflow-x-hidden transition-colors duration-200">
+      <div
+        className={`brandlens-scope min-h-screen w-full overflow-x-hidden font-mono transition-colors duration-200 ${
+          isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
+        }`}
+      >
         {children}
       </div>
     );
@@ -33,8 +37,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`flex min-h-screen w-full font-sans transition-colors duration-200 ${
-        isDark ? "bg-[#121316] text-[#e3e2e6]" : "bg-[#f8fafc] text-[#111827]"
+      className={`brandlens-scope flex min-h-screen w-full font-mono transition-colors duration-200 overflow-x-hidden ${
+        isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
       }`}
     >
       {/* Mobile Floating Menu Button when sidebar is closed */}
@@ -42,15 +46,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen(true)}
-          className={`fixed top-3 left-3 z-30 lg:hidden flex items-center justify-center w-10 h-10 rounded-xl border shadow-md transition-all cursor-pointer ${
-            isDark
-              ? "bg-[#18191d] border-[#2e2f38] text-white hover:bg-[#25262c]"
-              : "bg-white border-[#cbd5e1] text-[#111827] hover:bg-[#f8fafc]"
-          }`}
+          className="fixed top-3 left-3 z-30 lg:hidden flex items-center justify-center w-11 h-11 border-3 border-[var(--ink)] bg-[var(--yellow)] text-[var(--ink)] shadow-[4px_4px_0px_var(--ink)] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer font-bold transition-transform"
           aria-label="Open navigation sidebar"
           title="Open navigation menu"
         >
-          <Menu size={19} />
+          <Menu size={20} />
         </button>
       )}
 
@@ -61,11 +61,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${
           isSidebarCollapsed ? "pl-0 lg:pl-20" : "pl-0 lg:pl-68"
-        } ${isDark ? "bg-[#121316]" : "bg-[#f8fafc]"}`}
+        } ${isDark ? "bg-[#121316]" : "bg-[var(--paper)]"}`}
       >
         <main
-          className={`relative flex-1 w-full pt-14 lg:pt-0 transition-colors duration-200 ${
-            isDark ? "bg-[#121316]" : "bg-[#f8fafc]"
+          className={`relative flex-1 w-full pt-14 lg:pt-0 min-h-screen transition-colors duration-200 ${
+            isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"
           }`}
         >
           {children}

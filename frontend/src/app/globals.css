@@ -72,6 +72,8 @@
   --font-sniglet: var(--font-sniglet), "Sniglet", sans-serif;
   --font-heading: var(--font-sniglet), "Sniglet", sans-serif;
   --font-lato: var(--font-geist-sans);
+  --font-archivo: 'Archivo Black', Arial, sans-serif;
+  --font-roboto-mono: 'Roboto Mono', monospace;
 
   /* =====================================================================
      Landing Page Tokens (from DesignLens filestage.io)
@@ -425,4 +427,188 @@ h1, h2, h3, h4, h5, h6,
 .landing-scope .onboarding-root h5,
 .landing-scope .onboarding-root h6 {
   font-family: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* =====================================================================
+   BrandLens Neo-Brutalism Scoped Theme (Internal Product Interface)
+   Strictly isolated: Applies ONLY within .brandlens-scope
+   ===================================================================== */
+.brandlens-scope {
+  /* Target Neo-Brutalism Color Palette */
+  --ink: #101010;
+  --paper: #f5f0e7;
+  --yellow: #ffdb1f;
+  --pink: #ff72b6;
+  --orange: #ff6b2c;
+  --green: #b9f4a8;
+  --blue: #a8d8ff;
+  --red: #ff4b3e;
+  --white: #fffdf7;
+
+  /* Typography Variables */
+  --font-archivo: 'Archivo Black', Arial, sans-serif;
+  --font-roboto-mono: 'Roboto Mono', monospace;
+
+  /* Scoped Base Variables for Internal Product */
+  font-family: 'Roboto Mono', monospace;
+  color: var(--ink);
+}
+
+/* Dark Theme Neo-Brutalism Palette (Scoped Strictly to .brandlens-scope) */
+html.dark .brandlens-scope {
+  --paper: #121316;
+  --surface: #1c1d22;
+  color: #f5f0e7;
+}
+
+html.dark .brandlens-scope .brutal-card {
+  background: #1c1d22;
+  border-color: #383a45;
+  box-shadow: 6px 6px 0 #000000;
+  color: #f5f0e7;
+}
+
+html.dark .brandlens-scope .brutal-window {
+  background: #141518;
+  border-color: #383a45;
+  box-shadow: 12px 12px 0 #000000;
+}
+
+html.dark .brandlens-scope .brutal-window-bar {
+  background: #1c1d22;
+  border-bottom: 2px solid #383a45;
+  color: #ffffff;
+}
+
+html.dark .brandlens-scope .brutal-dropzone {
+  background: #141518;
+  border-color: #383a45;
+  color: #f5f0e7;
+}
+
+/* Scoped Headings — Archivo Black with Tight Graphic Line-Height */
+.brandlens-scope h1,
+.brandlens-scope h2,
+.brandlens-scope h3,
+.brandlens-scope h4,
+.brandlens-scope h5,
+.brandlens-scope h6,
+.brandlens-scope .step b,
+.brandlens-scope blockquote {
+  font-family: 'Archivo Black', Arial, sans-serif !important;
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+}
+
+/* Scoped Neo-Brutalist Reusable Foundations (Phase 1) */
+.brandlens-scope .brutal-button {
+  background: var(--yellow);
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  padding: 14px 22px;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.brandlens-scope .brutal-button:hover {
+  transform: translate(3px, 3px);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.brandlens-scope .brutal-button.dark {
+  background: var(--ink);
+  color: var(--white);
+}
+
+.brandlens-scope .brutal-card {
+  border: 3px solid var(--ink);
+  box-shadow: 6px 6px 0 var(--ink);
+  background: var(--white);
+  color: var(--ink);
+}
+
+.brandlens-scope .brutal-card.yellow { background: var(--yellow); }
+.brandlens-scope .brutal-card.pink { background: var(--pink); }
+.brandlens-scope .brutal-card.green { background: var(--green); }
+.brandlens-scope .brutal-card.blue { background: var(--blue); }
+.brandlens-scope .brutal-card.orange { background: var(--orange); }
+
+.brandlens-scope .brutal-window {
+  border: 4px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 12px 12px 0 var(--ink);
+  position: relative;
+}
+
+.brandlens-scope .brutal-window.blue {
+  background: var(--blue);
+}
+
+.brandlens-scope .brutal-window-bar {
+  height: 46px;
+  background: var(--ink);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.brandlens-scope .brutal-badge {
+  border: 2px solid var(--ink);
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brandlens-scope .brutal-badge.flagged { background: var(--red); color: var(--white); }
+.brandlens-scope .brutal-badge.passed { background: var(--green); color: var(--ink); }
+.brandlens-scope .brutal-badge.warning { background: var(--yellow); color: var(--ink); }
+
+.brandlens-scope .brutal-stamp {
+  border: 4px double var(--ink);
+  border-radius: 50%;
+  width: 116px;
+  height: 116px;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  transform: rotate(-12deg);
+  background: var(--green);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.brandlens-scope .brutal-stamp b {
+  font-family: 'Archivo Black', Arial, sans-serif !important;
+  font-size: 16px;
+}
+
+.brandlens-scope .brutal-dropzone {
+  width: 100%;
+  min-height: 112px;
+  background: var(--paper);
+  border: 3px dashed var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Roboto Mono', monospace;
 }

@@ -34,7 +34,9 @@ function AuditWorkspaceContent() {
   const searchParams = useSearchParams();
   const queryId = searchParams?.get("id");
 
-  const { brands, activeBrand, activeBrandId, setActiveBrandId, currentRole } = useApp();
+  const { brands, activeBrand, activeBrandId, setActiveBrandId, currentRole, theme } = useApp();
+  const isDark = theme === "dark";
+
   const targetBrandId = activeBrandId || brands.find((b) => b.name.toLowerCase() === "blinkit")?.id || brands[0]?.id;
   const requestedEvent = searchParams?.get("event");
   const isDiwaliEvent = requestedEvent === "diwali" || (
@@ -496,7 +498,6 @@ function AuditWorkspaceContent() {
   const openCount = allFindings.filter((f) => f.resolution_state === "OPEN").length;
 
   const complianceScore = currentSubmission?.compliance_score ?? auditResult?.compliance_score ?? null;
-  const scoreVal = complianceScore != null ? complianceScore : 0;
   const isFullyCompliant = complianceScore != null && complianceScore >= 90 && openCount === 0;
 
   const latestRevision = currentSubmission?.revisions?.length
@@ -508,70 +509,93 @@ function AuditWorkspaceContent() {
   const isImageSubmission = currentSubmission?.content_format === "IMAGE";
 
   return (
-    <div className="relative w-full px-gutter-desktop pb-margin-desktop bg-surface text-on-surface">
+    <div className={`w-full min-h-screen p-4 sm:p-6 lg:p-8 font-mono ${isDark ? "bg-[#121316] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"}`}>
       {/* Toast Notification */}
       {statusMessage && (
         <div
-          className={`fixed bottom-6 right-6 z-50 p-space-md rounded-xl shadow-2xl border flex items-center gap-space-sm max-w-md ${
+          className={`fixed bottom-6 right-6 z-50 p-4 border-3 border-black shadow-[6px_6px_0px_#000000] flex items-center gap-3 max-w-md ${
             statusMessage.type === "success"
-              ? "bg-surface-container-high border-tertiary/40 text-on-surface"
-              : "bg-surface-container-high border-error/40 text-on-surface"
+              ? "bg-[var(--green)] text-[var(--ink)]"
+              : "bg-[var(--red)] text-white"
           }`}
         >
-          <span className={`material-symbols-outlined text-[20px] ${statusMessage.type === "success" ? "text-tertiary" : "text-error"}`}>
+          <span className="material-symbols-outlined text-[22px]">
             {statusMessage.type === "success" ? "check_circle" : "error"}
           </span>
-          <p className="text-[13px] leading-snug flex-1">{statusMessage.text}</p>
-          <button onClick={() => setStatusMessage(null)} className="text-outline hover:text-on-surface text-[16px]">✕</button>
+          <p className="text-xs font-mono font-bold leading-snug flex-1">{statusMessage.text}</p>
+          <button
+            onClick={() => setStatusMessage(null)}
+            className="w-6 h-6 border-2 border-black bg-white text-black font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {/* Global Error Banner */}
       {pageError && (
-        <div className="mb-space-md p-space-md rounded-xl bg-error-container/20 border border-error/30 flex items-center justify-between">
-          <div className="flex items-center gap-space-sm">
-            <span className="material-symbols-outlined text-error text-[20px]">warning</span>
-            <span className="text-[13px] text-error font-medium">{pageError}</span>
+        <div className="mb-6 p-4 border-3 border-black bg-[var(--red)] text-white shadow-[4px_4px_0px_#000000] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-[24px]">warning</span>
+            <span className="text-xs font-mono font-bold">{pageError}</span>
           </div>
-          <button onClick={() => setPageError(null)} className="text-[11px] text-outline hover:text-on-surface font-mono">Dismiss</button>
+          <button
+            onClick={() => setPageError(null)}
+            className="px-2.5 py-1 border-2 border-black bg-white text-black text-xs font-black uppercase hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
-      {/* Responsible AI & Confidentiality Shield Badge */}
-      <div className="mb-space-md px-space-md py-2 rounded-xl bg-surface-container-low border border-primary/20 flex flex-wrap items-center justify-between gap-2 text-[12px]">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary text-[18px]">verified_user</span>
-          <span className="font-semibold text-on-surface">Responsible Brand Governance Layer Active:</span>
-          <span className="text-on-surface-variant font-mono">Reversible PII Masking · Gemini 2.5 Flash Grounded Citations · Human Override In Loop</span>
+      {/* Header Banner: Responsible AI & Telemetry Shield */}
+      <div className={`mb-6 p-3.5 border-3 ${isDark ? "border-[#383a45] bg-[#1c1d22]" : "border-black bg-[var(--white)] shadow-[4px_4px_0px_#101010]"} flex flex-wrap items-center justify-between gap-3 text-xs`}>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="w-7 h-7 border-2 border-black bg-[var(--blue)] flex items-center justify-center text-[var(--ink)] shadow-[2px_2px_0px_#000] shrink-0">
+            <span className="material-symbols-outlined text-[18px]">verified_user</span>
+          </div>
+          <span className="font-mono font-black uppercase tracking-wider text-[var(--ink)] dark:text-white">
+            GOVERNANCE LAYER ACTIVE:
+          </span>
+          <span className="text-[11px] font-mono text-[#555] dark:text-[#a0a5b5]">
+            Reversible PII Masking · Gemini 2.5 Flash Grounded Retrieval · Human-in-the-Loop Override
+          </span>
         </div>
-        <span className="px-2 py-0.5 rounded bg-tertiary/20 text-tertiary font-mono text-[10px] font-semibold uppercase">
-          Zero-Retention Mode
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="border-2 border-black bg-[var(--green)] text-[var(--ink)] px-2 py-0.5 font-mono font-black text-[10px] uppercase shadow-[2px_2px_0px_#000]">
+            ZERO-RETENTION MODE
+          </span>
+        </div>
       </div>
 
       {/* Command & Control Top Bar */}
-      <section className="w-full bg-surface-container-low border border-outline-variant/30 rounded-xl p-space-md mb-space-lg shadow-sm flex flex-col gap-space-md">
-        <div className="flex flex-wrap items-center justify-between gap-space-md">
-          <div className="flex items-center gap-space-md flex-wrap min-w-0">
-            <div className="flex items-center gap-space-sm bg-surface-container px-space-md py-1.5 rounded-lg border border-outline-variant/20">
-              <span className="material-symbols-outlined text-primary text-[18px]">verified</span>
+      <section className={`w-full border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} p-4 sm:p-5 mb-6 flex flex-col gap-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Brand & Submission Selector */}
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            {/* Brand Card */}
+            <div className={`flex items-center gap-2.5 px-3 py-2 border-2 border-black ${isDark ? "bg-[#25262c]" : "bg-[var(--yellow)]"} shadow-[3px_3px_0px_#000]`}>
+              <span className="material-symbols-outlined text-[20px] text-[var(--ink)]">store</span>
               <div className="flex flex-col">
-                <span className="font-label-sm text-[10px] text-outline uppercase tracking-wider">Governing Brand</span>
-                <span className="font-headline-sm text-[13px] text-on-surface font-semibold truncate max-w-[200px]">
+                <span className="text-[9px] font-mono font-black uppercase tracking-wider text-[#444] dark:text-[#888]">
+                  BRAND
+                </span>
+                <span className="font-mono font-black text-xs sm:text-sm text-[var(--ink)] uppercase truncate max-w-[160px]">
                   {activeBrand ? activeBrand.name : "Blinkit"}
                 </span>
               </div>
             </div>
 
+            {/* Submission Dropdown */}
             <div className="flex items-center gap-2">
               <select
                 value={selectedSubmissionId || ""}
                 onChange={(e) => setSelectedSubmissionId(parseInt(e.target.value, 10))}
-                className="bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-1.5 text-[13px] text-on-surface font-medium cursor-pointer"
+                className={`px-3 py-2 border-2 border-black ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"} font-mono font-bold text-xs shadow-[3px_3px_0px_#000] focus:outline-none cursor-pointer`}
               >
                 {submissions.map((s) => (
                   <option key={s.id} value={s.id}>
-                    SUB-#{s.id} ({s.status}): {s.title.slice(0, 32)}...
+                    SUB-#{s.id} [{s.status}]: {s.title.slice(0, 30)}...
                   </option>
                 ))}
               </select>
@@ -579,52 +603,55 @@ function AuditWorkspaceContent() {
               <button
                 type="button"
                 onClick={() => setShowNewModal(true)}
-                className="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface text-[11px] font-medium flex items-center gap-1"
+                className="px-3 py-2 border-2 border-black bg-[var(--pink)] text-[var(--ink)] font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all flex items-center gap-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">add</span>
-                <span>New Draft</span>
+                <span>NEW DRAFT</span>
               </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-space-sm">
+          {/* Action CTAs */}
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={handleAutoFixAll}
               type="button"
-              className="flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-secondary hover:text-on-surface text-[13px] cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 border-2 border-black bg-[var(--blue)] text-[var(--ink)] font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[1px_1px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[18px] text-tertiary">auto_fix_high</span>
-              <span>Auto-Fix Safe Terms</span>
+              <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+              <span>AUTO-FIX SAFE TERMS</span>
             </button>
 
             <button
               onClick={handleRunAudit}
               disabled={isAuditing || !selectedSubmissionId}
               type="button"
-              className="flex items-center gap-2 px-space-lg py-2 rounded-lg bg-primary-container hover:bg-primary-container/90 text-on-primary-container text-[13px] font-semibold shadow-[0_0_14px_rgba(124,58,237,0.4)] cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2.5 border-3 border-black bg-[var(--yellow)] text-[var(--ink)] font-mono font-black text-xs sm:text-sm uppercase shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000] active:translate-x-1 active:translate-y-1 transition-all cursor-pointer disabled:opacity-50"
             >
-              <span className={`material-symbols-outlined text-[18px] ${isAuditing ? "animate-spin" : ""}`}>
+              <span className={`material-symbols-outlined text-[20px] ${isAuditing ? "animate-spin" : ""}`}>
                 {isAuditing ? "refresh" : "play_circle"}
               </span>
-              <span>{isAuditing ? "Auditing Pipeline..." : "Run Audit"}</span>
-              <span className="px-1.5 py-0.5 rounded bg-on-primary-container/20 text-[10px] font-mono">⌘+Enter</span>
+              <span>{isAuditing ? "AUDITING..." : "RUN AUDIT"}</span>
+              <span className="px-1.5 py-0.5 border border-black bg-white text-black text-[10px] font-mono font-black">
+                ⌘+ENTER
+              </span>
             </button>
           </div>
         </div>
 
-        {/* Live Multi-Stage Audit Progress Bar */}
+        {/* Live Multi-Stage Stepper */}
         {isAuditing && (
-          <div className="w-full mt-2 p-3 rounded-lg bg-surface-container border border-primary/30 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between text-[11px] font-mono text-primary font-semibold">
+          <div className={`mt-2 p-3.5 border-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--yellow)]/30"} shadow-[3px_3px_0px_#000]`}>
+            <div className="flex items-center justify-between text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-white mb-2">
               <span className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
-                Current Stage: {AUDIT_STEPS[auditStepIndex]}
+                <span className="material-symbols-outlined text-[16px] animate-spin">sync</span>
+                ACTIVE PIPELINE STAGE: {AUDIT_STEPS[auditStepIndex]}
               </span>
-              <span>Stage {auditStepIndex + 1} of {AUDIT_STEPS.length}</span>
+              <span>STAGE {auditStepIndex + 1} / {AUDIT_STEPS.length}</span>
             </div>
-            <div className="w-full bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-black/20 h-3 border-2 border-black overflow-hidden">
               <div
-                className="bg-primary h-full transition-all duration-300"
+                className="bg-[var(--yellow)] h-full transition-all duration-300 border-r-2 border-black"
                 style={{ width: `${((auditStepIndex + 1) / AUDIT_STEPS.length) * 100}%` }}
               />
             </div>
@@ -632,30 +659,32 @@ function AuditWorkspaceContent() {
         )}
       </section>
 
-      {/* Two-Column Workbench */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter-desktop items-start">
+      {/* Two-Column Workbench Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT PANE: Editor (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col gap-space-md">
-          <div className="bg-surface-container-low rounded-xl border border-outline-variant/30 overflow-hidden shadow-sm flex flex-col">
-            <div className="bg-surface-container-lowest px-space-md py-space-sm flex flex-wrap items-center justify-between gap-space-sm border-b border-outline-variant/20">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="font-headline-sm text-[15px] text-on-surface font-semibold truncate max-w-sm">
+        <div className="lg:col-span-7 flex flex-col gap-4">
+          <div className={`border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} overflow-hidden flex flex-col`}>
+            {/* Editor Window Title Bar */}
+            <div className={`px-4 py-3 border-b-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--ink)] text-white"} flex flex-wrap items-center justify-between gap-3`}>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="w-3 h-3 bg-[var(--yellow)] border border-black inline-block shrink-0" />
+                <span className="font-mono font-black text-sm uppercase truncate max-w-sm">
                   {currentSubmission?.title || "Draft Content"}
                 </span>
-                <span className="px-2 py-0.5 rounded bg-surface-container text-primary font-mono text-[11px]">
+                <span className="px-2 py-0.5 border border-white bg-black text-white font-mono font-black text-[10px]">
                   v{currentSubmission?.current_version || 1}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium uppercase bg-surface-container-highest text-on-surface-variant">
+                <span className="px-2 py-0.5 border border-black bg-[var(--yellow)] text-[var(--ink)] font-mono font-black text-[10px] uppercase shadow-[1px_1px_0px_#000]">
                   {currentSubmission?.status || "DRAFT"}
                 </span>
               </div>
 
-              <div className="flex items-center gap-space-xs">
+              <div className="flex items-center gap-2">
                 {editorContent !== originalContent && (
                   <button
                     onClick={() => setEditorContent(originalContent)}
                     type="button"
-                    className="flex items-center gap-1 px-space-sm py-1 rounded bg-surface-container hover:bg-surface-container-high text-outline hover:text-on-surface text-[12px]"
+                    className="flex items-center gap-1 px-2.5 py-1 border-2 border-black bg-white text-black text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[14px]">undo</span>
                     <span>Revert</span>
@@ -665,7 +694,7 @@ function AuditWorkspaceContent() {
                 <button
                   onClick={() => setShowRevisionModal(true)}
                   type="button"
-                  className="flex items-center gap-1 px-space-sm py-1 rounded bg-primary-container text-on-primary-container hover:bg-primary-container/90 text-[12px] font-medium"
+                  className="flex items-center gap-1 px-3 py-1 border-2 border-black bg-[var(--green)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[14px]">save</span>
                   <span>Save Revision</span>
@@ -673,17 +702,17 @@ function AuditWorkspaceContent() {
               </div>
             </div>
 
-            {/* Media Upload and Preview Strip */}
-            <div className="px-space-md py-space-sm bg-surface-container-lowest border-b border-outline-variant/20 flex flex-col gap-space-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-[12px] text-on-surface-variant">
-                  <span className="material-symbols-outlined text-primary text-[18px]">
+            {/* Attached Media Strip */}
+            <div className={`p-3.5 border-b-3 border-black ${isDark ? "bg-[#141518]" : "bg-[var(--paper)]"} flex flex-col gap-2.5`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 text-[#444] dark:text-[#a0a5b5] font-mono font-bold uppercase">
+                  <span className="material-symbols-outlined text-[20px] text-[var(--ink)] dark:text-white">
                     {isImageSubmission ? "image" : isVideoSubmission ? "videocam" : "mic"}
                   </span>
                   <span>Attached Media Verification</span>
                 </div>
-                <label className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-[11px] text-on-surface cursor-pointer">
-                  Upload file
+                <label className="px-2.5 py-1 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white text-[11px] font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer">
+                  Choose Media Asset
                   <input
                     type="file"
                     className="hidden"
@@ -693,13 +722,13 @@ function AuditWorkspaceContent() {
               </div>
 
               {mediaFile && (
-                <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-container text-[11px]">
-                  <span className="truncate text-on-surface">{mediaFile.name}</span>
+                <div className="flex items-center justify-between gap-2 p-2.5 border-2 border-black bg-[var(--yellow)]/30 text-xs font-mono">
+                  <span className="truncate font-bold text-black dark:text-white">{mediaFile.name}</span>
                   <button
                     type="button"
                     onClick={handleMediaUpload}
                     disabled={isUploadingMedia}
-                    className="px-2.5 py-1 rounded bg-primary-container text-on-primary-container font-semibold disabled:opacity-50"
+                    className="px-3 py-1 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] font-mono font-black uppercase shadow-[2px_2px_0px_#000] disabled:opacity-50 hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                   >
                     {isUploadingMedia ? "Ingesting..." : "Ingest & Audit"}
                   </button>
@@ -707,128 +736,166 @@ function AuditWorkspaceContent() {
               )}
 
               {isAudioSubmission && latestMediaUrl && (
-                <audio controls src={latestMediaUrl} className="w-full h-9" />
+                <audio controls src={latestMediaUrl} className="w-full h-10 border-2 border-black" />
               )}
               {isVideoSubmission && latestMediaUrl && (
-                <video controls src={latestMediaUrl} className="w-full max-h-56 rounded-lg bg-black" />
+                <video controls src={latestMediaUrl} className="w-full max-h-60 border-2 border-black bg-black" />
               )}
               {isImageSubmission && latestMediaUrl && (
-                <img src={latestMediaUrl} className="w-full max-h-72 object-contain rounded-lg bg-surface-container" alt="Visual asset" />
+                <div className="border-2 border-black p-2 bg-white dark:bg-[#121316]">
+                  <img src={latestMediaUrl} className="w-full max-h-72 object-contain" alt="Visual asset" />
+                </div>
               )}
             </div>
 
-            {/* Main Textarea */}
-            <div className="p-space-lg bg-surface min-h-[500px] flex flex-col">
+            {/* Main Content Textarea */}
+            <div className={`p-4 sm:p-5 min-h-[460px] flex flex-col ${isDark ? "bg-[#18191f]" : "bg-white"}`}>
               <textarea
                 value={editorContent}
                 onChange={(e) => setEditorContent(e.target.value)}
                 placeholder="Enter or paste promotional copy, product claims, or ad scripts for governance audit..."
-                className="w-full flex-1 min-h-[440px] bg-transparent text-on-surface text-[15px] leading-relaxed resize-y focus:outline-none border-0"
+                className={`w-full flex-1 min-h-[420px] bg-transparent text-sm leading-relaxed resize-y focus:outline-none border-0 font-mono ${isDark ? "text-[#f5f0e7]" : "text-[var(--ink)]"}`}
               />
             </div>
 
-            <div className="bg-surface-container-lowest px-space-md py-space-sm flex items-center justify-between text-outline font-mono text-[11px] border-t border-outline-variant/20">
-              <span>{wordCount} words · {editorContent.length} chars</span>
-              <span className="text-secondary">Engine: Google Gemini 2.5 Flash + pgvector</span>
+            {/* Editor Footer Telemetry */}
+            <div className={`px-4 py-2.5 border-t-3 border-black ${isDark ? "bg-[#1c1d22]" : "bg-[var(--paper)]"} flex items-center justify-between font-mono text-xs font-bold text-[#555] dark:text-[#a0a5b5]`}>
+              <span>{wordCount} WORDS · {editorContent.length} CHARS</span>
+              <span className="text-[var(--ink)] dark:text-white uppercase">ENGINE: GEMINI 2.5 FLASH + PGVECTOR</span>
             </div>
           </div>
         </div>
 
-        {/* RIGHT PANE: Findings Inspector (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-space-md">
-          <div className="bg-surface-container-low rounded-xl p-space-md border border-outline-variant/30 shadow-sm flex flex-col gap-space-md">
+        {/* RIGHT PANE: Findings & Compliance Inspector (5 cols) */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          {/* Compliance Index Window */}
+          <div className={`border-4 ${isDark ? "border-[#383a45] bg-[#18191f] shadow-[6px_6px_0px_#000000]" : "border-black bg-[var(--white)] shadow-[6px_6px_0px_#101010]"} p-4 sm:p-5 flex flex-col gap-3.5`}>
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-mono text-[10px] text-outline uppercase tracking-wider">Compliance Index</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="font-mono text-[28px] font-semibold text-on-surface">
-                    {complianceScore != null ? `${complianceScore}%` : "Not Audited"}
+                <span className="font-mono text-[10px] font-black uppercase tracking-wider text-[#666] dark:text-[#888]">
+                  COMPLIANCE INDEX
+                </span>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="font-mono text-3xl font-black text-[var(--ink)] dark:text-white">
+                    {complianceScore != null ? `${complianceScore}%` : "NOT AUDITED"}
                   </span>
                   {complianceScore != null && (
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${isFullyCompliant ? "bg-tertiary-container text-tertiary" : "bg-error-container text-error"}`}>
-                      {isFullyCompliant ? "Compliant" : "Policy Issues"}
+                    <span className={`px-2 py-0.5 border-2 border-black font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] ${
+                      isFullyCompliant
+                        ? "bg-[var(--green)] text-[var(--ink)]"
+                        : "bg-[var(--red)] text-white"
+                    }`}>
+                      {isFullyCompliant ? "COMPLIANT" : "POLICY ISSUES"}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Severity Quick Pills */}
-              <div className="flex gap-1.5 text-center font-mono">
+              {/* Severity Quick Filter Pills */}
+              <div className="flex gap-1.5 font-mono">
                 <button
+                  type="button"
                   onClick={() => setSeverityFilter(severityFilter === "CRITICAL" ? "ALL" : "CRITICAL")}
-                  className={`p-2 rounded border text-xs ${severityFilter === "CRITICAL" ? "bg-error/20 border-error" : "bg-surface-container"}`}
+                  className={`p-2 border-2 border-black text-center cursor-pointer shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all ${
+                    severityFilter === "CRITICAL" ? "bg-[var(--red)] text-white" : isDark ? "bg-[#25262c] text-white" : "bg-white text-black"
+                  }`}
                 >
-                  <div className="font-bold text-error">{criticalCount}</div>
-                  <div className="text-[9px] uppercase">Crit</div>
+                  <div className="font-mono font-black text-xs">{criticalCount}</div>
+                  <div className="text-[9px] font-black uppercase">CRIT</div>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSeverityFilter(severityFilter === "WARNING" ? "ALL" : "WARNING")}
-                  className={`p-2 rounded border text-xs ${severityFilter === "WARNING" ? "bg-secondary/20 border-secondary" : "bg-surface-container"}`}
+                  className={`p-2 border-2 border-black text-center cursor-pointer shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all ${
+                    severityFilter === "WARNING" ? "bg-[var(--yellow)] text-black" : isDark ? "bg-[#25262c] text-white" : "bg-white text-black"
+                  }`}
                 >
-                  <div className="font-bold text-secondary">{warningCount}</div>
-                  <div className="text-[9px] uppercase">Warn</div>
+                  <div className="font-mono font-black text-xs">{warningCount}</div>
+                  <div className="text-[9px] font-black uppercase">WARN</div>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSeverityFilter(severityFilter === "SUGGESTION" ? "ALL" : "SUGGESTION")}
-                  className={`p-2 rounded border text-xs ${severityFilter === "SUGGESTION" ? "bg-primary/20 border-primary" : "bg-surface-container"}`}
+                  className={`p-2 border-2 border-black text-center cursor-pointer shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 transition-all ${
+                    severityFilter === "SUGGESTION" ? "bg-[var(--blue)] text-black" : isDark ? "bg-[#25262c] text-white" : "bg-white text-black"
+                  }`}
                 >
-                  <div className="font-bold text-primary">{suggestionCount}</div>
-                  <div className="text-[9px] uppercase">Sugg</div>
+                  <div className="font-mono font-black text-xs">{suggestionCount}</div>
+                  <div className="text-[9px] font-black uppercase">SUGG</div>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Finding Cards */}
-          <div className="flex flex-col gap-space-md max-h-[560px] overflow-y-auto pr-1">
+          {/* Finding Cards List */}
+          <div className="flex flex-col gap-3.5 max-h-[580px] overflow-y-auto pr-1">
             {filteredFindings.length === 0 ? (
-              <div className="p-8 rounded-xl bg-surface-container-low border border-outline-variant/30 text-center flex flex-col items-center">
-                <span className="material-symbols-outlined text-tertiary text-[36px] mb-2">verified_user</span>
-                <p className="text-[14px] font-semibold text-on-surface">No Outstanding Violations</p>
-                <p className="text-[12px] text-outline mt-1">Copy aligns with corporate rules and verified facts.</p>
+              <div className={`p-8 border-3 border-black text-center flex flex-col items-center ${isDark ? "bg-[#18191f]" : "bg-[var(--green)]/20 shadow-[4px_4px_0px_#000]"}`}>
+                <span className="material-symbols-outlined text-[42px] text-[var(--ink)] dark:text-white mb-2">
+                  verified_user
+                </span>
+                <p className="text-sm font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+                  NO OUTSTANDING VIOLATIONS
+                </p>
+                <p className="text-xs font-mono text-[#555] dark:text-[#a0a5b5] mt-1">
+                  Copy completely aligns with corporate brand guidelines and verified facts.
+                </p>
               </div>
             ) : (
               filteredFindings.map((finding) => (
                 <div
                   key={finding.id}
-                  className={`p-space-md rounded-xl bg-surface-container-low border flex flex-col gap-space-sm ${
-                    finding.severity === "CRITICAL" ? "border-error/40" : "border-outline-variant/30"
-                  }`}
+                  className={`p-4 border-3 border-black ${
+                    isDark ? "bg-[#1c1d22]" : "bg-[var(--white)]"
+                  } shadow-[4px_4px_0px_#000000] flex flex-col gap-2.5`}
                 >
-                  <div className="flex items-center justify-between text-[10px] font-mono">
-                    <span className="px-2 py-0.5 rounded font-bold uppercase bg-surface-container-highest text-on-surface">
+                  {/* Finding Header */}
+                  <div className="flex items-center justify-between text-[10px] font-mono font-black">
+                    <span className={`px-2 py-0.5 border border-black uppercase shadow-[1px_1px_0px_#000] ${
+                      finding.severity === "CRITICAL"
+                        ? "bg-[var(--red)] text-white"
+                        : finding.severity === "WARNING"
+                        ? "bg-[var(--yellow)] text-black"
+                        : "bg-[var(--blue)] text-black"
+                    }`}>
                       {finding.severity} · {finding.category}
                     </span>
-                    <span className="text-outline">{finding.guideline_citation || "Brand Policy"}</span>
+                    <span className="text-[#666] dark:text-[#999] truncate max-w-[200px]">
+                      {finding.guideline_citation || "Brand Policy"}
+                    </span>
                   </div>
 
-                  <div className="p-2 rounded bg-surface-container font-mono text-[12px] text-error border border-error/20">
+                  {/* Flagged Excerpt */}
+                  <div className="p-2.5 border-2 border-black bg-[var(--red)]/10 font-mono text-xs font-bold text-[var(--red)] dark:text-[#ff7b72]">
                     “{finding.flagged_excerpt}”
                   </div>
 
-                  <p className="text-[12px] text-on-surface-variant leading-relaxed">
+                  {/* Explanation */}
+                  <p className="text-xs font-mono leading-relaxed text-[#333] dark:text-[#c9d1d9]">
                     {finding.explanation}
                   </p>
 
+                  {/* Suggested Correction */}
                   {finding.suggested_correction && (
-                    <div className="p-2 rounded bg-surface-container border border-tertiary/20 flex flex-col gap-1">
-                      <span className="font-mono text-[10px] text-tertiary uppercase font-bold flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[13px]">auto_fix</span>
-                        Approved Context-Preserving Fix
+                    <div className="p-2.5 border-2 border-black bg-[var(--green)]/20 flex flex-col gap-1">
+                      <span className="font-mono text-[10px] text-[var(--ink)] dark:text-white uppercase font-black flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]">auto_fix</span>
+                        APPROVED CONTEXT-PRESERVING FIX:
                       </span>
-                      <span className="font-mono text-[12px] text-on-surface">
+                      <span className="font-mono text-xs font-bold text-[var(--ink)] dark:text-[#b9f4a8]">
                         “{finding.suggested_correction}”
                       </span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-1 border-t border-outline-variant/20">
+                  {/* Action Controls */}
+                  <div className="flex items-center justify-between pt-2 border-t-2 border-black">
                     <div className="flex items-center gap-2">
                       {finding.suggested_correction && finding.resolution_state === "OPEN" && (
                         <button
                           type="button"
                           onClick={() => handleApplyFix(finding)}
-                          className="px-3 py-1 rounded bg-primary-container text-on-primary-container text-[11px] font-semibold hover:bg-primary-container/90"
+                          className="px-3 py-1 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
                         >
                           Apply Fix
                         </button>
@@ -843,10 +910,10 @@ function AuditWorkspaceContent() {
                           setOverrideReason("");
                           setOverrideError(null);
                         }}
-                        className="text-outline hover:text-primary font-mono text-[10px] uppercase tracking-wider flex items-center gap-1"
+                        className="px-2.5 py-1 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white font-mono text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1"
                       >
-                        <span>Override with Justification</span>
-                        <span className="material-symbols-outlined text-[14px]">launch</span>
+                        <span>Override Justification</span>
+                        <span className="material-symbols-outlined text-[13px]">launch</span>
                       </button>
                     )}
                   </div>
@@ -856,20 +923,22 @@ function AuditWorkspaceContent() {
           </div>
 
           {/* Workflow Transitions Panel */}
-          <div className="bg-surface-container-low rounded-xl p-space-md border border-outline-variant/30 flex items-center justify-between">
-            <span className="text-[12px] font-mono text-outline">Role: {currentRole}</span>
+          <div className={`p-4 border-3 border-black ${isDark ? "bg-[#18191f]" : "bg-[var(--white)] shadow-[4px_4px_0px_#000]"} flex flex-wrap items-center justify-between gap-3`}>
+            <span className="text-xs font-mono font-black uppercase text-[var(--ink)] dark:text-white">
+              ROLE PRIVILEGE: {currentRole}
+            </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => handleStatusChange("CHANGES_REQUESTED", "Revisions required for brand alignment.")}
-                className="px-3 py-1.5 rounded bg-error-container text-error text-[11px] font-semibold"
+                className="px-3 py-1.5 border-2 border-black bg-[var(--red)] text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 Request Changes
               </button>
               <button
                 type="button"
                 onClick={() => handleStatusChange("APPROVED", "All brand guidelines verified.")}
-                className="px-3 py-1.5 rounded bg-tertiary-container text-on-tertiary-container text-[11px] font-semibold"
+                className="px-3 py-1.5 border-2 border-black bg-[var(--green)] text-[var(--ink)] font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 Approve Publication
               </button>
@@ -880,43 +949,53 @@ function AuditWorkspaceContent() {
 
       {/* Override Exemption Modal */}
       {selectedFinding && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-surface-container-low border border-outline-variant/40 rounded-2xl p-space-lg flex flex-col gap-space-md">
-            <div className="flex items-center justify-between border-b border-outline-variant/20 pb-2">
-              <span className="font-semibold text-on-surface">Authorize Brand Exemption</span>
-              <button onClick={() => setSelectedFinding(null)} className="text-outline">✕</button>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 font-mono">
+          <div className={`w-full max-w-lg border-4 border-black ${isDark ? "bg-[#141518] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"} shadow-[8px_8px_0px_#000000] p-5 sm:p-6 flex flex-col gap-4`}>
+            <div className="flex items-center justify-between border-b-2 border-black pb-3">
+              <span className="font-mono font-black text-sm uppercase">AUTHORIZE BRAND EXEMPTION</span>
+              <button
+                onClick={() => setSelectedFinding(null)}
+                className="w-6 h-6 border-2 border-black bg-[var(--red)] text-white font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                ✕
+              </button>
             </div>
 
-            <div className="p-2.5 rounded bg-surface-container text-xs">
-              <span className="text-error font-mono">“{selectedFinding.flagged_excerpt}”</span>
-              <p className="mt-1 text-on-surface-variant">{selectedFinding.explanation}</p>
+            <div className="p-3 border-2 border-black bg-[var(--red)]/10 text-xs">
+              <span className="text-[var(--red)] font-bold">“{selectedFinding.flagged_excerpt}”</span>
+              <p className="mt-1 text-[#444] dark:text-[#a0a5b5]">{selectedFinding.explanation}</p>
             </div>
 
             {currentRole === "CREATOR" ? (
-              <div className="p-3 rounded bg-error-container/20 border border-error/30 text-error text-xs">
-                Only REVIEWER or MANAGER roles may authorize policy exemptions.
+              <div className="p-3 border-2 border-black bg-[var(--red)] text-white text-xs font-bold">
+                Permission Denied: Only REVIEWER or MANAGER roles may authorize policy exemptions.
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-on-surface-variant font-medium">Business Exemption Reason:</label>
+                <label className="text-xs font-black uppercase">Business Exemption Reason:</label>
                 <textarea
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
                   placeholder="e.g. Approved exception by Marketing VP for festive satirical reel."
-                  className="w-full h-24 p-2.5 rounded-lg bg-surface-container text-on-surface text-xs border border-outline-variant/30"
+                  className={`w-full h-24 p-2.5 border-2 border-black text-xs font-mono focus:outline-none ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"}`}
                 />
               </div>
             )}
 
-            {overrideError && <span className="text-error text-xs">{overrideError}</span>}
+            {overrideError && <span className="text-[var(--red)] text-xs font-bold">{overrideError}</span>}
 
-            <div className="flex justify-end gap-2 border-t border-outline-variant/20 pt-2">
-              <button onClick={() => setSelectedFinding(null)} className="px-3 py-1 text-xs">Cancel</button>
+            <div className="flex justify-end gap-2 border-t-2 border-black pt-3">
+              <button
+                onClick={() => setSelectedFinding(null)}
+                className="px-3 py-1.5 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                Cancel
+              </button>
               {currentRole !== "CREATOR" && (
                 <button
                   onClick={handleSubmitOverride}
                   disabled={isSubmittingOverride}
-                  className="px-4 py-1.5 rounded bg-primary-container text-on-primary-container text-xs font-semibold"
+                  className="px-4 py-1.5 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
                 >
                   {isSubmittingOverride ? "Saving..." : "Authorize Override"}
                 </button>
@@ -928,22 +1007,35 @@ function AuditWorkspaceContent() {
 
       {/* Revision Modal */}
       {showRevisionModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface-container-low border border-outline-variant/40 rounded-2xl p-space-lg flex flex-col gap-space-md">
-            <span className="font-semibold text-on-surface">Commit Revision</span>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 font-mono">
+          <div className={`w-full max-w-md border-4 border-black ${isDark ? "bg-[#141518] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"} shadow-[8px_8px_0px_#000000] p-5 sm:p-6 flex flex-col gap-4`}>
+            <div className="flex items-center justify-between border-b-2 border-black pb-2">
+              <span className="font-mono font-black text-sm uppercase">COMMIT CONTENT REVISION</span>
+              <button
+                onClick={() => setShowRevisionModal(false)}
+                className="w-6 h-6 border-2 border-black bg-[var(--red)] text-white font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
             <input
               type="text"
               value={revisionSummary}
               onChange={(e) => setRevisionSummary(e.target.value)}
               placeholder="e.g. Corrected superlatives and unverified speed claims."
-              className="w-full h-10 px-3 rounded-lg bg-surface-container text-xs border border-outline-variant/30"
+              className={`w-full h-10 px-3 border-2 border-black text-xs font-mono focus:outline-none ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"}`}
             />
-            <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20">
-              <button onClick={() => setShowRevisionModal(false)} className="px-3 py-1 text-xs">Cancel</button>
+            <div className="flex justify-end gap-2 pt-2 border-t-2 border-black">
+              <button
+                onClick={() => setShowRevisionModal(false)}
+                className="px-3 py-1.5 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleSaveRevision}
                 disabled={isSavingRevision}
-                className="px-4 py-1.5 rounded bg-primary-container text-on-primary-container text-xs font-semibold"
+                className="px-4 py-1.5 border-2 border-black bg-[var(--green)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
               >
                 {isSavingRevision ? "Saving..." : "Commit"}
               </button>
@@ -954,28 +1046,41 @@ function AuditWorkspaceContent() {
 
       {/* New Submission Modal */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-surface-container-low border border-outline-variant/40 rounded-2xl p-space-lg flex flex-col gap-space-md">
-            <span className="font-semibold text-on-surface">New Content Submission</span>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 font-mono">
+          <div className={`w-full max-w-lg border-4 border-black ${isDark ? "bg-[#141518] text-[#f5f0e7]" : "bg-[var(--paper)] text-[var(--ink)]"} shadow-[8px_8px_0px_#000000] p-5 sm:p-6 flex flex-col gap-4`}>
+            <div className="flex items-center justify-between border-b-2 border-black pb-2">
+              <span className="font-mono font-black text-sm uppercase">NEW CONTENT SUBMISSION</span>
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="w-6 h-6 border-2 border-black bg-[var(--red)] text-white font-black text-xs flex items-center justify-center hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
             <input
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               placeholder="Asset Title e.g. Diwali Flash Sale Announcement"
-              className="w-full h-10 px-3 rounded-lg bg-surface-container text-xs border border-outline-variant/30"
+              className={`w-full h-10 px-3 border-2 border-black text-xs font-mono focus:outline-none ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"}`}
             />
             <textarea
               value={newInitialContent}
               onChange={(e) => setNewInitialContent(e.target.value)}
               placeholder="Initial copy draft..."
-              className="w-full h-32 p-3 rounded-lg bg-surface-container text-xs border border-outline-variant/30"
+              className={`w-full h-32 p-3 border-2 border-black text-xs font-mono focus:outline-none ${isDark ? "bg-[#1c1d22] text-white" : "bg-white text-black"}`}
             />
-            <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20">
-              <button onClick={() => setShowNewModal(false)} className="px-3 py-1 text-xs">Cancel</button>
+            <div className="flex justify-end gap-2 pt-2 border-t-2 border-black">
+              <button
+                onClick={() => setShowNewModal(false)}
+                className="px-3 py-1.5 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleCreateSubmission}
                 disabled={isCreatingSubmission || !newTitle.trim()}
-                className="px-4 py-1.5 rounded bg-primary-container text-on-primary-container text-xs font-semibold"
+                className="px-4 py-1.5 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
               >
                 {isCreatingSubmission ? "Creating..." : "Create"}
               </button>
