@@ -9,7 +9,7 @@ import { Menu } from "@/components/ui/icons";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { theme, isSidebarCollapsed, isMobileMenuOpen, setIsMobileMenuOpen } = useApp();
-  const isLandingPage = pathname === "/";
+  const isLandingPage = pathname === "/" || pathname === "/landing-v2";
   const isSetupPage = pathname?.startsWith("/setup");
   const isDark = theme === "dark";
 
