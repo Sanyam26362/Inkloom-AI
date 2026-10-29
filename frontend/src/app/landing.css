@@ -1,0 +1,335 @@
+/* ==========================================================================
+   INKLOOM AI — NEO-BRUTALIST LANDING PAGE STYLES
+   Scope: .nb-landing only. All tokens prefixed with --nb-.
+   ========================================================================== */
+
+.nb-landing {
+  /* Design Tokens */
+  --nb-cream: #F4EFE8;
+  --nb-ink: #111111;
+  --nb-yellow: #FFDE21;
+  --nb-pink: #FF74B1;
+  --nb-orange: #FF6B2C;
+  --nb-green: #B8F2A8;
+  --nb-blue: #A5D8FF;
+  --nb-red: #FF4B3E;
+  --nb-white: #FFFFFF;
+
+  --nb-shadow: 6px 6px 0 var(--nb-ink);
+  --nb-shadow-sm: 3px 3px 0 var(--nb-ink);
+  --nb-shadow-lg: 10px 10px 0 var(--nb-ink);
+  --nb-border: 3px solid var(--nb-ink);
+  --nb-border-sm: 2px solid var(--nb-ink);
+  --nb-rule: 4px solid var(--nb-ink);
+
+  /* Page Base */
+  background-color: var(--nb-cream);
+  color: var(--nb-ink);
+  font-family: var(--font-roboto-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 16px;
+  line-height: 1.5;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hard rule: no border-radius anywhere on custom landing elements */
+.nb-landing *,
+.nb-landing *::before,
+.nb-landing *::after {
+  box-sizing: border-box;
+}
+
+.nb-landing div,
+.nb-landing section,
+.nb-landing header,
+.nb-landing footer,
+.nb-landing nav,
+.nb-landing button,
+.nb-landing a,
+.nb-landing input,
+.nb-landing textarea,
+.nb-landing select,
+.nb-landing span,
+.nb-landing p,
+.nb-landing h1,
+.nb-landing h2,
+.nb-landing h3,
+.nb-landing h4,
+.nb-landing table,
+.nb-landing th,
+.nb-landing td {
+  border-radius: 0 !important;
+}
+
+/* Accessibility: 3px outline in --nb-ink with yellow offset */
+.nb-landing :focus-visible {
+  outline: 3px solid var(--nb-ink) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px var(--nb-yellow) !important;
+}
+
+/* ==========================================================================
+   Typography Utilities
+   ========================================================================== */
+
+.nb-landing .nb-h1 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  font-size: clamp(3rem, 9vw, 8rem);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-h2 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  font-size: clamp(2.25rem, 5.5vw, 5rem);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-h3 {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-size: 1.5rem;
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-mono {
+  font-family: var(--font-roboto-mono), monospace;
+}
+
+.nb-landing .nb-eyebrow {
+  font-family: var(--font-roboto-mono), monospace;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  display: inline-block;
+  border-bottom: 2px solid var(--nb-ink);
+  padding-bottom: 2px;
+  color: var(--nb-ink);
+}
+
+/* ==========================================================================
+   Component Utilities: Buttons
+   ========================================================================== */
+
+.nb-landing .nb-btn {
+  font-family: var(--font-roboto-mono), monospace;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 3px solid var(--nb-ink);
+  box-shadow: var(--nb-shadow);
+  padding: 12px 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  user-select: none;
+}
+
+.nb-landing .nb-btn:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--nb-ink);
+}
+
+.nb-landing .nb-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--nb-ink);
+}
+
+.nb-landing .nb-btn-primary {
+  background-color: var(--nb-ink);
+  color: var(--nb-cream);
+}
+
+.nb-landing .nb-btn-primary:hover {
+  background-color: #222222;
+  color: var(--nb-cream);
+}
+
+.nb-landing .nb-btn-secondary {
+  background-color: var(--nb-white);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-btn-secondary:hover {
+  background-color: #faf8f5;
+}
+
+.nb-landing .nb-btn-accent {
+  background-color: var(--nb-yellow);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-btn-accent:hover {
+  background-color: #fce23a;
+}
+
+.nb-landing .nb-btn-pink {
+  background-color: var(--nb-pink);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-btn-pink:hover {
+  background-color: #ff85be;
+}
+
+.nb-landing .nb-btn-sm {
+  padding: 8px 14px;
+  font-size: 12px;
+  box-shadow: var(--nb-shadow-sm);
+}
+
+.nb-landing .nb-btn-sm:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--nb-ink);
+}
+
+.nb-landing .nb-btn-sm:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 var(--nb-ink);
+}
+
+/* ==========================================================================
+   Cards & Layout Utilities
+   ========================================================================== */
+
+.nb-landing .nb-card {
+  background-color: var(--nb-white);
+  border: 3px solid var(--nb-ink);
+  box-shadow: var(--nb-shadow);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-card-sm {
+  background-color: var(--nb-white);
+  border: 3px solid var(--nb-ink);
+  box-shadow: var(--nb-shadow-sm);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-card-placeholder {
+  background-color: var(--nb-white);
+  border: 3px dashed var(--nb-ink);
+  color: var(--nb-ink);
+}
+
+/* Grid backdrop on cream sections */
+.nb-landing .nb-grid-backdrop {
+  background-image: linear-gradient(rgba(17, 17, 17, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.06) 1px, transparent 1px);
+  background-size: 45px 45px;
+}
+
+/* 4px ink rule between all sections */
+.nb-landing .nb-section-separator {
+  border-bottom: 4px solid var(--nb-ink);
+}
+
+/* Chips */
+.nb-landing .nb-chip {
+  font-family: var(--font-roboto-mono), monospace;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border: 2px solid var(--nb-ink);
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+.nb-landing .nb-chip-critical {
+  background-color: var(--nb-red);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-chip-warning {
+  background-color: var(--nb-orange);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-chip-suggestion {
+  background-color: var(--nb-blue);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-chip-pass {
+  background-color: var(--nb-green);
+  color: var(--nb-ink);
+}
+
+.nb-landing .nb-chip-yellow {
+  background-color: var(--nb-yellow);
+  color: var(--nb-ink);
+}
+
+/* ==========================================================================
+   Hero Visual Styles
+   ========================================================================== */
+
+.nb-landing .nb-hero-window-front {
+  transform: rotate(1.5deg);
+  transform-origin: center center;
+}
+
+/* ==========================================================================
+   Ticker Marquee Styles
+   ========================================================================== */
+
+@keyframes nb-marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.nb-landing .nb-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: nb-marquee-scroll 24s linear infinite;
+  will-change: transform;
+}
+
+.nb-landing .nb-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* ==========================================================================
+   Accessibility: prefers-reduced-motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .nb-landing .nb-ticker-track {
+    animation: none !important;
+    overflow-x: auto;
+  }
+  .nb-landing .nb-hero-window-front {
+    transform: none !important;
+  }
+  .nb-landing .nb-btn:hover,
+  .nb-landing .nb-btn:active {
+    transform: none !important;
+  }
+}

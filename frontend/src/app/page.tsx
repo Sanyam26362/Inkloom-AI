@@ -1,107 +1,104 @@
-"use client";
-
 import React from "react";
-import { Header } from "@/components/sections/Header";
-import { Hero } from "@/components/sections/Hero";
-import { Section1_Logos } from "@/components/sections/Section1_Logos";
-import { Section2_CookieBanner } from "@/components/sections/Section2_CookieBanner";
-import { Section3_Testimonial } from "@/components/sections/Section3_Testimonial";
-import { Section4_DividerBottleneck } from "@/components/sections/Section4_DividerBottleneck";
-import { Section5_WorkflowSteps } from "@/components/sections/Section5_WorkflowSteps";
-import { Section6_DividerFixMistakes } from "@/components/sections/Section6_DividerFixMistakes";
-import { Section7_AiUpgrade } from "@/components/sections/Section7_AiUpgrade";
-import { Section8_DividerAudience } from "@/components/sections/Section8_DividerAudience";
-import { Section9_RolesGrid } from "@/components/sections/Section9_RolesGrid";
-import { Section10_DividerCompliance } from "@/components/sections/Section10_DividerCompliance";
-import { Section11_Checkpoint } from "@/components/sections/Section11_Checkpoint";
-import { Section12_DemoConsultation } from "@/components/sections/Section12_DemoConsultation";
-import { Section13_ProjectManager } from "@/components/sections/Section13_ProjectManager";
-import { Section14_Creatives } from "@/components/sections/Section14_Creatives";
-import { Section15_Stakeholders } from "@/components/sections/Section15_Stakeholders";
-import { Section16_Integrations } from "@/components/sections/Section16_Integrations";
-import { Section17_Security } from "@/components/sections/Section17_Security";
-import { Section18_Faq } from "@/components/sections/Section18_Faq";
-import { Section19_Awards } from "@/components/sections/Section19_Awards";
-import { Section20_FinalCta } from "@/components/sections/Section20_FinalCta";
-import { Section21_Footer } from "@/components/sections/Section21_Footer";
-import { Section22_Copyright } from "@/components/sections/Section22_Copyright";
+import type { Metadata } from "next";
+import { Archivo, Roboto_Mono } from "next/font/google";
+import "@/app/landing.css";
+import { LandingNav } from "@/components/landing/LandingNav";
+import { Hero } from "@/components/landing/Hero";
+import { Ticker } from "@/components/landing/Ticker";
+import { Problem } from "@/components/landing/Problem";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { ModalityGrid } from "@/components/landing/ModalityGrid";
+import { ProductWalkthrough } from "@/components/landing/ProductWalkthrough";
+import { HumanControl } from "@/components/landing/HumanControl";
+import { Solutions } from "@/components/landing/Solutions";
+import { ConsolePreview } from "@/components/landing/ConsolePreview";
+import { ValueTable } from "@/components/landing/ValueTable";
+import { Trust } from "@/components/landing/Trust";
+import { Integrations } from "@/components/landing/Integrations";
+import { Pricing } from "@/components/landing/Pricing";
+import { Faq } from "@/components/landing/Faq";
+import { FinalCta } from "@/components/landing/FinalCta";
+import { LandingFooter } from "@/components/landing/LandingFooter";
+import { StickyCtaBar } from "@/components/landing/StickyCtaBar";
+
+const archivo = Archivo({
+  subsets: ["latin"],
+  weight: ["800", "900"],
+  variable: "--font-archivo",
+  display: "swap",
+});
+
+const robotoMono = Roboto_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-roboto-mono",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "Inkloom AI | Brand governance for text, image, audio and video",
+  description:
+    "Inkloom AI audits every post, image, voiceover and video against your brand rules before it goes live, with human approval and a full audit trail.",
+};
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background text-text-primary font-sans selection:bg-accent selection:text-equally-action-color">
-      {/* 1. header */}
-      <Header />
+    <div className={`nb-landing ${archivo.variable} ${robotoMono.variable}`}>
+      {/* 0. LandingNav */}
+      <LandingNav />
 
       <main className="w-full">
-        {/* 2. hero */}
+        {/* 1. Hero */}
         <Hero />
 
-        {/* 3. section-1: Social Proof Logos */}
-        <Section1_Logos />
+        {/* 2. Ticker */}
+        <Ticker />
 
-        {/* 4. section-2: Cookie Consent Banner */}
-        <Section2_CookieBanner />
+        {/* 3. Problem */}
+        <Problem />
 
-        {/* 5. section-3: Customer Testimonial Carousel */}
-        <Section3_Testimonial />
+        {/* 4. HowItWorks */}
+        <HowItWorks />
 
-        {/* 6. section-4: Section Divider - Approval Bottleneck */}
-        <Section4_DividerBottleneck />
+        {/* 5. ModalityGrid */}
+        <ModalityGrid />
 
-        {/* 7. section-5: 3-Step Workflow Breakdown */}
-        <Section5_WorkflowSteps />
+        {/* 6. ProductWalkthrough */}
+        <ProductWalkthrough />
 
-        {/* 8. section-6: Section Divider - Fix Mistakes Instantly */}
-        <Section6_DividerFixMistakes />
+        {/* 7. HumanControl */}
+        <HumanControl />
 
-        {/* 9. section-7: AI Review Upgrade & Error Detection */}
-        <Section7_AiUpgrade />
+        {/* 8. Solutions */}
+        <Solutions />
 
-        {/* 10. section-8: Section Divider - Target Audience */}
-        <Section8_DividerAudience />
+        {/* 9. ConsolePreview */}
+        <ConsolePreview />
 
-        {/* 11. section-9: Team Roles Grid */}
-        <Section9_RolesGrid />
+        {/* 10. ValueTable */}
+        <ValueTable />
 
-        {/* 12. section-10: Section Divider - Compliance */}
-        <Section10_DividerCompliance />
+        {/* 11. Trust */}
+        <Trust />
 
-        {/* 13. section-11: Trust Layer & Audit Trails */}
-        <Section11_Checkpoint />
+        {/* 12. Integrations */}
+        <Integrations />
 
-        {/* 14. section-12: 30-Minute Consultation / Demo */}
-        <Section12_DemoConsultation />
+        {/* 13. Pricing */}
+        <Pricing />
 
-        {/* 15. section-13: Project Manager & Marketer Overview */}
-        <Section13_ProjectManager />
+        {/* 14. Faq */}
+        <Faq />
 
-        {/* 16. section-14: Creatives Focus Section */}
-        <Section14_Creatives />
-
-        {/* 17. section-15: Stakeholder Feedback Section */}
-        <Section15_Stakeholders />
-
-        {/* 18. section-16: Integrations Ecosystem */}
-        <Section16_Integrations />
-
-        {/* 19. section-17: Security & Confidentiality */}
-        <Section17_Security />
-
-        {/* 20. section-18: Frequently Asked Questions */}
-        <Section18_Faq />
-
-        {/* 21. section-19: G2 & Industry Awards Social Proof */}
-        <Section19_Awards />
-
-        {/* 22. section-20: Final Conversion CTA */}
-        <Section20_FinalCta />
+        {/* 15. FinalCta */}
+        <FinalCta />
       </main>
 
-      {/* 23. section-21: Footer Navigation */}
-      <Section21_Footer />
+      {/* Footer */}
+      <LandingFooter />
 
-      {/* 24. section-22: Copyright & Legal Footnote */}
-      <Section22_Copyright />
+      {/* Sticky Quick Action CTA Bar */}
+      <StickyCtaBar />
     </div>
   );
 }
