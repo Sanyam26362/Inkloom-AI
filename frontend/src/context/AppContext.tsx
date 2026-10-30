@@ -51,8 +51,37 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const [activeBrandId, setActiveBrandId] = useState<number>(0);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<number | null>(null);
-  const [currentRole, setCurrentRoleState] = useState<UserRole>("CREATOR");
-  const [user, setUser] = useState<UserProfileResponse | null>(null);
+  const [currentRole, setCurrentRoleState] = useState<UserRole>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("inkloom_role") || localStorage.getItem("inkloom_signup_role");
+        if (saved && ["CREATOR", "REVIEWER", "MANAGER", "ADMIN", "JUDGE"].includes(saved.toUpperCase())) {
+          const u = saved.toUpperCase();
+          return (u === "BRAND" || u === "MANAGER" ? "REVIEWER" : u) as UserRole;
+        }
+        const savedUserStr = localStorage.getItem("inkloom_user");
+        if (savedUserStr) {
+          const parsed = JSON.parse(savedUserStr);
+          if (parsed.role) {
+            const u = parsed.role.toUpperCase();
+            return (u === "BRAND" || u === "MANAGER" ? "REVIEWER" : u) as UserRole;
+          }
+        }
+      } catch {}
+    }
+    return "CREATOR";
+  });
+  const [user, setUser] = useState<UserProfileResponse | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedUserStr = localStorage.getItem("inkloom_user");
+        if (savedUserStr) {
+          return JSON.parse(savedUserStr);
+        }
+      } catch {}
+    }
+    return null;
+  });
   const [health, setHealth] = useState<HealthCheckResponse | null>(null);
   const [isLoadingBrands, setIsLoadingBrands] = useState<boolean>(true);
   const [brandsError, setBrandsError] = useState<string | null>(null);
@@ -84,8 +113,10 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     if (syncedClerkIdRef.current === clerkUser.id) return;
     syncedClerkIdRef.current = clerkUser.id;
 
-    const savedSignupRole = typeof window !== "undefined" ? localStorage.getItem("inkloom_signup_role") : null;
-    const rawRole = (clerkUser.unsafeMetadata?.role as string) || (clerkUser.publicMetadata?.role as string) || savedSignupRole || "CREATOR";
+    const savedSignupRole = typeof window !== "undefined"
+      ? (localStorage.getItem("inkloom_signup_role") || localStorage.getItem("inkloom_role"))
+      : null;
+    const rawRole = savedSignupRole || (clerkUser.unsafeMetadata?.role as string) || (clerkUser.publicMetadata?.role as string) || "CREATOR";
     const mappedRole = (rawRole.toUpperCase() === "REVIEWER" || rawRole.toUpperCase() === "BRAND" || rawRole.toUpperCase() === "MANAGER")
       ? "REVIEWER"
       : (rawRole.toUpperCase() === "ADMIN" || rawRole.toUpperCase() === "JUDGE")
@@ -110,6 +141,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         try {
           localStorage.setItem("inkloom_token", res.access_token);
           localStorage.setItem("inkloom_user", JSON.stringify(res.user));
+          localStorage.setItem("inkloom_role", mappedRole);
         } catch {}
       }
       if (mappedRole === "CREATOR") {
@@ -198,6 +230,11 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
 
   const setCurrentRole = useCallback((role: UserRole) => {
     setCurrentRoleState(role);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("inkloom_role", role);
+      } catch {}
+    }
     setUser((prevUser) => {
       if (prevUser && prevUser.email && !prevUser.email.endsWith("@inkloom.ai")) {
         const updated = { ...prevUser, role };
@@ -216,7 +253,9 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
 
   const logout = useCallback(() => {
     api.logout();
+    syncedClerkIdRef.current = null;
     setUser(null);
+    setCurrentRoleState("CREATOR");
   }, []);
 
   const fetchHealth = useCallback(async () => {

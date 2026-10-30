@@ -37,14 +37,14 @@ function formatBytes(bytes: number): string {
 
 export default function JudgeCanvasPage() {
   const router = useRouter();
-  const { brands, activeBrandId, setActiveBrandId, currentRole, theme } = useApp();
+  const { brands, activeBrandId, setActiveBrandId, currentRole, setCurrentRole, theme } = useApp();
   const isDark = theme === "dark";
 
   useEffect(() => {
     if (currentRole === "CREATOR") {
-      router.replace("/dashboard");
+      setCurrentRole("JUDGE");
     }
-  }, [currentRole, router]);
+  }, [currentRole, setCurrentRole]);
 
   const [guidelinesSource, setGuidelinesSource] = useState<"preloaded" | "uploaded">("preloaded");
   const currentBrand = brands.find((b) => b.id === activeBrandId) || brands[0];

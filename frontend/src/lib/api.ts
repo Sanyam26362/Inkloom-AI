@@ -240,8 +240,13 @@ export const api = {
 
   logout(): void {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("inkloom_token");
-      localStorage.removeItem("inkloom_user");
+      try {
+        localStorage.removeItem("inkloom_token");
+        localStorage.removeItem("inkloom_user");
+        localStorage.removeItem("inkloom_role");
+        localStorage.removeItem("inkloom_signup_role");
+        localStorage.removeItem("inkloom_setup_completed");
+      } catch {}
     }
   },
 

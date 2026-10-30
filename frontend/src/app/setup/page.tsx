@@ -20,24 +20,17 @@ export default function OnboardingPage() {
     theme,
     toggleTheme,
     currentRole,
+    setCurrentRole,
   } = useApp();
 
   useEffect(() => {
-    if (currentRole === "CREATOR") {
-      router.replace("/content");
-      return;
+    if (currentRole !== "REVIEWER" && currentRole !== "MANAGER") {
+      setCurrentRole("REVIEWER");
     }
 
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const reconfigure = urlParams.get("reconfigure") === "true";
       const paramStep = urlParams.get("step");
-
-      // Returning Brand User: If setup is already finished and not explicitly reconfiguring, skip setup
-      if (!reconfigure && user?.onboarding_status === "COMPLETED") {
-        router.replace("/dashboard");
-        return;
-      }
 
       // Resume from URL or saved in-progress onboarding step
       if (paramStep) {
@@ -45,7 +38,7 @@ export default function OnboardingPage() {
         if (parsed >= 1 && parsed <= 3) {
           setCurrentStep(parsed);
         }
-      } else if (user?.onboarding_status === "IN_PROGRESS" && user.onboarding_step) {
+      } else if (user?.onboarding_step) {
         setCurrentStep(user.onboarding_step);
       }
 
@@ -58,7 +51,7 @@ export default function OnboardingPage() {
         if (meta.extractedRules) setExtractedRules(meta.extractedRules);
       }
     }
-  }, [currentRole, user, router]);
+  }, [currentRole, setCurrentRole, user]);
 
   const isDark = theme === "dark";
 

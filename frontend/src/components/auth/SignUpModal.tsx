@@ -51,14 +51,30 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
 
   const handleSelectRole = (role: "REVIEWER" | "CREATOR" | "ADMIN") => {
     setSelectedRole(role);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("inkloom_signup_role", role);
+        localStorage.setItem("inkloom_role", role);
+      } catch {}
+    }
     setAuthMode("signup");
   };
 
   const handleFastSignup = async (role: UserRole) => {
     setLoadingRole(role);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("inkloom_signup_role", role);
+        localStorage.setItem("inkloom_role", role);
+      } catch {}
+    }
     try {
       const loggedInUser = await loginAsDemoUser(role);
       onClose();
+      if (role === "REVIEWER" || role === "MANAGER") {
+        router.push("/setup?step=1");
+        return;
+      }
       const targetDestination = resolvePostAuthRedirect(loggedInUser);
       router.push(targetDestination);
     } catch (err) {
@@ -392,6 +408,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                     role: selectedRole || "CREATOR",
                   }}
                   fallbackRedirectUrl="/auth/callback"
+                  forceRedirectUrl="/auth/callback"
                   signInUrl="#signin"
                 />
               </div>
@@ -451,6 +468,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                     },
                   }}
                   fallbackRedirectUrl="/auth/callback"
+                  forceRedirectUrl="/auth/callback"
                   signUpUrl="#signup"
                 />
               </div>
