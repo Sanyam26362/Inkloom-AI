@@ -6,41 +6,25 @@ import { RetroCreativeStudio } from "@/components/landing/RetroCreativeStudio";
 type ComputerAnimationState = "assembling" | "idle" | "playing";
 
 export function HeroComputerIllustration() {
-  const [animState, setAnimState] = useState<ComputerAnimationState>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (prefersReduced) return "idle";
-      } catch {
-        // Fallback for SSR or non-standard environments
-      }
-    }
-    return "assembling";
-  });
+  const [animState, setAnimState] = useState<ComputerAnimationState>("playing");
 
   useEffect(() => {
-    // If already in idle or playing state, no assembly timer needed
-    if (animState !== "assembling") return;
-
-    // Transition from "assembling" to "idle" once assembly is complete (~5.35s)
-    const timer = setTimeout(() => {
-      setAnimState("idle");
-    }, 5350);
-
-    return () => clearTimeout(timer);
-  }, [animState]);
+    try {
+      const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (prefersReduced) {
+        setAnimState("idle");
+      }
+    } catch {
+      // Fallback for SSR or non-standard environments
+    }
+  }, []);
 
   const handlePlayClick = () => {
-    // Only allow starting playback when assembly is complete
-    if (animState === "idle") {
-      setAnimState("playing");
-    }
+    setAnimState("playing");
   };
 
   const handleResetToIdle = () => {
-    if (animState === "playing") {
-      setAnimState("idle");
-    }
+    setAnimState("idle");
   };
 
   const isAssembled = animState !== "assembling";
