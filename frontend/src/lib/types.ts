@@ -297,6 +297,29 @@ export interface UserProfileResponse {
   email?: string | null;
   role: string;
   tenant_id: string;
+  onboarding_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  onboarding_step?: number;
+  brand_id?: number | null;
+  creator_type?: 'IN_HOUSE_EMPLOYEE' | 'AD_AGENCY' | 'FREELANCE' | null;
+  organization_name?: string | null;
+  specialization?: string | null;
+  onboarding_metadata?: Record<string, any> | null;
+}
+
+export interface OnboardingStateUpdatePayload {
+  onboarding_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  onboarding_step?: number;
+  brand_id?: number | null;
+  onboarding_metadata?: Record<string, any>;
+}
+
+export interface CreatorProfilePayload {
+  creator_type: 'IN_HOUSE_EMPLOYEE' | 'AD_AGENCY' | 'FREELANCE';
+  organization_name: string;
+  specialization: string;
+  brand_id: number;
+  portfolio_url?: string;
+  extra_metadata?: Record<string, any>;
 }
 
 export interface TokenResponse {

@@ -5,6 +5,7 @@ import { SignUp, SignIn } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { UserRole } from "@/lib/types";
 import { useAppContext } from "@/context/AppContext";
+import { resolvePostAuthRedirect } from "@/lib/auth-resolver";
 
 interface SignUpModalProps {
   isOpen: boolean;
@@ -56,15 +57,10 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
   const handleFastSignup = async (role: UserRole) => {
     setLoadingRole(role);
     try {
-      await loginAsDemoUser(role);
+      const loggedInUser = await loginAsDemoUser(role);
       onClose();
-      if (role === "REVIEWER") {
-        router.push("/setup");
-      } else if (role === "CREATOR") {
-        router.push("/content");
-      } else {
-        router.push("/dashboard");
-      }
+      const targetDestination = resolvePostAuthRedirect(loggedInUser);
+      router.push(targetDestination);
     } catch (err) {
       console.error("Fast signup failed:", err);
     } finally {
@@ -395,13 +391,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                   unsafeMetadata={{
                     role: selectedRole || "CREATOR",
                   }}
-                  fallbackRedirectUrl={
-                    selectedRole === "REVIEWER"
-                      ? "/setup"
-                      : selectedRole === "CREATOR"
-                      ? "/content"
-                      : "/dashboard"
-                  }
+                  fallbackRedirectUrl="/auth/callback"
                   signInUrl="#signin"
                 />
               </div>
@@ -460,6 +450,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                       card: "shadow-none border-0 p-0 bg-transparent w-full",
                     },
                   }}
+                  fallbackRedirectUrl="/auth/callback"
                   signUpUrl="#signup"
                 />
               </div>

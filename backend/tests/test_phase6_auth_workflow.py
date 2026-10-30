@@ -447,3 +447,98 @@ async def test_admin_queue_and_stats():
         assert "status_distribution" in stats_data
         assert "override_rate_by_guideline" in stats_data
         assert isinstance(stats_data["agreement_rate_pct"], float)
+
+
+async def test_brand_onboarding_lifecycle_save_draft_and_resume():
+    """
+    Validates that a Brand user can save draft onboarding state at any step,
+    resume from where they left off, and complete setup.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Login as Brand Reviewer
+        login_res = await client.post("/api/v1/auth/login", json={"role": "REVIEWER"})
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 2. Check initial profile
+        me_res = await client.get("/api/v1/auth/me", headers=headers)
+        assert me_res.status_code == 200
+        profile = me_res.json()
+        assert profile["onboarding_status"] in ("NOT_STARTED", "IN_PROGRESS", "COMPLETED")
+
+        # 3. Save draft at Step 2 (Guidelines Ingestion) with custom form metadata
+        draft_payload = {
+            "onboarding_status": "IN_PROGRESS",
+            "onboarding_step": 2,
+            "onboarding_metadata": {
+                "custom_brand_name": "Acme Brand",
+                "custom_tone": "Warm & innovative",
+            },
+        }
+        update_res = await client.post("/api/v1/auth/onboarding-state", headers=headers, json=draft_payload)
+        assert update_res.status_code == 200
+        updated = update_res.json()
+        assert updated["onboarding_status"] == "IN_PROGRESS"
+        assert updated["onboarding_step"] == 2
+        assert updated["onboarding_metadata"]["custom_brand_name"] == "Acme Brand"
+
+        # 4. Simulate user logging in again later -> profile preserves step 2 and draft data
+        relogin_res = await client.get("/api/v1/auth/me", headers=headers)
+        assert relogin_res.status_code == 200
+        relogin_profile = relogin_res.json()
+        assert relogin_profile["onboarding_status"] == "IN_PROGRESS"
+        assert relogin_profile["onboarding_step"] == 2
+        assert relogin_profile["onboarding_metadata"]["custom_brand_name"] == "Acme Brand"
+
+        # 5. Complete setup at Step 3
+        finish_payload = {
+            "onboarding_status": "COMPLETED",
+            "onboarding_step": 3,
+            "brand_id": 1,
+        }
+        finish_res = await client.post("/api/v1/auth/onboarding-state", headers=headers, json=finish_payload)
+        assert finish_res.status_code == 200
+        final_profile = finish_res.json()
+        assert final_profile["onboarding_status"] == "COMPLETED"
+        assert final_profile["brand_id"] == 1
+
+
+async def test_content_creator_profile_submission_and_persistence():
+    """
+    Validates that a Content Creator can submit their agency vs company employee profile,
+    link their target brand, and have their completed status persisted across logins.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Login as Creator
+        login_res = await client.post("/api/v1/auth/login", json={"role": "CREATOR"})
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 2. Submit Creator Profile (Ad Agency employee)
+        profile_payload = {
+            "creator_type": "AD_AGENCY",
+            "organization_name": "Ogilvy Creative Network",
+            "specialization": "Graphic & Visual Designer",
+            "brand_id": 1,
+            "portfolio_url": "https://portfolio.design/creator",
+        }
+        res = await client.post("/api/v1/auth/creator-profile", headers=headers, json=profile_payload)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["creator_type"] == "AD_AGENCY"
+        assert data["organization_name"] == "Ogilvy Creative Network"
+        assert data["specialization"] == "Graphic & Visual Designer"
+        assert data["brand_id"] == 1
+        assert data["onboarding_status"] == "COMPLETED"
+
+        # 3. Query /auth/me to confirm returning session has full profile
+        me_res = await client.get("/api/v1/auth/me", headers=headers)
+        assert me_res.status_code == 200
+        me_data = me_res.json()
+        assert me_data["creator_type"] == "AD_AGENCY"
+        assert me_data["organization_name"] == "Ogilvy Creative Network"
+        assert me_data["onboarding_status"] == "COMPLETED"

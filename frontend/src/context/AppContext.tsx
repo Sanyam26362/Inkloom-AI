@@ -19,9 +19,10 @@ interface AppContextType {
   setActiveCampaignId: (id: number | null) => void;
   refreshCampaigns: () => Promise<void>;
   user: UserProfileResponse | null;
+  setUser: (user: UserProfileResponse | null) => void;
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
-  loginAsDemoUser: (role: UserRole) => Promise<void>;
+  loginAsDemoUser: (role: UserRole) => Promise<UserProfileResponse | null>;
   logout: () => void;
   health: HealthCheckResponse | null;
   isLoadingBrands: boolean;
@@ -157,20 +158,24 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     setTheme(theme === "dark" ? "light" : "dark");
   }, [theme, setTheme]);
 
-  const loginAsDemoUser = useCallback(async (role: UserRole) => {
+  const loginAsDemoUser = useCallback(async (role: UserRole): Promise<UserProfileResponse | null> => {
     try {
       const res = await api.login({ role });
       setUser(res.user);
       setCurrentRoleState(role);
-      if (role === "CREATOR") {
+      if (res.user.brand_id) {
+        setActiveBrandId(res.user.brand_id);
+      } else if (role === "CREATOR") {
         const brandList = brandsRef.current.length > 0 ? brandsRef.current : await api.listBrands().catch(() => []);
         const blinkit = brandList.find((b) => b.name.toLowerCase() === "blinkit");
         if (blinkit) {
           setActiveBrandId(blinkit.id);
         }
       }
+      return res.user;
     } catch (err) {
       console.error("Failed to login as demo user:", err);
+      return null;
     }
   }, []);
 
@@ -309,6 +314,7 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
         setActiveCampaignId,
         refreshCampaigns: fetchCampaigns,
         user,
+        setUser,
         currentRole,
         setCurrentRole,
         loginAsDemoUser,

@@ -10,6 +10,8 @@ import { PackSummary, BrandProfile } from "@/lib/types";
 export default function OnboardingPage() {
   const router = useRouter();
   const {
+    user,
+    setUser,
     brands,
     activeBrandId,
     setActiveBrandId,
@@ -23,8 +25,40 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (currentRole === "CREATOR") {
       router.replace("/content");
+      return;
     }
-  }, [currentRole, router]);
+
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const reconfigure = urlParams.get("reconfigure") === "true";
+      const paramStep = urlParams.get("step");
+
+      // Returning Brand User: If setup is already finished and not explicitly reconfiguring, skip setup
+      if (!reconfigure && user?.onboarding_status === "COMPLETED") {
+        router.replace("/dashboard");
+        return;
+      }
+
+      // Resume from URL or saved in-progress onboarding step
+      if (paramStep) {
+        const parsed = parseInt(paramStep, 10);
+        if (parsed >= 1 && parsed <= 3) {
+          setCurrentStep(parsed);
+        }
+      } else if (user?.onboarding_status === "IN_PROGRESS" && user.onboarding_step) {
+        setCurrentStep(user.onboarding_step);
+      }
+
+      // Restore saved draft metadata from server
+      if (user?.onboarding_metadata) {
+        const meta = user.onboarding_metadata;
+        if (meta.clientType) setClientType(meta.clientType);
+        if (meta.customBrandName) setCustomBrandName(meta.customBrandName);
+        if (meta.customTone) setCustomTone(meta.customTone);
+        if (meta.extractedRules) setExtractedRules(meta.extractedRules);
+      }
+    }
+  }, [currentRole, user, router]);
 
   const isDark = theme === "dark";
 
@@ -272,6 +306,33 @@ export default function OnboardingPage() {
     }
   };
 
+  const handleSaveDraftAndExit = async () => {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      const updatedUser = await api.updateOnboardingState({
+        onboarding_status: "IN_PROGRESS",
+        onboarding_step: currentStep,
+        brand_id: activeBrandId || undefined,
+        onboarding_metadata: {
+          clientType,
+          customBrandName,
+          customTone,
+          extractedRules,
+        },
+      });
+      setUser(updatedUser);
+      setSuccessMessage(`Step ${currentStep} draft saved! You can resume from this step whenever you return.`);
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 1200);
+    } catch {
+      setErrorMessage("Failed to save draft state to server.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveRulesAndProceed = async (destination: string = "/dashboard") => {
     setLoading(true);
     setErrorMessage(null);
@@ -312,6 +373,13 @@ export default function OnboardingPage() {
         });
         await refreshBrands();
       }
+      // Mark onboarding completed in database
+      await api.updateOnboardingState({
+        onboarding_status: "COMPLETED",
+        onboarding_step: 3,
+        brand_id: brandId || undefined,
+      }).then((u) => setUser(u)).catch(() => {});
+
       try {
         localStorage.setItem("inkloom_setup_completed", "true");
       } catch {}
@@ -686,14 +754,25 @@ export default function OnboardingPage() {
                 Selected: <strong className="text-[var(--ink)] dark:text-white uppercase">{clientType}</strong>
               </span>
 
-              <button
-                type="button"
-                disabled={loading}
-                onClick={handleStep1Submit}
-                className="w-full sm:w-auto px-8 py-3 border-3 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-archivo font-black text-sm uppercase shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {loading ? "Provisioning Brand..." : "Continue to Ingestion →"}
-              </button>
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleSaveDraftAndExit}
+                  className="w-full sm:w-auto px-5 py-3 border-2 border-black bg-amber-200 dark:bg-amber-900/40 text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">save</span>
+                  Save Draft &amp; Exit
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleStep1Submit}
+                  className="w-full sm:w-auto px-8 py-3 border-3 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-archivo font-black text-sm uppercase shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? "Provisioning Brand..." : "Continue to Ingestion →"}
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -815,14 +894,33 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <div className="flex justify-between max-w-4xl mx-auto pt-4 border-t-2 border-black">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-4xl mx-auto pt-4 border-t-2 border-black">
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className="px-4 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
               >
                 ← Back to Step 01
               </button>
+
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleSaveDraftAndExit}
+                  className="w-full sm:w-auto px-4 py-2 border-2 border-black bg-amber-200 dark:bg-amber-900/40 text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">save</span>
+                  Save Draft &amp; Exit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className="w-full sm:w-auto px-5 py-2 border-2 border-black bg-[var(--yellow)] text-black font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                >
+                  Skip to RuleSet Review →
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -1075,6 +1173,15 @@ export default function OnboardingPage() {
               </button>
 
               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={handleSaveDraftAndExit}
+                  className="w-full sm:w-auto px-4 py-2.5 border-2 border-black bg-amber-200 dark:bg-amber-900/40 text-black dark:text-white font-mono font-black text-xs uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[16px]">save</span>
+                  Save Draft &amp; Exit
+                </button>
                 <button
                   type="button"
                   disabled={loading}

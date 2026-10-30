@@ -9,7 +9,7 @@ import { Submission, AuditExecutionResponse, AuditFinding } from "@/lib/types";
 type ContentFormatType = "INSTAGRAM_POST" | "TWEET" | "POSTER" | "VIDEO_REEL" | "AUDIO_AD";
 
 export default function CreatorContentStudioPage() {
-  const { activeBrandId, currentRole, brands, setActiveBrandId, theme } = useApp();
+  const { user, activeBrandId, currentRole, brands, setActiveBrandId, theme } = useApp();
   const isDark = theme === "dark";
 
   // Form State
@@ -514,6 +514,12 @@ export default function CreatorContentStudioPage() {
               <span className="text-xs font-mono font-black text-[#555] dark:text-[#a0a5b5]">
                 GOVERNING BRAND: <strong className="text-[var(--ink)] dark:text-white uppercase">Blinkit</strong> · CAMPAIGN: <strong className="text-[var(--ink)] dark:text-white uppercase">Diwali 2026</strong>
               </span>
+              {user?.creator_type && (
+                <span className="px-2 py-0.5 border border-black bg-white dark:bg-[#1a1b20] text-[10px] font-mono font-bold text-[var(--ink)] dark:text-white shadow-[1px_1px_0px_#000]">
+                  {user.creator_type === "AD_AGENCY" ? "🏢 AGENCY: " : user.creator_type === "IN_HOUSE_EMPLOYEE" ? "🏢 IN-HOUSE: " : "🚀 FREELANCE: "}
+                  {user.organization_name || "Creative Partner"}
+                </span>
+              )}
             </div>
             <h1 className="text-xl sm:text-2xl font-archivo font-black uppercase tracking-tight text-[var(--ink)] dark:text-white">
               Autonomous Brand Governance &amp; Creator Studio
@@ -524,6 +530,13 @@ export default function CreatorContentStudioPage() {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
+            <Link
+              href="/profile"
+              className="px-3.5 py-2 border-2 border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white text-xs font-mono font-black uppercase flex items-center gap-1.5 shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[17px]">badge</span>
+              {user?.creator_type ? "Creator Profile" : "Setup Profile ⚠️"}
+            </Link>
             <Link
               href="/dashboard"
               className="px-3.5 py-2 border-2 border-black bg-[var(--yellow)] text-black text-xs font-mono font-black uppercase flex items-center gap-1.5 shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"

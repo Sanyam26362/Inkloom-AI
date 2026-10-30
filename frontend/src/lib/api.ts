@@ -22,6 +22,8 @@ import {
   TokenResponse,
   UserProfileResponse,
   DemoUserItem,
+  OnboardingStateUpdatePayload,
+  CreatorProfilePayload,
 } from "./types";
 
 function getApiBaseUrl(): string {
@@ -204,6 +206,36 @@ export const api = {
 
   async getDemoUsers(): Promise<DemoUserItem[]> {
     return fetchJson<DemoUserItem[]>("/auth/demo-users");
+  },
+
+  async updateOnboardingState(
+    payload: OnboardingStateUpdatePayload,
+    options?: RequestOptions
+  ): Promise<UserProfileResponse> {
+    const res = await fetchJson<UserProfileResponse>("/auth/onboarding-state", {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (res && typeof window !== "undefined") {
+      localStorage.setItem("inkloom_user", JSON.stringify(res));
+    }
+    return res;
+  },
+
+  async updateCreatorProfile(
+    payload: CreatorProfilePayload,
+    options?: RequestOptions
+  ): Promise<UserProfileResponse> {
+    const res = await fetchJson<UserProfileResponse>("/auth/creator-profile", {
+      ...options,
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    if (res && typeof window !== "undefined") {
+      localStorage.setItem("inkloom_user", JSON.stringify(res));
+    }
+    return res;
   },
 
   logout(): void {

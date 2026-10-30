@@ -109,6 +109,14 @@ async def init_db() -> None:
             "ALTER TABLE audit_findings ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMP WITH TIME ZONE;",
             # workflow_events
             "ALTER TABLE workflow_events ADD COLUMN IF NOT EXISTS metadata_json JSONB DEFAULT '{}'::jsonb;",
+            # user_accounts onboarding and profile fields
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS onboarding_status VARCHAR(50) DEFAULT 'NOT_STARTED';",
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS onboarding_step INTEGER DEFAULT 1;",
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS brand_id INTEGER;",
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS creator_type VARCHAR(50);",
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS organization_name VARCHAR(255);",
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS specialization VARCHAR(100);",
+            "ALTER TABLE user_accounts ADD COLUMN IF NOT EXISTS onboarding_metadata JSONB DEFAULT '{}'::jsonb;",
         ]
         for patch in schema_patches:
             try:

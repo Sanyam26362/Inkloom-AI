@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, EmailStr
 
 
@@ -14,6 +14,13 @@ class UserProfileResponse(BaseModel):
     email: Optional[str] = None
     role: str
     tenant_id: str = "tenant_default"
+    onboarding_status: str = "NOT_STARTED"
+    onboarding_step: int = 1
+    brand_id: Optional[int] = None
+    creator_type: Optional[str] = None
+    organization_name: Optional[str] = None
+    specialization: Optional[str] = None
+    onboarding_metadata: Optional[Dict[str, Any]] = None
 
 
 class TokenResponse(BaseModel):
@@ -38,3 +45,18 @@ class ClerkSyncRequest(BaseModel):
     role: Optional[str] = "CREATOR"
     tenant_id: Optional[str] = "tenant_default"
 
+
+class OnboardingStateUpdateRequest(BaseModel):
+    onboarding_status: Optional[str] = None
+    onboarding_step: Optional[int] = None
+    brand_id: Optional[int] = None
+    onboarding_metadata: Optional[Dict[str, Any]] = None
+
+
+class CreatorProfileUpdateRequest(BaseModel):
+    creator_type: str
+    organization_name: str
+    specialization: str
+    brand_id: int
+    portfolio_url: Optional[str] = None
+    extra_metadata: Optional[Dict[str, Any]] = None
