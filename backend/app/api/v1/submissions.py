@@ -439,11 +439,14 @@ async def upload_image_and_audit(
     submission.status = "AUDITING"
     new_version = (submission.current_version or 0) + 1
     submission.current_version = new_version
+    prev_rev = max(submission.revisions, key=lambda r: r.version_number) if submission.revisions else None
+    inherited_alt_text = prev_rev.alt_text if prev_rev else None
     current_rev = SubmissionRevision(
         submission_id=submission.id,
         version_number=new_version,
         content_body=(submission.revisions[0].content_body if submission.revisions and submission.revisions[0].content_body and submission.revisions[0].content_body != "Visual Image Asset" else "Visual Image Asset"),
         media_urls=[file_ref],
+        alt_text=inherited_alt_text,
         change_summary="Uploaded image for visual audit",
         created_by=user.user_name,
         ai_governance_metadata={"storage": cloudinary_asset, "campaign_event": event},

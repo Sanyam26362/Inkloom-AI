@@ -122,15 +122,22 @@ class AuditService:
         }
 
     @classmethod
+    def _is_ai_detector(cls, source: Optional[str]) -> bool:
+        if not source:
+            return False
+        s = source.upper()
+        return "LLM" in s or "AI_" in s or "GEMINI" in s
+
+    @classmethod
     def dedupe_findings(cls, findings: List[FindingDraft]) -> List[FindingDraft]:
         """
-        Drop exact duplicates by (category, _norm_ws(excerpt)) and drop any detector_source 'RAG_LLM'
-        finding whose excerpt overlaps (substring either way) a non-LLM finding.
+        Drop exact duplicates by (category, _norm_ws(excerpt)) and drop any AI/LLM
+        finding whose excerpt overlaps (substring either way) a deterministic rule finding.
         """
         non_llm_excerpts = [
             _norm_ws(f.flagged_excerpt)
             for f in findings
-            if f.detector_source not in ("RAG_LLM", "SEMANTIC_LLM") and _norm_ws(f.flagged_excerpt)
+            if not cls._is_ai_detector(f.detector_source) and _norm_ws(f.flagged_excerpt)
         ]
 
         seen_keys = set()
@@ -138,7 +145,7 @@ class AuditService:
 
         for f in findings:
             norm_f = _norm_ws(f.flagged_excerpt)
-            if f.detector_source == "RAG_LLM" and norm_f:
+            if cls._is_ai_detector(f.detector_source) and norm_f:
                 overlaps = False
                 for non_llm in non_llm_excerpts:
                     if norm_f in non_llm or non_llm in norm_f:
@@ -410,7 +417,7 @@ class AuditService:
             "voice_and_terminology": {"findings": [], "categories": ["TERMINOLOGY", "TONE", "VOICE"]},
             "accessibility": {"findings": [], "categories": ["ACCESSIBILITY", "WCAG", "CONTRAST"]},
             "claims_and_facts": {"findings": [], "categories": ["FACTUAL_CLAIM", "FACT", "CLAIM"]},
-            "system_integrity": {"findings": [], "categories": ["SYSTEM"]},
+            "system_integrity": {"findings": [], "categories": ["SYSTEM", "GENERAL", "PLATFORM", "SPEC", "METADATA"]},
         }
 
         for f in findings:
@@ -420,8 +427,9 @@ class AuditService:
                 if any(k in cat for k in cfg["categories"]):
                     cfg["findings"].append(f)
                     matched = True
+                    break
             if not matched:
-                dimension_map["voice_and_terminology"]["findings"].append(f)
+                dimension_map["system_integrity"]["findings"].append(f)
 
         dimension_results: Dict[str, Any] = {}
         has_fail = False
@@ -442,7 +450,8 @@ class AuditService:
             else:
                 dim_status = "PASS"
 
-            dim_score = max(0.0, 100.0 - (crit_count * 30.0 + warn_count * 15.0 + sugg_count * 5.0))
+            # Reconciled deductions with calculate_compliance_score (25/10/3)
+            dim_score = max(0.0, 100.0 - (crit_count * 25.0 + warn_count * 10.0 + sugg_count * 3.0))
             dimension_results[dim_name] = {
                 "status": dim_status,
                 "score": round(dim_score, 1),
@@ -458,6 +467,13 @@ class AuditService:
             verdict = "NEEDS_REVIEW"
         else:
             verdict = "PASS"
+
+        # Point 4: If AI pipeline failed or was partial, reflect degradation in system_integrity dimension
+        if ai_status in ("failed", "partial"):
+            sys_dim = dimension_results.get("system_integrity")
+            if sys_dim and sys_dim["status"] == "PASS":
+                sys_dim["status"] = "NEEDS_REVIEW"
+                sys_dim["score"] = min(sys_dim["score"], 70.0)
 
         return verdict, dimension_results
 
@@ -986,10 +1002,19 @@ class AuditService:
             "prohibited_visual_subjects": ruleset.prohibited_visual_subjects,
         } if ruleset else None
 
-        cielab_match_pct_pre, cielab_dominant_pre, _ = RuleEngine.calculate_cielab_palette_match(
+        palette_threshold = 75.0
+        if ruleset and ruleset.decision_rules and "palette_threshold" in ruleset.decision_rules:
+            try:
+                palette_threshold = float(ruleset.decision_rules["palette_threshold"])
+            except (ValueError, TypeError):
+                palette_threshold = 75.0
+
+        cielab_match_pct, cielab_dominant, cielab_palette_findings = RuleEngine.calculate_cielab_palette_match(
             image_bytes=image_bytes,
             approved_palette=effective_palette,
+            threshold=palette_threshold,
         )
+        cielab_match_pct_pre, cielab_dominant_pre = cielab_match_pct, cielab_dominant
 
         try:
             vision_result = await gemini_service.audit_image_semantic(
@@ -1037,18 +1062,6 @@ class AuditService:
         model_dominant_colors = vision_result.get("dominant_colors", []) or []
 
         # ── 1. CIELAB DeltaE Palette Matching (Weighted by Pixel-Area) ───────────────
-        palette_threshold = 75.0
-        if ruleset and ruleset.decision_rules and "palette_threshold" in ruleset.decision_rules:
-            try:
-                palette_threshold = float(ruleset.decision_rules["palette_threshold"])
-            except (ValueError, TypeError):
-                palette_threshold = 75.0
-
-        cielab_match_pct, cielab_dominant, cielab_palette_findings = RuleEngine.calculate_cielab_palette_match(
-            image_bytes=image_bytes,
-            approved_palette=effective_palette,
-            threshold=palette_threshold,
-        )
         if cielab_palette_findings:
             all_draft_findings.extend(cielab_palette_findings)
 

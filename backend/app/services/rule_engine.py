@@ -269,7 +269,7 @@ class RuleEngine:
                     )
                 continue
 
-            pattern = re.compile(rf"\b{re.escape(dep_str)}\b", re.IGNORECASE | re.UNICODE)
+            pattern = cls.build_boundary_pattern(dep_str)
             for match in pattern.finditer(text):
                 findings.append(
                     FindingDraft(

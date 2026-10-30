@@ -79,38 +79,44 @@ export default function CreatorContentStudioPage() {
       : null);
 
   // Load Evaluator Benchmark Creative Sample
-  const handleLoadBenchmarkSample = async (sampleType: "violating" | "compliant") => {
+  const handleLoadBenchmarkSample = async (sampleType: "violating" | "compliant" | "gemini1" | "gemini2") => {
     try {
-      const isViolating = sampleType === "violating";
-      const sampleUrl = isViolating
-        ? "/samples/sample_violating_diwali.png"
-        : "/samples/sample_compliant_diwali.png";
+      let sampleUrl = "/samples/sample_compliant_diwali.png";
+      let fileName = "Blinkit_Diwali_Compliant_Sample.png";
+      let sampleTitle = "Blinkit Diwali Sweets & Diyas";
+      let sampleCopy = "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in minutes by your delivery partner. Find festive favourites on the Blinkit app.";
+      let toastMsg = "Loaded Brand-Compliant Sample! Click 'Run Autonomous AI Governance Audit' to verify 100% compliance.";
+
+      if (sampleType === "violating") {
+        sampleUrl = "/samples/sample_violating_diwali.png";
+        fileName = "Blinkit_Diwali_Violations_Sample.png";
+        sampleTitle = "Blinkit Diwali Sweets & Diyas";
+        sampleCopy = "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in 10 minutes by your delivery partner. Find festive favourites on the blinlit app.";
+        toastMsg = "Loaded Non-Compliant Sample! Click 'Run Autonomous AI Governance Audit' to inspect infractions.";
+      } else if (sampleType === "gemini1") {
+        sampleUrl = "/samples/gemini_diwali_poster_1.png";
+        fileName = "Gemini_Diwali_Poster_1.png";
+        sampleTitle = "The Big Diwali Sale - Blinkit Sweets & Diyas";
+        sampleCopy = "Everything you need, delivered in minutes! Unbeatable offers on sweets, gifting, decor and earthen diyas on the Blinkit app.";
+        toastMsg = "Loaded Gemini AI Poster #1! Click 'Run Autonomous AI Governance Audit' to evaluate.";
+      } else if (sampleType === "gemini2") {
+        sampleUrl = "/samples/gemini_diwali_poster_2.png";
+        fileName = "Gemini_Diwali_Poster_2.png";
+        sampleTitle = "Blinkit Diwali Sweets & Diyas - Festive Treats";
+        sampleCopy = "Celebrate Diwali with fresh sweets, handcrafted earthen diyas, and festive gifts delivered in minutes on the Blinkit app.";
+        toastMsg = "Loaded Gemini AI Poster #2! Click 'Run Autonomous AI Governance Audit' to evaluate.";
+      }
 
       const res = await fetch(sampleUrl);
       if (!res.ok) throw new Error("Could not fetch sample");
       const blob = await res.blob();
-      const file = new File(
-        [blob],
-        isViolating ? "Blinkit_Diwali_Violations_Sample.png" : "Blinkit_Diwali_Compliant_Sample.png",
-        { type: "image/png" }
-      );
+      const file = new File([blob], fileName, { type: "image/png" });
 
       setAssetFile(file);
       setImagePreviewUrl(sampleUrl);
-
-      if (isViolating) {
-        setTitle("Blinkit Diwali Sweets & Diyas");
-        setCopy(
-          "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in 10 minutes by your delivery partner. Find festive favourites on the blinlit app."
-        );
-        setSuccessMessage("Loaded Non-Compliant Sample! Click 'Run Autonomous AI Governance Audit' to inspect infractions.");
-      } else {
-        setTitle("Blinkit Diwali Sweets & Diyas");
-        setCopy(
-          "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in minutes by your delivery partner. Find festive favourites on the Blinkit app."
-        );
-        setSuccessMessage("Loaded Brand-Compliant Sample! Click 'Run Autonomous AI Governance Audit' to verify 100% compliance.");
-      }
+      setTitle(sampleTitle);
+      setCopy(sampleCopy);
+      setSuccessMessage(toastMsg);
     } catch {
       setErrorMessage("Failed to load benchmark sample asset.");
     }
@@ -162,6 +168,7 @@ export default function CreatorContentStudioPage() {
           content_format: backendFormat,
           initial_content: activeCopy,
           platform: selectedFormat === "INSTAGRAM_POST" ? "Instagram" : selectedFormat === "TWEET" ? "X / Twitter" : "Digital Display",
+          alt_text: activeTitle ? `${activeTitle} - ${activeCopy.slice(0, 100)}` : "Festive promotional campaign creative",
         },
         { userRole: currentRole }
       );
@@ -681,71 +688,145 @@ export default function CreatorContentStudioPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Sample 1: Violating Creative */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Sample 1: Gemini AI Poster 1 */}
                   <div
-                    onClick={() => handleLoadBenchmarkSample("violating")}
-                    className="p-3 border-3 border-black bg-[var(--red)]/10 hover:bg-[var(--red)]/20 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex gap-3 items-center"
+                    onClick={() => handleLoadBenchmarkSample("gemini1")}
+                    className="p-3 border-3 border-black bg-[var(--yellow)]/15 hover:bg-[var(--yellow)]/30 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
                   >
-                    <div className="w-16 h-20 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="/samples/sample_violating_diwali_thumb.jpg"
-                        alt="Non-Compliant Diwali Creative"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                      <span className="absolute top-0 right-0 bg-[var(--red)] text-white text-[8px] font-black px-1 border-b border-l border-black">
-                        FAIL
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0 font-mono">
-                      <div className="flex items-center gap-1 text-[10px] font-black uppercase text-[var(--red)] dark:text-[#ff7b72] mb-0.5">
-                        <span className="material-symbols-outlined text-[14px]">warning</span>
-                        Non-Compliant Sample
+                    <div className="flex gap-2.5 items-center mb-2">
+                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src="/samples/gemini_diwali_poster_1_thumb.jpg"
+                          alt="Gemini AI Poster 1 - The Big Diwali Sale"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <span className="absolute top-0 right-0 bg-[var(--yellow)] text-black text-[7px] font-black px-0.5 border-b border-l border-black">
+                          AI #1
+                        </span>
                       </div>
-                      <h4 className="text-xs font-bold text-[var(--ink)] dark:text-white truncate">
-                        Diwali Poster (Violations)
-                      </h4>
-                      <p className="text-[10px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
-                        Burning sparklers (§3.2), typo &quot;blinlit&quot; (§1.1), unverified 10-min claim.
-                      </p>
-                      <span className="inline-block mt-1 text-[9px] font-black uppercase px-1.5 py-0.5 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
-                        Load Sample ⚡
-                      </span>
+                      <div className="flex-1 min-w-0 font-mono">
+                        <div className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-800 dark:text-amber-400 mb-0.5">
+                          <span className="material-symbols-outlined text-[13px]">auto_awesome</span>
+                          Gemini Poster
+                        </div>
+                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
+                          Big Diwali Sale
+                        </h4>
+                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
+                          Diwali sweets box, diyas, gold banner &amp; festive copy.
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
+                      Test Canvas #1 ⚡
+                    </span>
                   </div>
 
-                  {/* Sample 2: Compliant Creative */}
+                  {/* Sample 2: Gemini AI Poster 2 */}
+                  <div
+                    onClick={() => handleLoadBenchmarkSample("gemini2")}
+                    className="p-3 border-3 border-black bg-[var(--yellow)]/15 hover:bg-[var(--yellow)]/30 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
+                  >
+                    <div className="flex gap-2.5 items-center mb-2">
+                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src="/samples/gemini_diwali_poster_2_thumb.jpg"
+                          alt="Gemini AI Poster 2 - Festive Delivery"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <span className="absolute top-0 right-0 bg-[var(--yellow)] text-black text-[7px] font-black px-0.5 border-b border-l border-black">
+                          AI #2
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 font-mono">
+                        <div className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-800 dark:text-amber-400 mb-0.5">
+                          <span className="material-symbols-outlined text-[13px]">electric_moped</span>
+                          Gemini Poster
+                        </div>
+                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
+                          Festive Delivery
+                        </h4>
+                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
+                          Delivery partner scooter, sweets hamper &amp; clay lamps.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
+                      Test Canvas #2 ⚡
+                    </span>
+                  </div>
+
+                  {/* Sample 3: Compliant Creative */}
                   <div
                     onClick={() => handleLoadBenchmarkSample("compliant")}
-                    className="p-3 border-3 border-black bg-[var(--green)]/15 hover:bg-[var(--green)]/25 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex gap-3 items-center"
+                    className="p-3 border-3 border-black bg-[var(--green)]/15 hover:bg-[var(--green)]/25 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
                   >
-                    <div className="w-16 h-20 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src="/samples/sample_compliant_diwali_thumb.jpg"
-                        alt="Brand-Compliant Diwali Creative"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                      <span className="absolute top-0 right-0 bg-[var(--green)] text-black text-[8px] font-black px-1 border-b border-l border-black">
-                        PASS
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0 font-mono">
-                      <div className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-400 mb-0.5">
-                        <span className="material-symbols-outlined text-[14px]">verified</span>
-                        Compliant Sample
+                    <div className="flex gap-2.5 items-center mb-2">
+                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src="/samples/sample_compliant_diwali_thumb.jpg"
+                          alt="Brand-Compliant Diwali Creative"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <span className="absolute top-0 right-0 bg-[var(--green)] text-black text-[7px] font-black px-0.5 border-b border-l border-black">
+                          PASS
+                        </span>
                       </div>
-                      <h4 className="text-xs font-bold text-[var(--ink)] dark:text-white truncate">
-                        Diwali Poster (Remediated)
-                      </h4>
-                      <p className="text-[10px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
-                        Earthen diyas, official Blinkit branding, telemetry delivery wording.
-                      </p>
-                      <span className="inline-block mt-1 text-[9px] font-black uppercase px-1.5 py-0.5 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--green)] group-hover:text-black transition-colors">
-                        Load Sample ⚡
-                      </span>
+                      <div className="flex-1 min-w-0 font-mono">
+                        <div className="flex items-center gap-1 text-[9px] font-black uppercase text-emerald-800 dark:text-emerald-400 mb-0.5">
+                          <span className="material-symbols-outlined text-[13px]">verified</span>
+                          Benchmark Pass
+                        </div>
+                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
+                          Remediated
+                        </h4>
+                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
+                          Earthen diyas, Blinkit app nomenclature, SLA copy.
+                        </p>
+                      </div>
                     </div>
+                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--green)] group-hover:text-black transition-colors">
+                      Load Compliant ⚡
+                    </span>
+                  </div>
+
+                  {/* Sample 4: Violating Creative */}
+                  <div
+                    onClick={() => handleLoadBenchmarkSample("violating")}
+                    className="p-3 border-3 border-black bg-[var(--red)]/10 hover:bg-[var(--red)]/20 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
+                  >
+                    <div className="flex gap-2.5 items-center mb-2">
+                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src="/samples/sample_violating_diwali_thumb.jpg"
+                          alt="Non-Compliant Diwali Creative"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <span className="absolute top-0 right-0 bg-[var(--red)] text-white text-[7px] font-black px-0.5 border-b border-l border-black">
+                          FAIL
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0 font-mono">
+                        <div className="flex items-center gap-1 text-[9px] font-black uppercase text-[var(--red)] dark:text-[#ff7b72] mb-0.5">
+                          <span className="material-symbols-outlined text-[13px]">warning</span>
+                          Benchmark Fail
+                        </div>
+                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
+                          Violations
+                        </h4>
+                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
+                          Sparklers (§3.2), typo &quot;blinlit&quot;, unverified claim.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--red)] group-hover:text-white transition-colors">
+                      Load Violations ⚡
+                    </span>
                   </div>
                 </div>
               </div>
