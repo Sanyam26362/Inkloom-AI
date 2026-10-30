@@ -442,7 +442,7 @@ async def upload_image_and_audit(
     current_rev = SubmissionRevision(
         submission_id=submission.id,
         version_number=new_version,
-        content_body="Visual Image Asset",
+        content_body=(submission.revisions[0].content_body if submission.revisions and submission.revisions[0].content_body and submission.revisions[0].content_body != "Visual Image Asset" else "Visual Image Asset"),
         media_urls=[file_ref],
         change_summary="Uploaded image for visual audit",
         created_by=user.user_name,

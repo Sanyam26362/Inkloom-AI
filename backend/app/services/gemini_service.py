@@ -226,7 +226,7 @@ class GeminiService:
         and exponential backoff on 429/5xx/timeout.
         """
         if getattr(self, "generate_quota_exhausted", False):
-            raise errors.ClientError(429, "Gemini generation daily quota exhausted. Fallback to deterministic detectors.")
+            raise RuntimeError("Gemini generation daily quota exhausted. Fallback to deterministic detectors.")
         last_error = None
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(3),
