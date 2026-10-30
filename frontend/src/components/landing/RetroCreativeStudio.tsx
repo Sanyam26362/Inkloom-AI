@@ -2,7 +2,11 @@
 
 import React from "react";
 
-export function RetroCreativeStudio() {
+interface RetroCreativeStudioProps {
+  onReset?: () => void;
+}
+
+export function RetroCreativeStudio({ onReset }: RetroCreativeStudioProps) {
   return (
     <div
       className="nb-studio-container relative w-full h-full overflow-hidden select-none font-mono flex flex-col justify-between p-2 sm:p-2.5"
@@ -22,9 +26,25 @@ export function RetroCreativeStudio() {
           <span className="w-2 h-2 bg-[var(--nb-red)] border border-[var(--nb-ink)] nb-studio-rec-dot" />
           <span className="tracking-tighter sm:tracking-normal">STUDIO://AI_QA</span>
         </div>
-        <div className="flex items-center gap-1.5 bg-[var(--nb-yellow)] px-1.5 py-0.5 border border-[var(--nb-ink)] shadow-[1px_1px_0_var(--nb-ink)]">
-          <span className="hidden xs:inline">MULTI-CHANNEL</span>
-          <span className="tracking-tight">60 FPS</span>
+        
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 bg-[var(--nb-yellow)] px-1.5 py-0.5 border border-[var(--nb-ink)] shadow-[1px_1px_0_var(--nb-ink)]">
+            <span className="hidden xs:inline">MULTI-CHANNEL</span>
+            <span className="tracking-tight">60 FPS</span>
+          </div>
+
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              title="Return to static preview"
+              aria-label="Return to static preview"
+              className="bg-white hover:bg-[var(--nb-cream)] text-[var(--nb-ink)] px-1.5 py-0.5 border border-[var(--nb-ink)] font-bold text-[9px] transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 cursor-pointer shadow-[1px_1px_0_var(--nb-ink)] flex items-center gap-1"
+            >
+              <span>✕</span>
+              <span className="hidden xs:inline">STOP</span>
+            </button>
+          )}
         </div>
       </div>
 

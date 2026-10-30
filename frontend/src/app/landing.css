@@ -622,6 +622,72 @@
   }
 }
 
+/* Fully Assembled State: Locks elements in exact final coordinates, prevents replay */
+.nb-landing .nb-hero-computer-assembled .nb-layer-back-window,
+.nb-landing .nb-hero-computer-assembled .nb-layer-front-window,
+.nb-landing .nb-hero-computer-assembled .nb-layer-header,
+.nb-landing .nb-hero-computer-assembled .nb-layer-pink-screen,
+.nb-landing .nb-hero-computer-assembled .nb-layer-panel-warning,
+.nb-landing .nb-hero-computer-assembled .nb-layer-panel-verify,
+.nb-landing .nb-hero-computer-assembled .nb-layer-video-label,
+.nb-landing .nb-hero-computer-assembled .nb-layer-red-dot,
+.nb-landing .nb-hero-computer-assembled .nb-layer-play-btn,
+.nb-landing .nb-hero-computer-assembled .nb-layer-timestamp,
+.nb-landing .nb-hero-computer-assembled .nb-layer-analysis-text,
+.nb-landing .nb-hero-computer-assembled .nb-layer-chip-red,
+.nb-landing .nb-hero-computer-assembled .nb-layer-desc-warning,
+.nb-landing .nb-hero-computer-assembled .nb-layer-chip-green,
+.nb-landing .nb-hero-computer-assembled .nb-layer-desc-verify {
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+.nb-landing .nb-hero-computer-assembled .nb-layer-back-window {
+  transform: translate(12px, 12px) !important;
+}
+
+.nb-landing .nb-hero-computer-assembled .nb-layer-front-window {
+  transform: rotate(1.5deg) !important;
+}
+
+.nb-landing .nb-hero-computer-assembled .nb-layer-header,
+.nb-landing .nb-hero-computer-assembled .nb-layer-pink-screen,
+.nb-landing .nb-hero-computer-assembled .nb-layer-panel-warning,
+.nb-landing .nb-hero-computer-assembled .nb-layer-panel-verify,
+.nb-landing .nb-hero-computer-assembled .nb-layer-video-label,
+.nb-landing .nb-hero-computer-assembled .nb-layer-timestamp,
+.nb-landing .nb-hero-computer-assembled .nb-layer-desc-warning,
+.nb-landing .nb-hero-computer-assembled .nb-layer-desc-verify {
+  transform: none !important;
+}
+
+.nb-landing .nb-hero-computer-assembled .nb-layer-red-dot,
+.nb-landing .nb-hero-computer-assembled .nb-layer-play-btn,
+.nb-landing .nb-hero-computer-assembled .nb-layer-chip-red,
+.nb-landing .nb-hero-computer-assembled .nb-layer-chip-green {
+  transform: scale(1) !important;
+}
+
+.nb-landing .nb-hero-computer-assembled .nb-layer-analysis-text {
+  width: auto !important;
+}
+
+/* Snappy reveal when creative studio begins */
+@keyframes nb-studio-quick-reveal {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.nb-landing .nb-studio-fade-enter {
+  animation: nb-studio-quick-reveal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* ==========================================================================
    Retro AI Creative Studio Styles (Hero Pink Screen)
    ========================================================================== */

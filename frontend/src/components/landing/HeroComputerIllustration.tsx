@@ -1,10 +1,58 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { RetroCreativeStudio } from "@/components/landing/RetroCreativeStudio";
+
+type ComputerAnimationState = "assembling" | "idle" | "playing";
 
 export function HeroComputerIllustration() {
+  const [animState, setAnimState] = useState<ComputerAnimationState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (prefersReduced) return "idle";
+      } catch {
+        // Fallback for SSR or non-standard environments
+      }
+    }
+    return "assembling";
+  });
+
+  useEffect(() => {
+    // If already in idle or playing state, no assembly timer needed
+    if (animState !== "assembling") return;
+
+    // Transition from "assembling" to "idle" once assembly is complete (~5.35s)
+    const timer = setTimeout(() => {
+      setAnimState("idle");
+    }, 5350);
+
+    return () => clearTimeout(timer);
+  }, [animState]);
+
+  const handlePlayClick = () => {
+    // Only allow starting playback when assembly is complete
+    if (animState === "idle") {
+      setAnimState("playing");
+    }
+  };
+
+  const handleResetToIdle = () => {
+    if (animState === "playing") {
+      setAnimState("idle");
+    }
+  };
+
+  const isAssembled = animState !== "assembling";
+
   return (
-    <div className="relative w-full max-w-[460px] py-4 select-none">
+    <div
+      className={`relative w-full max-w-[460px] py-4 select-none ${
+        isAssembled ? "nb-hero-computer-assembled" : ""
+      }`}
+      role="region"
+      aria-label="Inkloom AI Multi-Modal QA Computer Demonstration"
+    >
       {/* ========================================================
           STAGE 2: Bottom Layers (0.5s - 1.5s)
           Layer 2: Bottom-most black offset shadow
@@ -59,34 +107,52 @@ export function HeroComputerIllustration() {
           {/* ========================================================
               STAGE 4: Pink Screen Entrance (2.5s - 3.2s)
               Layer 7: Pink video screen
+              Houses PHASE 2 (Static Video Player) and PHASE 3 (Retro AI Creative Studio)
               ======================================================== */}
-          <div className="nb-layer-pink-screen relative bg-[var(--nb-pink)] border-[3px] border-[var(--nb-ink)] p-4 h-44 sm:h-48 flex flex-col justify-between shadow-[3px_3px_0_var(--nb-ink)] overflow-hidden">
-            {/* Top row inside pink screen */}
-            <div className="flex items-center justify-between">
-              {/* Layer 8: White video screen label (Stage 6: 4.0s) */}
-              <span className="nb-layer-video-label nb-mono text-xs font-bold text-[var(--nb-ink)] bg-white px-2 py-0.5 border border-[var(--nb-ink)]">
-                BRAND FILM / FRAME 0842
-              </span>
-              {/* Layer 9: Small decorative status indicator (Stage 6: 4.15s) */}
-              <span className="nb-layer-red-dot w-2.5 h-2.5 bg-[var(--nb-red)] border border-[var(--nb-ink)] animate-pulse"></span>
-            </div>
-
-            {/* Layer 10: Yellow play button with black border and shadow (Stage 6: 4.25s) */}
-            <div className="nb-layer-play-btn self-center">
-              <div className="w-12 h-12 bg-[var(--nb-yellow)] border-[3px] border-[var(--nb-ink)] shadow-[3px_3px_0_var(--nb-ink)] flex items-center justify-center cursor-pointer transition-transform hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5">
-                <div className="w-0 h-0 border-y-[7px] border-y-transparent border-l-[12px] border-l-[var(--nb-ink)] ml-1"></div>
+          <div className="nb-layer-pink-screen relative bg-[var(--nb-pink)] border-[3px] border-[var(--nb-ink)] h-44 sm:h-48 shadow-[3px_3px_0_var(--nb-ink)] overflow-hidden">
+            {animState === "playing" ? (
+              /* Phase 3: Retro AI Creative Studio (Running smoothly inside the pink screen) */
+              <div className="w-full h-full nb-studio-fade-enter">
+                <RetroCreativeStudio onReset={handleResetToIdle} />
               </div>
-            </div>
+            ) : (
+              /* Phase 1 & 2: Assembling & Static Assembled Video Preview */
+              <div className="w-full h-full p-4 flex flex-col justify-between">
+                {/* Top row inside pink screen */}
+                <div className="flex items-center justify-between">
+                  {/* Layer 8: White video screen label */}
+                  <span className="nb-layer-video-label nb-mono text-xs font-bold text-[var(--nb-ink)] bg-white px-2 py-0.5 border border-[var(--nb-ink)]">
+                    BRAND FILM / FRAME 0842
+                  </span>
+                  {/* Layer 9: Small decorative status indicator */}
+                  <span className="nb-layer-red-dot w-2.5 h-2.5 bg-[var(--nb-red)] border border-[var(--nb-ink)] animate-pulse"></span>
+                </div>
 
-            {/* Layer 11: Black timestamp label (Stage 6: 4.4s) */}
-            <div className="nb-layer-timestamp self-start">
-              <span className="nb-mono text-xs sm:text-[13px] font-bold bg-[var(--nb-ink)] text-white px-2.5 py-1 border border-[var(--nb-ink)]">
-                00:14:08 / 01:02:11
-              </span>
-            </div>
+                {/* Layer 10: Yellow play button with black border and shadow */}
+                <div className="nb-layer-play-btn self-center">
+                  <button
+                    type="button"
+                    onClick={handlePlayClick}
+                    disabled={animState === "assembling"}
+                    aria-label="Play AI Creative Studio campaign analysis demo"
+                    title={animState === "assembling" ? "Assembling studio..." : "Click to launch Retro AI Creative Studio"}
+                    className="w-12 h-12 bg-[var(--nb-yellow)] border-[3px] border-[var(--nb-ink)] shadow-[3px_3px_0_var(--nb-ink)] flex items-center justify-center cursor-pointer transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_var(--nb-ink)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--nb-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nb-ink)] group disabled:cursor-default disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0_var(--nb-ink)]"
+                  >
+                    <div className="w-0 h-0 border-y-[7px] border-y-transparent border-l-[12px] border-l-[var(--nb-ink)] ml-1 group-hover:scale-110 transition-transform"></div>
+                  </button>
+                </div>
+
+                {/* Layer 11: Black timestamp label */}
+                <div className="nb-layer-timestamp self-start">
+                  <span className="nb-mono text-xs sm:text-[13px] font-bold bg-[var(--nb-ink)] text-white px-2.5 py-1 border border-[var(--nb-ink)]">
+                    00:14:08 / 01:02:11
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Layer 12: Analysis text with typewriter effect (Stage 6: 4.55s) */}
+          {/* Layer 12: Analysis text with typewriter effect */}
           <div className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] tracking-wider min-h-[20px] flex items-center">
             <span className="nb-layer-analysis-text">ANALYZING FRAME 0842...</span>
           </div>
@@ -98,27 +164,27 @@ export function HeroComputerIllustration() {
                 Layer 13: First white warning panel
                 ======================================================== */}
             <div className="nb-layer-panel-warning bg-white border-[3px] border-[var(--nb-ink)] p-3 shadow-[3px_3px_0_var(--nb-ink)]">
-              {/* Layer 14: Red warning label (Stage 6: 4.7s) */}
+              {/* Layer 14: Red warning label */}
               <div className="flex items-center gap-2 mb-1">
                 <span className="nb-layer-chip-red nb-chip nb-chip-critical text-xs py-0.5 px-2">
                   ! UNAPPROVED CLAIM
                 </span>
               </div>
-              {/* Layer 15: Warning description text (Stage 6: 4.8s) */}
+              {/* Layer 15: Warning description text */}
               <p className="nb-layer-desc-warning nb-mono text-xs sm:text-sm text-[var(--nb-ink)] font-medium">
                 &quot;#1 in the category&quot; has no approved source
               </p>
             </div>
 
-            {/* Layer 16: Second white verification panel (3.5s) */}
+            {/* Layer 16: Second white verification panel */}
             <div className="nb-layer-panel-verify bg-white border-[3px] border-[var(--nb-ink)] p-3 shadow-[3px_3px_0_var(--nb-ink)]">
-              {/* Layer 17: Green verification label (Stage 6: 4.95s) */}
+              {/* Layer 17: Green verification label */}
               <div className="flex items-center gap-2 mb-1">
                 <span className="nb-layer-chip-green nb-chip nb-chip-pass text-xs py-0.5 px-2">
                   ✓ LOGO CLEAR SPACE
                 </span>
               </div>
-              {/* Layer 18: Verification description text (Stage 6: 5.05s) */}
+              {/* Layer 18: Verification description text */}
               <p className="nb-layer-desc-verify nb-mono text-xs sm:text-sm text-[var(--nb-ink)] font-medium">
                 Meets minimum clearance
               </p>
