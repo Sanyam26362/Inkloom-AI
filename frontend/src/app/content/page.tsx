@@ -82,32 +82,20 @@ export default function CreatorContentStudioPage() {
       : null);
 
   // Load Evaluator Benchmark Creative Sample
-  const handleLoadBenchmarkSample = async (sampleType: "violating" | "compliant" | "gemini1" | "gemini2") => {
+  const handleLoadBenchmarkSample = async (sampleType: "sample1" | "sample2") => {
     try {
-      let sampleUrl = "/samples/sample_compliant_diwali.png";
-      let fileName = "Blinkit_Diwali_Compliant_Sample.png";
-      let sampleTitle = "Blinkit Diwali Sweets & Diyas";
+      let sampleUrl = "/samples/diwali_sorted_with_blinkit.png";
+      let fileName = "Diwali Sorted with Blinkit.png";
+      let sampleTitle = "Diwali Sorted with Blinkit";
       let sampleCopy = "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in minutes by your delivery partner. Find festive favourites on the Blinkit app.";
-      let toastMsg = "Loaded Brand-Compliant Sample! Click 'Run Autonomous AI Governance Audit' to verify 100% compliance.";
+      let toastMsg = "Loaded 'Diwali Sorted with Blinkit'! Click 'Run Autonomous AI Governance Audit' to inspect.";
 
-      if (sampleType === "violating") {
-        sampleUrl = "/samples/sample_violating_diwali.png";
-        fileName = "Blinkit_Diwali_Violations_Sample.png";
-        sampleTitle = "Blinkit Diwali Sweets & Diyas";
-        sampleCopy = "Celebrate Diwali with sweets, fresh decor and earthen diyas delivered in 10 minutes by your delivery partner. Find festive favourites on the blinlit app.";
-        toastMsg = "Loaded Non-Compliant Sample! Click 'Run Autonomous AI Governance Audit' to inspect infractions.";
-      } else if (sampleType === "gemini1") {
-        sampleUrl = "/samples/gemini_diwali_poster_1.png";
-        fileName = "Gemini_Diwali_Poster_1.png";
-        sampleTitle = "The Big Diwali Sale - Blinkit Sweets & Diyas";
-        sampleCopy = "Everything you need, delivered in minutes! Unbeatable offers on sweets, gifting, decor and earthen diyas on the Blinkit app.";
-        toastMsg = "Loaded Gemini AI Poster #1! Click 'Run Autonomous AI Governance Audit' to evaluate.";
-      } else if (sampleType === "gemini2") {
-        sampleUrl = "/samples/gemini_diwali_poster_2.png";
-        fileName = "Gemini_Diwali_Poster_2.png";
-        sampleTitle = "Blinkit Diwali Sweets & Diyas - Festive Treats";
-        sampleCopy = "Celebrate Diwali with fresh sweets, handcrafted earthen diyas, and festive gifts delivered in minutes on the Blinkit app.";
-        toastMsg = "Loaded Gemini AI Poster #2! Click 'Run Autonomous AI Governance Audit' to evaluate.";
+      if (sampleType === "sample2") {
+        sampleUrl = "/samples/blinkit_diwali_brighter_in_minutes.png";
+        fileName = "Blinkit Diwali_ Brighter in Minutes.png";
+        sampleTitle = "Blinkit Diwali: Brighter in Minutes";
+        sampleCopy = "Celebrate Diwali with sweets, festive decor and handcrafted earthen diyas delivered in minutes by your delivery partner. Order now on Blinkit.";
+        toastMsg = "Loaded 'Blinkit Diwali: Brighter in Minutes'! Click 'Run Autonomous AI Governance Audit' to inspect.";
       }
 
       const res = await fetch(sampleUrl);
@@ -713,148 +701,72 @@ export default function CreatorContentStudioPage() {
                     [TRY BENCHMARK SAMPLE IMAGES // 1-CLICK AUDIT]
                   </span>
                   <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 bg-black/5 dark:bg-white/10 text-[var(--ink)] dark:text-white border border-black/30">
-                    Dataset Benchmark
+                    Curated Brand Creatives
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {/* Sample 1: Gemini AI Poster 1 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Sample 1: Diwali Sorted with Blinkit */}
                   <div
-                    onClick={() => handleLoadBenchmarkSample("gemini1")}
+                    onClick={() => handleLoadBenchmarkSample("sample1")}
                     className="p-3 border-3 border-black bg-[var(--yellow)]/15 hover:bg-[var(--yellow)]/30 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
                   >
-                    <div className="flex gap-2.5 items-center mb-2">
-                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
+                    <div className="flex gap-3 items-center mb-2">
+                      <div className="w-16 h-20 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src="/samples/gemini_diwali_poster_1_thumb.jpg"
-                          alt="Gemini AI Poster 1 - The Big Diwali Sale"
+                          src="/samples/diwali_sorted_with_blinkit.png"
+                          alt="Diwali Sorted with Blinkit"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
-                        <span className="absolute top-0 right-0 bg-[var(--yellow)] text-black text-[7px] font-black px-0.5 border-b border-l border-black">
-                          AI #1
-                        </span>
                       </div>
                       <div className="flex-1 min-w-0 font-mono">
                         <div className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-800 dark:text-amber-400 mb-0.5">
-                          <span className="material-symbols-outlined text-[13px]">auto_awesome</span>
-                          Gemini Poster
+                          <span className="material-symbols-outlined text-[13px]">image</span>
+                          Brand Poster
                         </div>
-                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
-                          Big Diwali Sale
+                        <h4 className="text-xs font-black text-[var(--ink)] dark:text-white truncate">
+                          Diwali Sorted with Blinkit
                         </h4>
-                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
-                          Diwali sweets box, diyas, gold banner &amp; festive copy.
+                        <p className="text-[10px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
+                          Festive sweets, clay diyas &amp; decor essentials delivered in minutes.
                         </p>
                       </div>
                     </div>
-                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
-                      Test Canvas #1 ⚡
+                    <span className="text-center text-[10px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
+                      Load Creative ⚡
                     </span>
                   </div>
 
-                  {/* Sample 2: Gemini AI Poster 2 */}
+                  {/* Sample 2: Blinkit Diwali_ Brighter in Minutes */}
                   <div
-                    onClick={() => handleLoadBenchmarkSample("gemini2")}
+                    onClick={() => handleLoadBenchmarkSample("sample2")}
                     className="p-3 border-3 border-black bg-[var(--yellow)]/15 hover:bg-[var(--yellow)]/30 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
                   >
-                    <div className="flex gap-2.5 items-center mb-2">
-                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
+                    <div className="flex gap-3 items-center mb-2">
+                      <div className="w-16 h-20 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src="/samples/gemini_diwali_poster_2_thumb.jpg"
-                          alt="Gemini AI Poster 2 - Festive Delivery"
+                          src="/samples/blinkit_diwali_brighter_in_minutes.png"
+                          alt="Blinkit Diwali: Brighter in Minutes"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
-                        <span className="absolute top-0 right-0 bg-[var(--yellow)] text-black text-[7px] font-black px-0.5 border-b border-l border-black">
-                          AI #2
-                        </span>
                       </div>
                       <div className="flex-1 min-w-0 font-mono">
                         <div className="flex items-center gap-1 text-[9px] font-black uppercase text-amber-800 dark:text-amber-400 mb-0.5">
-                          <span className="material-symbols-outlined text-[13px]">electric_moped</span>
-                          Gemini Poster
+                          <span className="material-symbols-outlined text-[13px]">image</span>
+                          Brand Poster
                         </div>
-                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
-                          Festive Delivery
+                        <h4 className="text-xs font-black text-[var(--ink)] dark:text-white truncate">
+                          Blinkit Diwali: Brighter in Minutes
                         </h4>
-                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
-                          Delivery partner scooter, sweets hamper &amp; clay lamps.
+                        <p className="text-[10px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
+                          Traditional earthen lamps, festive sweets &amp; celebratory hampers.
                         </p>
                       </div>
                     </div>
-                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
-                      Test Canvas #2 ⚡
-                    </span>
-                  </div>
-
-                  {/* Sample 3: Compliant Creative */}
-                  <div
-                    onClick={() => handleLoadBenchmarkSample("compliant")}
-                    className="p-3 border-3 border-black bg-[var(--green)]/15 hover:bg-[var(--green)]/25 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
-                  >
-                    <div className="flex gap-2.5 items-center mb-2">
-                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src="/samples/sample_compliant_diwali_thumb.jpg"
-                          alt="Brand-Compliant Diwali Creative"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                        <span className="absolute top-0 right-0 bg-[var(--green)] text-black text-[7px] font-black px-0.5 border-b border-l border-black">
-                          PASS
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0 font-mono">
-                        <div className="flex items-center gap-1 text-[9px] font-black uppercase text-emerald-800 dark:text-emerald-400 mb-0.5">
-                          <span className="material-symbols-outlined text-[13px]">verified</span>
-                          Benchmark Pass
-                        </div>
-                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
-                          Remediated
-                        </h4>
-                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
-                          Earthen diyas, Blinkit app nomenclature, SLA copy.
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--green)] group-hover:text-black transition-colors">
-                      Load Compliant ⚡
-                    </span>
-                  </div>
-
-                  {/* Sample 4: Violating Creative */}
-                  <div
-                    onClick={() => handleLoadBenchmarkSample("violating")}
-                    className="p-3 border-3 border-black bg-[var(--red)]/10 hover:bg-[var(--red)]/20 transition-all cursor-pointer shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 group flex flex-col justify-between"
-                  >
-                    <div className="flex gap-2.5 items-center mb-2">
-                      <div className="w-14 h-18 shrink-0 border-2 border-black overflow-hidden bg-black shadow-[1px_1px_0px_#000] relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src="/samples/sample_violating_diwali_thumb.jpg"
-                          alt="Non-Compliant Diwali Creative"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                        <span className="absolute top-0 right-0 bg-[var(--red)] text-white text-[7px] font-black px-0.5 border-b border-l border-black">
-                          FAIL
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0 font-mono">
-                        <div className="flex items-center gap-1 text-[9px] font-black uppercase text-[var(--red)] dark:text-[#ff7b72] mb-0.5">
-                          <span className="material-symbols-outlined text-[13px]">warning</span>
-                          Benchmark Fail
-                        </div>
-                        <h4 className="text-[11px] font-bold text-[var(--ink)] dark:text-white truncate">
-                          Violations
-                        </h4>
-                        <p className="text-[9px] text-[#555] dark:text-[#a0a5b5] line-clamp-2 mt-0.5 leading-snug">
-                          Sparklers (§3.2), typo &quot;blinlit&quot;, unverified claim.
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-center text-[9px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--red)] group-hover:text-white transition-colors">
-                      Load Violations ⚡
+                    <span className="text-center text-[10px] font-black uppercase py-1 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000] group-hover:bg-[var(--yellow)] group-hover:text-black transition-colors">
+                      Load Creative ⚡
                     </span>
                   </div>
                 </div>
