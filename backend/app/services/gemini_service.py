@@ -222,32 +222,46 @@ class GeminiService:
 
     async def _generate_with_retry(self, model: str, contents: Any, config: Any):
         """
-        Attempts generation with configured model with up to 3 attempts
-        and exponential backoff on 429/5xx/timeout.
+        Attempts generation with configured model. If a model exhausts its daily Free Tier
+        quota (limit exceeded / 429 RESOURCE_EXHAUSTED), it automatically falls back to
+        the next available models (gemini-flash-latest, gemini-3.7-flash, gemini-3.7-flash)
+        so audits continue without interruption.
         """
-        if getattr(self, "generate_quota_exhausted", False):
-            raise RuntimeError("Gemini generation daily quota exhausted. Fallback to deterministic detectors.")
+        models_to_try = [model]
+        for fb in ["gemini-flash-latest", "gemini-3.7-flash"]:
+            if fb not in models_to_try:
+                models_to_try.append(fb)
+
         last_error = None
-        async for attempt in AsyncRetrying(
-            stop=stop_after_attempt(3),
-            wait=wait_exponential(multiplier=1, min=1, max=10),
-            retry=retry_if_exception(is_retryable_exception),
-            reraise=True,
-        ):
-            with attempt:
-                try:
-                    logger.info(f"Invoking Gemini model: {model} (attempt {attempt.retry_state.attempt_number})")
-                    return await self._client.aio.models.generate_content(
-                        model=model,
-                        contents=contents,
-                        config=config,
-                    )
-                except Exception as e:
-                    last_error = e
-                    if "limit exceeded" in str(e).lower() or "per day" in str(e).lower():
-                        self.generate_quota_exhausted = True
-                    logger.warning(f"Model '{model}' attempt {attempt.retry_state.attempt_number} failed: {e}")
-                    raise
+        for current_model in models_to_try:
+            try:
+                async for attempt in AsyncRetrying(
+                    stop=stop_after_attempt(2),
+                    wait=wait_exponential(multiplier=1, min=1, max=4),
+                    retry=retry_if_exception(is_retryable_exception),
+                    reraise=True,
+                ):
+                    with attempt:
+                        try:
+                            logger.info(f"Invoking Gemini model: {current_model} (attempt {attempt.retry_state.attempt_number})")
+                            return await self._client.aio.models.generate_content(
+                                model=current_model,
+                                contents=contents,
+                                config=config,
+                            )
+                        except Exception as e:
+                            last_error = e
+                            exc_str = str(e).lower()
+                            if "limit exceeded" in exc_str or "per day" in exc_str or "resource_exhausted" in exc_str:
+                                logger.warning(f"Model '{current_model}' hit daily free tier quota. Trying fallback model...")
+                                break
+                            logger.warning(f"Model '{current_model}' attempt {attempt.retry_state.attempt_number} failed: {e}")
+                            raise
+            except Exception as e:
+                last_error = e
+                continue
+
+        self.generate_quota_exhausted = True
         raise last_error
 
     async def _embed_with_retry(self, model: str, contents: Any, config: Any):
