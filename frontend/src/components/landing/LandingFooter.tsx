@@ -60,48 +60,48 @@ export function LandingFooter() {
 
             {/* Column 2: Company */}
             <div className="flex flex-col gap-3">
-              <span className="nb-mono text-xs font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
+              <span className="nb-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
                 Company
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 About [PLACEHOLDER]
               </span>
               <a
                 href="mailto:contact@inkloom.ai"
-                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
+                className="nb-mono text-xs sm:text-sm text-white/90 hover:text-white hover:underline transition-colors"
               >
                 Contact
               </a>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 Careers [PLACEHOLDER]
               </span>
             </div>
 
             {/* Column 3: Resources */}
             <div className="flex flex-col gap-3">
-              <span className="nb-mono text-xs font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
+              <span className="nb-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
                 Resources
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 Docs [PLACEHOLDER]
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 API [PLACEHOLDER]
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 Status [PLACEHOLDER]
               </span>
             </div>
 
             {/* Column 4: Legal */}
             <div className="flex flex-col gap-3">
-              <span className="nb-mono text-xs font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
+              <span className="nb-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
                 Legal
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 Privacy [PLACEHOLDER]
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/50 cursor-not-allowed">
+              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
                 Terms [PLACEHOLDER]
               </span>
             </div>
@@ -110,7 +110,7 @@ export function LandingFooter() {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="nb-mono text-xs text-white/60">
+          <p className="nb-mono text-xs sm:text-sm text-white/80">
             © 2026 Inkloom AI. All rights reserved.
           </p>
           <div className="flex items-center gap-4">

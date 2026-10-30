@@ -131,7 +131,7 @@ export function Solutions() {
 
             {/* What Inkloom Does */}
             <div className="border-l-[4px] border-[var(--nb-ink)] pl-4 sm:pl-6 py-1">
-              <span className="nb-mono text-xs font-bold uppercase tracking-widest text-[var(--nb-ink)] block mb-3 opacity-75">
+              <span className="nb-mono text-sm sm:text-base font-bold uppercase tracking-widest text-[var(--nb-ink)] block mb-3 opacity-90">
                 WHAT INKLOOM DOES
               </span>
               <p className="nb-mono text-base sm:text-lg text-[var(--nb-ink)] font-medium leading-relaxed">

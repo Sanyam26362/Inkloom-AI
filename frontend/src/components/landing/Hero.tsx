@@ -27,9 +27,10 @@ export function Hero() {
 
             <h1 id="hero-heading" className="nb-h1 mb-6 text-[var(--nb-ink)]">
               YOUR<br />
-              BRAND.<br />
-              ON THE<br />
-              RECORD.
+              BRAND<br />
+              {/* <span style={{ wordSpacing: "-0.4em" }}>ON THE</span><br /> */}
+              ALWAYS  <br />
+              ALIGNED.
             </h1>
 
             <p className="nb-mono text-base sm:text-lg leading-relaxed text-[var(--nb-ink)] mb-8 max-w-xl font-medium">
@@ -53,7 +54,7 @@ export function Hero() {
               </button>
             </div>
 
-            <p className="nb-mono text-xs sm:text-[13px] tracking-wide text-[var(--nb-ink)] font-bold">
+            <p className="nb-mono text-sm sm:text-base tracking-wide text-[var(--nb-ink)] font-bold">
               Multi-modal · Human-approved · Fully audit-logged
             </p>
           </div>
@@ -125,14 +126,14 @@ export function Hero() {
 
                   {/* Timecode Chip */}
                   <div className="self-start">
-                    <span className="nb-mono text-[11px] font-bold bg-[var(--nb-ink)] text-white px-2 py-1 border border-[var(--nb-ink)]">
+                    <span className="nb-mono text-xs sm:text-[13px] font-bold bg-[var(--nb-ink)] text-white px-2.5 py-1 border border-[var(--nb-ink)]">
                       00:14:08 / 01:02:11
                     </span>
                   </div>
                 </div>
 
                 {/* Status Bar */}
-                <div className="nb-mono text-xs font-bold text-[var(--nb-ink)] tracking-wider">
+                <div className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] tracking-wider">
                   ANALYZING FRAME 0842...
                 </div>
 
@@ -141,11 +142,11 @@ export function Hero() {
                   {/* Red Row: Unapproved Claim */}
                   <div className="bg-white border-[3px] border-[var(--nb-ink)] p-3 shadow-[3px_3px_0_var(--nb-ink)]">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="nb-chip nb-chip-critical text-[11px] py-0 px-1.5">
+                      <span className="nb-chip nb-chip-critical text-xs py-0.5 px-2">
                         ! UNAPPROVED CLAIM
                       </span>
                     </div>
-                    <p className="nb-mono text-xs text-[var(--nb-ink)] font-medium">
+                    <p className="nb-mono text-xs sm:text-sm text-[var(--nb-ink)] font-medium">
                       &quot;#1 in the category&quot; has no approved source
                     </p>
                   </div>
@@ -153,11 +154,11 @@ export function Hero() {
                   {/* Green Row: Logo Clear Space */}
                   <div className="bg-white border-[3px] border-[var(--nb-ink)] p-3 shadow-[3px_3px_0_var(--nb-ink)]">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="nb-chip nb-chip-pass text-[11px] py-0 px-1.5">
+                      <span className="nb-chip nb-chip-pass text-xs py-0.5 px-2">
                         ✓ LOGO CLEAR SPACE
                       </span>
                     </div>
-                    <p className="nb-mono text-xs text-[var(--nb-ink)] font-medium">
+                    <p className="nb-mono text-xs sm:text-sm text-[var(--nb-ink)] font-medium">
                       Meets minimum clearance
                     </p>
                   </div>

@@ -35,7 +35,7 @@ export function ConsolePreview() {
           <span className="nb-eyebrow text-[var(--nb-cream)] border-b-2 border-[var(--nb-yellow)]">
             GOVERNANCE CONSOLE
           </span>
-          <span className="nb-mono text-xs font-bold bg-white text-[var(--nb-ink)] px-2.5 py-1 border border-white self-start sm:self-auto">
+          <span className="nb-mono text-xs sm:text-sm font-bold bg-white text-[var(--nb-ink)] px-3 py-1 border border-white self-start sm:self-auto">
             Sample data
           </span>
         </div>
@@ -44,7 +44,7 @@ export function ConsolePreview() {
           SEE EVERY RISK. IN ONE CONSOLE.
         </h2>
 
-        <p className="nb-mono text-base sm:text-lg max-w-3xl text-[var(--nb-cream)] opacity-90 font-medium mb-12 sm:mb-16">
+        <p className="nb-mono text-base sm:text-lg max-w-3xl text-[var(--nb-cream)] opacity-95 font-medium mb-12 sm:mb-16">
           Leaders get a live view of what is waiting, what is failing, and where the AI and your reviewers disagree.
         </p>
 
@@ -56,15 +56,15 @@ export function ConsolePreview() {
               <span className="nb-mono text-xs sm:text-sm font-bold uppercase tracking-wider text-[var(--nb-yellow)]">
                 LIVE QUEUE
               </span>
-              <span className="nb-mono text-[11px] opacity-70">
+              <span className="nb-mono text-xs sm:text-sm text-white/80 font-medium">
                 4 Active Assets
               </span>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left nb-mono text-xs">
+              <table className="w-full text-left nb-mono text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-white/20 text-white/60">
+                  <tr className="border-b border-white/20 text-white/80 text-xs sm:text-sm">
                     <th className="pb-2 font-bold">ASSET</th>
                     <th className="pb-2 font-bold">SUBMITTER</th>
                     <th className="pb-2 font-bold">STATUS</th>
@@ -77,15 +77,15 @@ export function ConsolePreview() {
                       <td className="py-2.5 font-bold truncate max-w-[160px]">
                         {row.name}
                       </td>
-                      <td className="py-2.5 text-white/80">
+                      <td className="py-2.5 text-white/90">
                         {row.role}
                       </td>
                       <td className="py-2.5">
-                        <span className={`nb-chip ${row.chip} text-[10px] py-0 px-1.5`}>
+                        <span className={`nb-chip ${row.chip} text-xs py-0.5 px-2`}>
                           {row.status}
                         </span>
                       </td>
-                      <td className="py-2.5 text-white/60">
+                      <td className="py-2.5 text-white/80">
                         {row.age}
                       </td>
                     </tr>
@@ -102,7 +102,7 @@ export function ConsolePreview() {
                 <span className="nb-mono text-xs sm:text-sm font-bold uppercase tracking-wider text-[var(--nb-pink)]">
                   POLICY VIOLATIONS
                 </span>
-                <span className="nb-mono text-[11px] opacity-70">
+                <span className="nb-mono text-xs sm:text-sm text-white/80 font-medium">
                   Last 30D
                 </span>
               </div>
@@ -110,9 +110,9 @@ export function ConsolePreview() {
               <div className="flex flex-col gap-4">
                 {violations.map((v) => (
                   <div key={v.category} className="flex flex-col gap-1.5">
-                    <div className="flex justify-between nb-mono text-[11px] font-bold">
+                    <div className="flex justify-between nb-mono text-xs sm:text-sm font-bold">
                       <span>{v.category}</span>
-                      <span className="text-white/70">{v.pct}%</span>
+                      <span className="text-white/85">{v.pct}%</span>
                     </div>
                     {/* Horizontal Bar */}
                     <div className="w-full h-3 bg-white/20 border border-white">
@@ -127,7 +127,7 @@ export function ConsolePreview() {
             </div>
 
             <div className="pt-4 border-t border-white/20 mt-4">
-              <span className="nb-mono text-[10px] text-white/60 uppercase">
+              <span className="nb-mono text-xs text-white/80 uppercase font-medium">
                 Aggregated cross-campaign metrics
               </span>
             </div>
@@ -152,13 +152,13 @@ export function ConsolePreview() {
                 </span>
               </div>
 
-              <p className="nb-mono text-sm font-bold text-[var(--nb-ink)] text-center leading-snug">
+              <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)] text-center leading-snug">
                 How often reviewers accept AI findings
               </p>
             </div>
 
             <div className="pt-4 border-t-2 border-[var(--nb-ink)] border-dashed mt-4 text-center">
-              <span className="nb-mono text-[10px] uppercase font-bold text-[var(--nb-ink)] opacity-70">
+              <span className="nb-mono text-xs uppercase font-bold text-[var(--nb-ink)] opacity-85">
                 Calibrated against brand baseline
               </span>
             </div>

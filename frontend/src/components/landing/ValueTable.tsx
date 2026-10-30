@@ -88,7 +88,7 @@ export function ValueTable() {
         </div>
 
         {/* Footnote */}
-        <p className="nb-mono text-xs text-[var(--nb-ink)] opacity-75">
+        <p className="nb-mono text-sm sm:text-base text-[var(--nb-ink)] opacity-90 font-medium">
           Qualitative comparison. Results vary by team and content volume.
         </p>
       </div>

@@ -112,7 +112,7 @@
 
 .nb-landing .nb-eyebrow {
   font-family: var(--font-roboto-mono), monospace;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -247,11 +247,11 @@
 /* Chips */
 .nb-landing .nb-chip {
   font-family: var(--font-roboto-mono), monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   border: 2px solid var(--nb-ink);
-  padding: 2px 8px;
+  padding: 3px 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

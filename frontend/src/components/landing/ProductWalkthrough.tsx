@@ -35,10 +35,10 @@ export function ProductWalkthrough() {
             <div className="lg:col-span-5 p-6 sm:p-8 bg-[#faf7f2] flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-4 pb-2 border-b-2 border-[var(--nb-ink)] border-dashed">
-                  <span className="nb-mono text-xs font-bold text-[var(--nb-ink)] uppercase">
+                  <span className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] uppercase">
                     ASSET: INSTAGRAM_REEL_CAPTION.TXT
                   </span>
-                  <span className="nb-mono text-xs font-bold text-[var(--nb-ink)] opacity-70">
+                  <span className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] opacity-90">
                     RATIO 4:5
                   </span>
                 </div>
@@ -50,10 +50,10 @@ export function ProductWalkthrough() {
                       NF
                     </div>
                     <div>
-                      <p className="nb-mono text-xs font-bold text-[var(--nb-ink)] leading-none">
+                      <p className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] leading-none">
                         northwind_foods
                       </p>
-                      <p className="nb-mono text-[10px] text-[var(--nb-ink)] opacity-60">
+                      <p className="nb-mono text-xs text-[var(--nb-ink)] opacity-85 mt-1 font-medium">
                         Sponsored · Fictional Brand
                       </p>
                     </div>
@@ -61,16 +61,16 @@ export function ProductWalkthrough() {
 
                   {/* Mock Post Graphic Box */}
                   <div className="w-full aspect-[4/3] bg-[var(--nb-blue)] border-2 border-[var(--nb-ink)] mb-4 flex flex-col items-center justify-center p-4 text-center">
-                    <span className="nb-mono text-xs font-bold bg-white px-2 py-1 border border-[var(--nb-ink)] mb-2 shadow-[2px_2px_0_var(--nb-ink)]">
+                    <span className="nb-mono text-xs sm:text-sm font-bold bg-white px-2 py-1 border border-[var(--nb-ink)] mb-2 shadow-[2px_2px_0_var(--nb-ink)]">
                       NEW OAT CRUNCH
                     </span>
-                    <p className="nb-mono text-xs font-medium text-[var(--nb-ink)]">
+                    <p className="nb-mono text-xs sm:text-sm font-medium text-[var(--nb-ink)]">
                       [Product imagery banner]
                     </p>
                   </div>
 
                   {/* Caption with Highlighted Errors */}
-                  <p className="nb-mono text-xs leading-relaxed text-[var(--nb-ink)] mb-2">
+                  <p className="nb-mono text-xs sm:text-sm leading-relaxed text-[var(--nb-ink)] mb-2">
                     Start your morning right. Our organic crunch is{" "}
                     <span className="bg-[var(--nb-red)]/30 border-b-2 border-[var(--nb-red)] px-0.5 font-bold">
                       &quot;Clinically proven&quot;
@@ -85,7 +85,7 @@ export function ProductWalkthrough() {
               </div>
 
               <div className="mt-6 pt-4 border-t-2 border-[var(--nb-ink)] border-dashed">
-                <span className="nb-mono text-[11px] font-bold text-[var(--nb-ink)] uppercase">
+                <span className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] uppercase">
                   3 FINDINGS DETECTED · 1 CRITICAL BLOCKER
                 </span>
               </div>
@@ -94,10 +94,10 @@ export function ProductWalkthrough() {
             {/* Right Pane: Findings List */}
             <div className="lg:col-span-7 p-6 sm:p-8 bg-white flex flex-col gap-5">
               <div className="flex items-center justify-between pb-3 border-b-2 border-[var(--nb-ink)]">
-                <span className="nb-mono text-xs font-bold uppercase tracking-wider text-[var(--nb-ink)]">
+                <span className="nb-mono text-xs sm:text-sm font-bold uppercase tracking-wider text-[var(--nb-ink)]">
                   FINDINGS & RECEIPT CITATIONS
                 </span>
-                <span className="nb-mono text-xs font-bold text-[var(--nb-ink)] opacity-70">
+                <span className="nb-mono text-xs sm:text-sm font-bold text-[var(--nb-ink)] opacity-90">
                   PAGE 1 OF 1
                 </span>
               </div>
@@ -265,7 +265,7 @@ export function ProductWalkthrough() {
         </div>
 
         {/* Footnote */}
-        <p className="nb-mono text-xs text-[var(--nb-ink)] opacity-75">
+        <p className="nb-mono text-sm sm:text-base text-[var(--nb-ink)] opacity-90 font-medium">
           Illustration using a fictional brand.
         </p>
       </div>

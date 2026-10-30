@@ -118,7 +118,7 @@ export function Pricing() {
                   >
                     {plan.price}
                   </div>
-                  <p className="nb-mono text-sm font-medium text-[var(--nb-ink)] opacity-80">
+                  <p className="nb-mono text-sm sm:text-base font-medium text-[var(--nb-ink)] opacity-90">
                     {plan.subtext}
                   </p>
                 </div>

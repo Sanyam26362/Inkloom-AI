@@ -247,13 +247,13 @@ export function FinalCta() {
           {/* Beside/Alternative Option (4 cols) */}
           <div className="lg:col-span-4 flex flex-col gap-6">
             <div className="nb-card bg-white p-6 sm:p-8 shadow-[6px_6px_0_var(--nb-ink)]">
-              <span className="nb-mono text-xs font-bold uppercase tracking-wider text-[var(--nb-ink)] opacity-75 block mb-3">
+              <span className="nb-mono text-xs sm:text-sm font-bold uppercase tracking-wider text-[var(--nb-ink)] opacity-90 block mb-3">
                 SELF-SERVE OPTION
               </span>
               <h3 className="nb-mono text-lg font-bold uppercase text-[var(--nb-ink)] mb-4 leading-snug">
                 WANT TO TEST INKLOOM INSTANTLY?
               </h3>
-              <p className="nb-mono text-sm text-[var(--nb-ink)] opacity-85 leading-relaxed mb-6 font-medium">
+              <p className="nb-mono text-sm sm:text-base text-[var(--nb-ink)] opacity-95 leading-relaxed mb-6 font-medium">
                 Set up a sandbox workspace, upload your brand rules, and run live multi-modal checks right away.
               </p>
               <button
@@ -266,13 +266,13 @@ export function FinalCta() {
             </div>
 
             <div className="nb-card-placeholder bg-white p-6 shadow-[4px_4px_0_var(--nb-ink)]">
-              <span className="nb-mono text-xs font-bold bg-[var(--nb-yellow)] border border-[var(--nb-ink)] px-2 py-0.5 uppercase tracking-wider inline-block mb-3">
+              <span className="nb-mono text-xs sm:text-sm font-bold bg-[var(--nb-yellow)] border border-[var(--nb-ink)] px-2.5 py-1 uppercase tracking-wider inline-block mb-3">
                 DIRECT CONTACT
               </span>
-              <p className="nb-mono text-sm font-bold text-[var(--nb-ink)] mb-1">
+              <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)] mb-1">
                 Enterprise procurement & RFP inquiries:
               </p>
-              <p className="nb-mono text-xs text-[var(--nb-ink)] opacity-80">
+              <p className="nb-mono text-xs sm:text-sm text-[var(--nb-ink)] opacity-90 font-medium">
                 governance@inkloom.ai
               </p>
             </div>
