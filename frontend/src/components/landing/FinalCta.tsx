@@ -272,9 +272,12 @@ export function FinalCta() {
               <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)] mb-1">
                 Enterprise procurement & RFP inquiries:
               </p>
-              <p className="nb-mono text-xs sm:text-sm text-[var(--nb-ink)] opacity-90 font-medium">
-                governance@inkloom.ai
-              </p>
+              <a
+                href="mailto:governance@brandlens.ai"
+                className="nb-mono text-xs sm:text-sm text-[var(--nb-ink)] font-bold hover:underline transition-colors block"
+              >
+                governance@brandlens.ai
+              </a>
             </div>
           </div>
         </div>

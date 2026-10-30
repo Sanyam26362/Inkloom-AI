@@ -8,8 +8,8 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-12 border-b-2 border-white/20">
           {/* Left Brand Column (4 cols) */}
           <div className="md:col-span-4 flex flex-col gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-[var(--nb-yellow)] text-[var(--nb-ink)] flex items-center justify-center font-serif italic font-black text-lg border-2 border-white shadow-[2px_2px_0_white]">
+            <Link href="/" className="flex items-center gap-3 cursor-pointer group">
+              <div className="w-8 h-8 bg-[var(--nb-yellow)] text-[var(--nb-ink)] flex items-center justify-center font-serif italic font-black text-lg border-2 border-white shadow-[2px_2px_0_white] group-hover:scale-105 transition-transform">
                 B
               </div>
               <span
@@ -18,7 +18,7 @@ export function LandingFooter() {
               >
                 BrandLens
               </span>
-            </div>
+            </Link>
 
             <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-cream)] opacity-90 max-w-sm leading-relaxed">
               Brand governance, on the record.
@@ -63,18 +63,24 @@ export function LandingFooter() {
               <span className="nb-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
                 Company
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                About [PLACEHOLDER]
-              </span>
               <a
-                href="mailto:contact@inkloom.ai"
-                className="nb-mono text-xs sm:text-sm text-white/90 hover:text-white hover:underline transition-colors"
+                href="#how-it-works"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
+              >
+                About
+              </a>
+              <a
+                href="mailto:contact@brandlens.ai"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
               >
                 Contact
               </a>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                Careers [PLACEHOLDER]
-              </span>
+              <a
+                href="mailto:careers@brandlens.ai"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
+              >
+                Careers
+              </a>
             </div>
 
             {/* Column 3: Resources */}
@@ -82,15 +88,30 @@ export function LandingFooter() {
               <span className="nb-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
                 Resources
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                Docs [PLACEHOLDER]
-              </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                API [PLACEHOLDER]
-              </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                Status [PLACEHOLDER]
-              </span>
+              <Link
+                href="/guidelines"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
+              >
+                Docs
+              </Link>
+              <a
+                href="https://inkloom-ai-backend.onrender.com/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors flex items-center gap-1"
+              >
+                <span>API</span>
+                <span className="text-[10px] opacity-70">↗</span>
+              </a>
+              <a
+                href="https://inkloom-ai-backend.onrender.com/health"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors flex items-center gap-1"
+              >
+                <span>Status</span>
+                <span className="text-[10px] opacity-70">↗</span>
+              </a>
             </div>
 
             {/* Column 4: Legal */}
@@ -98,12 +119,18 @@ export function LandingFooter() {
               <span className="nb-mono text-xs sm:text-sm font-black uppercase tracking-widest text-[var(--nb-yellow)] mb-1">
                 Legal
               </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                Privacy [PLACEHOLDER]
-              </span>
-              <span className="nb-mono text-xs sm:text-sm text-white/70 cursor-not-allowed">
-                Terms [PLACEHOLDER]
-              </span>
+              <a
+                href="#trust"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
+              >
+                Privacy
+              </a>
+              <a
+                href="#trust"
+                className="nb-mono text-xs sm:text-sm text-white/80 hover:text-white hover:underline transition-colors"
+              >
+                Terms
+              </a>
             </div>
           </div>
         </div>
