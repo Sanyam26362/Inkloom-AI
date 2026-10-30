@@ -124,11 +124,11 @@ export function HumanControl() {
                         >
                           {item.role}
                         </span>
-                        <span className="nb-mono text-[10px] font-medium text-[var(--nb-ink)] opacity-70">
+                        <span className="nb-mono text-xs sm:text-sm font-semibold text-[var(--nb-ink)] opacity-90">
                           {item.time}
                         </span>
                       </div>
-                      <p className="nb-mono text-xs font-bold text-[var(--nb-ink)] uppercase">
+                      <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)] uppercase">
                         {item.event}
                       </p>
                     </div>

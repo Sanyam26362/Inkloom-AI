@@ -80,7 +80,7 @@ export function HowItWorks() {
 
               {/* Bottom Caption */}
               <div className="mt-8 pt-4 border-t-2 border-[var(--nb-ink)] border-dashed">
-                <span className="nb-mono text-xs font-bold text-[var(--nb-ink)] uppercase tracking-wider opacity-80">
+                <span className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)] uppercase tracking-wider opacity-90">
                   {step.stepLabel}
                 </span>
               </div>

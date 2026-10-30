@@ -47,10 +47,10 @@ export function Trust() {
                   key={idx}
                   className="nb-card bg-white p-5 flex flex-col justify-between min-h-[110px]"
                 >
-                  <span className="nb-mono text-xs font-bold text-[var(--nb-ink)] opacity-60 mb-2">
+                  <span className="nb-mono text-sm font-bold text-[var(--nb-ink)] opacity-80 mb-2">
                     0{idx + 1}
                   </span>
-                  <p className="nb-mono text-sm font-bold text-[var(--nb-ink)] leading-snug">
+                  <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)] leading-snug">
                     {item}
                   </p>
                 </div>
@@ -75,7 +75,7 @@ export function Trust() {
                   <p className="nb-mono text-sm sm:text-base font-bold text-[var(--nb-ink)]">
                     {item}
                   </p>
-                  <span className="nb-mono text-[11px] font-bold bg-[#e0deda] text-[var(--nb-ink)] border border-[var(--nb-ink)] px-2 py-0.5 uppercase tracking-wider">
+                  <span className="nb-mono text-xs sm:text-sm font-bold bg-[#e0deda] text-[var(--nb-ink)] border border-[var(--nb-ink)] px-2.5 py-1 uppercase tracking-wider">
                     ROADMAP
                   </span>
                 </div>
@@ -85,7 +85,7 @@ export function Trust() {
         </div>
 
         {/* Footnote */}
-        <p className="nb-mono text-xs text-[var(--nb-ink)] font-bold">
+        <p className="nb-mono text-sm sm:text-base text-[var(--nb-ink)] font-bold">
           We list roadmap items as roadmap items. No certification is claimed until it is earned.
         </p>
       </div>
