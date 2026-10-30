@@ -15,7 +15,7 @@ export function Section11_Checkpoint() {
         </h2>
 
         <p className="font-sans text-base leading-[1.4] text-text-primary max-w-[760px] mb-8">
-          Inkloom AI creates an immutable System of Evidence for every piece of content. Every audit score, finding resolution, and manager override is logged with tamper-proof event records and guideline citations.
+          BrandLens creates an immutable System of Evidence for every piece of content. Every audit score, finding resolution, and manager override is logged with tamper-proof event records and guideline citations.
         </p>
 
         {/* Trust layer diagram */}

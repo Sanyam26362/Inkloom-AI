@@ -1363,7 +1363,7 @@ export default function CreatorContentStudioPage() {
             <div className="flex items-start justify-between border-b-2 border-black dark:border-white/30 pb-3 mb-5">
               <div>
                 <span className="text-[10px] font-mono font-black uppercase px-2 py-0.5 bg-[var(--yellow)] text-black border border-black shadow-[1px_1px_0px_#000]">
-                  Inkloom AI · Auto-Remediation Engine
+                  BrandLens · Auto-Remediation Engine
                 </span>
                 <h3 className="text-xl sm:text-2xl font-archivo font-black uppercase text-[var(--ink)] dark:text-white mt-1">
                   Brand Policy Auto-Fix &amp; Creative Synthesis

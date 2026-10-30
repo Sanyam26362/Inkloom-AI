@@ -20,9 +20,9 @@ const testimonials: TestimonialItem[] = [
     role: "Marketing Operations Lead",
     company: "Blinkit Quick Commerce",
     avatar: "/images/41-johannes-morath-1.webp",
-    headline: "Since rolling out Inkloom AI, we’ve eliminated 100% of unapproved claims across our campaigns",
+    headline: "Since rolling out BrandLens, we’ve eliminated 100% of unapproved claims across our campaigns",
     quote:
-      "Inkloom AI instantly flags unverified delivery promises and prohibited terminology across our Instagram captions and festival push notifications. Our compliance scores improved from 72 to 98 in two weeks.",
+      "BrandLens instantly flags unverified delivery promises and prohibited terminology across our Instagram captions and festival push notifications. Our compliance scores improved from 72 to 98 in two weeks.",
   },
   {
     id: 2,
@@ -32,7 +32,7 @@ const testimonials: TestimonialItem[] = [
     avatar: "/images/53-melissa-abrini.webp",
     headline: "Auditing multi-modal video reels and audio voiceovers used to take our legal team 48 hours.",
     quote:
-      "With Inkloom AI's multi-modal ingestion, video spoken dialogue and on-screen text are transcribed and cross-referenced with brand guideline chunks via pgvector embeddings in under 5 seconds.",
+      "With BrandLens's multi-modal ingestion, video spoken dialogue and on-screen text are transcribed and cross-referenced with brand guideline chunks via pgvector embeddings in under 5 seconds.",
   },
   {
     id: 3,
@@ -42,7 +42,7 @@ const testimonials: TestimonialItem[] = [
     avatar: "/images/59-sarah-chen.webp",
     headline: "The deterministic rule engine plus reverse-offset PII scrubber gives us bulletproof confidence.",
     quote:
-      "We no longer worry about internal employee emails, phone numbers, or confidential pricing leaking into external LLM prompts. Inkloom masks sensitive tokens locally before audit execution.",
+      "We no longer worry about internal employee emails, phone numbers, or confidential pricing leaking into external LLM prompts. BrandLens masks sensitive tokens locally before audit execution.",
   },
 ];
 

@@ -10,13 +10,13 @@ export function LandingFooter() {
           <div className="md:col-span-4 flex flex-col gap-6">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 bg-[var(--nb-yellow)] text-[var(--nb-ink)] flex items-center justify-center font-serif italic font-black text-lg border-2 border-white shadow-[2px_2px_0_white]">
-                i
+                B
               </div>
               <span
                 className="text-2xl tracking-tighter uppercase text-white"
                 style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900 }}
               >
-                INKLOOM AI
+                BrandLens
               </span>
             </div>
 
@@ -111,7 +111,7 @@ export function LandingFooter() {
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="nb-mono text-xs sm:text-sm text-white/80">
-            © 2026 Inkloom AI. All rights reserved.
+            © 2026 BrandLens. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <Link

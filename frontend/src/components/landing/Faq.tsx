@@ -7,12 +7,12 @@ export function Faq() {
 
   const faqs = [
     {
-      q: "What can Inkloom AI audit?",
+      q: "What can BrandLens audit?",
       a: "Text, social posts, images, audio and video, each against your own brand guidelines.",
     },
     {
       q: "How do you know my brand rules?",
-      a: "You upload your guideline document. Inkloom turns it into a ruleset that you can review and edit before it goes live.",
+      a: "You upload your guideline document. BrandLens turns it into a ruleset that you can review and edit before it goes live.",
     },
     {
       q: "Can reviewers disagree with the AI?",
@@ -23,7 +23,7 @@ export function Faq() {
       a: "The system is fail-closed: the asset is held for review. It is never silently approved.",
     },
     {
-      q: "Does Inkloom replace our reviewers?",
+      q: "Does BrandLens replace our reviewers?",
       a: "No. It does the repetitive checking so reviewers can spend time on judgement calls.",
     },
     {

@@ -447,7 +447,7 @@ export default function OnboardingPage() {
                 </span>
               </div>
               <h1 className="font-archivo font-black text-base sm:text-lg uppercase text-[var(--ink)] dark:text-white leading-tight">
-                Inkloom AI Enterprise Onboarding
+                BrandLens Enterprise Onboarding
               </h1>
             </div>
           </div>

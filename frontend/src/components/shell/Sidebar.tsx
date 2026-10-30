@@ -125,7 +125,7 @@ export function Sidebar() {
 
   // Clean trailing parenthesized role like "(Creator)" or "(Admin)"
   const displayName = rawUserName.replace(/\s*\([^)]*\)$/, "").trim();
-  const displayEmail = user?.email || `${(user?.role || currentRole).toLowerCase()}@inkloom.ai`;
+  const displayEmail = user?.email || `${(user?.role || currentRole).toLowerCase()}@brandlens.ai`;
 
   // Initials generator (e.g. "Alex Rivera" -> "AR", "Jordan Vance" -> "JV")
   const getInitials = (name: string): string => {
@@ -138,7 +138,7 @@ export function Sidebar() {
   };
 
   const initials = getInitials(displayName);
-  const displayRoleSubtitle = `${(currentRole || user?.role || "creator").toLowerCase()} · inkloom`;
+  const displayRoleSubtitle = `${(currentRole || user?.role || "creator").toLowerCase()} · brandlens`;
 
   const handleLogout = async () => {
     setIsUserMenuOpen(false);

@@ -96,7 +96,7 @@ const noise = (...values: number[]) => {
 const signed = (value: number) => (value > 0 ? `+${value}` : value < 0 ? `−${-value}` : '0');
 
 export const TechText = ({
-  text = 'Inkloom AI',
+  text = 'BrandLens',
   fontFamily = 'Georgia, serif',
   fontWeight = 600,
   fontSize = 120,

@@ -7,7 +7,7 @@ export function Section22_Copyright() {
   return (
     <div className="py-6 bg-background border-t border-palette-1 text-center font-sans text-2xs leading-[1.4] text-text-muted">
       <div className="max-w-[1246px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p>© 2026 Inkloom AI. Enterprise Brand Governance Platform. All rights reserved.</p>
+        <p>© 2026 BrandLens. Enterprise Brand Governance Platform. All rights reserved.</p>
 
         <div className="flex flex-wrap items-center justify-center gap-6">
           <Link href="/audit" className="hover:underline hover:text-equally-action-color transition-colors">

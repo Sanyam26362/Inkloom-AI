@@ -1373,7 +1373,7 @@ export default function GovernanceDashboardPage() {
 
             <div className="absolute top-0 left-0 w-full sm:w-[76%] md:w-[68%] lg:w-[62%] h-full z-10 pointer-events-auto">
               <TechText
-                text="Inkloom AI"
+                text="BrandLens"
                 align="left"
                 fontWeight={600}
                 fontSize={162}

@@ -68,7 +68,7 @@ export function HumanControl() {
         </h2>
 
         <p className="nb-mono text-base sm:text-lg max-w-3xl text-[var(--nb-ink)] font-bold mb-12 sm:mb-16">
-          Inkloom never approves content on its own authority. People stay accountable, and the record proves it.
+          BrandLens never approves content on its own authority. People stay accountable, and the record proves it.
         </p>
 
         {/* 2-Column: 4 Tiles Left, Vertical Timeline Right */}

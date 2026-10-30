@@ -12,10 +12,10 @@ export function Section2_CookieBanner() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex-1">
           <p className="mb-1 font-sans text-base font-bold leading-[1.33] text-palette-9">
-            Inkloom AI Data Privacy &amp; PII Confidentiality Notice
+            BrandLens Data Privacy &amp; PII Confidentiality Notice
           </p>
           <p className="font-sans text-2xs leading-[1.71] text-palette-9">
-            Inkloom AI processes all brand collateral using local reverse-offset PII scrubbers before invoking external model APIs. We use cookies and session storage strictly for platform operations and telemetry. Review our{" "}
+            BrandLens processes all brand collateral using local reverse-offset PII scrubbers before invoking external model APIs. We use cookies and session storage strictly for platform operations and telemetry. Review our{" "}
             <a href="#" className="underline text-palette-15 hover:text-primary">
               Security Architecture
             </a>{" "}

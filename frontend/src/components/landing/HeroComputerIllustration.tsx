@@ -51,7 +51,7 @@ export function HeroComputerIllustration() {
         isAssembled ? "nb-hero-computer-assembled" : ""
       }`}
       role="region"
-      aria-label="Inkloom AI Multi-Modal QA Computer Demonstration"
+      aria-label="BrandLens Multi-Modal QA Computer Demonstration"
     >
       {/* ========================================================
           STAGE 2: Bottom Layers (0.5s - 1.5s)

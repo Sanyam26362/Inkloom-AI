@@ -62,7 +62,7 @@ export function Hero() {
             <div className="relative w-full max-w-[651px] rounded-xl overflow-hidden shadow-2xl border border-palette-1 bg-background group">
               <Image
                 src="/images/11-with-vs-without-filestage-header.webp"
-                alt="Brand Governance with vs without Inkloom AI"
+                alt="Brand Governance with vs without BrandLens"
                 width={651}
                 height={511}
                 className="w-full h-auto object-cover transform group-hover:scale-[1.01] transition-transform duration-500 ease-out"

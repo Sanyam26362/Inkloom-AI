@@ -42,7 +42,7 @@ export function ValueTable() {
       <div className="max-w-[1280px] mx-auto">
         <span className="nb-eyebrow mb-6">WHY TEAMS SWITCH</span>
         <h2 id="value-table-heading" className="nb-h2 mb-12 sm:mb-16 text-[var(--nb-ink)]">
-          MANUAL REVIEW VS INKLOOM AI.
+          MANUAL REVIEW VS BRANDLENS.
         </h2>
 
         {/* Scrollable table container */}
@@ -57,7 +57,7 @@ export function ValueTable() {
                   MANUAL REVIEW
                 </th>
                 <th className="py-4 px-6 text-sm font-bold uppercase tracking-wider w-1/3 bg-[#0d2a12] text-[var(--nb-green)]">
-                  INKLOOM AI
+                  BRANDLENS
                 </th>
               </tr>
             </thead>
@@ -74,7 +74,7 @@ export function ValueTable() {
                     {row.manual}
                   </td>
 
-                  {/* Inkloom AI (Green) */}
+                  {/* BrandLens (Green) */}
                   <td className="py-4 px-6 text-sm sm:text-base font-bold text-[var(--nb-ink)] bg-[var(--nb-green)]">
                     <span className="flex items-center gap-2">
                       <span className="text-[var(--nb-ink)]">✓</span>

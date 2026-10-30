@@ -36,9 +36,9 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Inkloom AI | Brand governance for text, image, audio and video",
+  title: "BrandLens | Brand governance for text, image, audio and video",
   description:
-    "Inkloom AI audits every post, image, voiceover and video against your brand rules before it goes live, with human approval and a full audit trail.",
+    "BrandLens audits every post, image, voiceover and video against your brand rules before it goes live, with human approval and a full audit trail.",
 };
 
 export default function LandingPage() {

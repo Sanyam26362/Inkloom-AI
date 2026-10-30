@@ -109,7 +109,7 @@ export function Section15_Stakeholders() {
           </div>
           <div className="flex-1">
             <p className="font-serif text-lg font-normal italic leading-[1.4] text-equally-action-color mb-2">
-              &ldquo;Inkloom AI makes things easy. All the files and versions are in the same place. The clients really appreciate the ease of use and being able to have a clear overview of their projects and compliance trail.&rdquo;
+              &ldquo;BrandLens makes things easy. All the files and versions are in the same place. The clients really appreciate the ease of use and being able to have a clear overview of their projects and compliance trail.&rdquo;
             </p>
             <p className="font-sans text-base leading-[1.4]">
               <span className="font-bold text-equally-action-color">Sarah Chen</span> — <span className="text-text-muted">Copy Director/Medical Director, Publicis Health France</span>

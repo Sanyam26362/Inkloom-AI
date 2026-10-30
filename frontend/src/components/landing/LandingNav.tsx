@@ -64,17 +64,20 @@ export function LandingNav() {
     <header className="sticky top-0 z-50 w-full bg-[var(--nb-cream)] border-b-[3px] border-[var(--nb-ink)]">
       <div className="w-full flex items-stretch justify-between min-h-[64px]">
         {/* Block 1 (Yellow): Logo block */}
-        <div className="flex items-center gap-3 px-5 sm:px-7 py-3 bg-[var(--nb-yellow)] border-r-[3px] border-[var(--nb-ink)] select-none shrink-0">
-          <div className="w-8 h-8 bg-[var(--nb-ink)] text-white flex items-center justify-center font-serif italic font-black text-lg border-2 border-[var(--nb-ink)] shadow-[2px_2px_0_var(--nb-ink)]">
-            i
+        <Link
+          href="/"
+          className="flex items-center gap-3 px-5 sm:px-7 py-3 bg-[var(--nb-yellow)] border-r-[3px] border-[var(--nb-ink)] select-none shrink-0 cursor-pointer"
+        >
+          <div className="w-8 h-8 bg-[var(--nb-ink)] text-[var(--nb-yellow)] flex items-center justify-center font-serif italic font-black text-lg border-2 border-[var(--nb-ink)] shadow-[2px_2px_0_var(--nb-ink)]">
+            B
           </div>
           <span
             className="text-xl sm:text-2xl tracking-tighter uppercase text-[var(--nb-ink)]"
             style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900 }}
           >
-            INKLOOM AI
+            BrandLens
           </span>
-        </div>
+        </Link>
 
         {/* Centre tabs (mono, numbered) - Hidden below 900px */}
         <nav

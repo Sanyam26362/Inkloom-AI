@@ -47,7 +47,7 @@ export function Section7_AiUpgrade() {
             </h2>
 
             <p className="font-sans text-base leading-[1.4] text-text-primary mb-6 max-w-[562px]">
-              Inkloom AI evaluates copy, audio transcripts, and video frames against your active brand profile, approved claims, and industry disclaimers.
+              BrandLens evaluates copy, audio transcripts, and video frames against your active brand profile, approved claims, and industry disclaimers.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">

@@ -21,7 +21,7 @@ const steps: Step[] = [
       "✓ Keep copy & video reels compliance-ready",
     ],
     image: "/images/12-upload-any-file.webp",
-    alt: "Upload any collateral to Inkloom AI",
+    alt: "Upload any collateral to BrandLens",
   },
   {
     id: 2,
@@ -32,7 +32,7 @@ const steps: Step[] = [
       "✓ Instant 0-100 compliance score with severity-weighted deductions",
     ],
     image: "/images/13-collect-feedback-directly-on-the-file.webp",
-    alt: "Execute brand compliance audit with Inkloom AI",
+    alt: "Execute brand compliance audit with BrandLens",
   },
   {
     id: 3,
@@ -43,7 +43,7 @@ const steps: Step[] = [
       "✓ Permanent audit trail generated for enterprise record-keeping",
     ],
     image: "/images/14-track-status-in-real-time.webp",
-    alt: "Defensible sign-off in Inkloom AI",
+    alt: "Defensible sign-off in BrandLens",
   },
 ];
 
@@ -59,7 +59,7 @@ export function Section5_WorkflowSteps() {
             From collateral intake to approved publication in 3 simple steps
           </h2>
           <p className="font-sans text-base leading-[1.4] text-text-primary max-w-[750px]">
-            Inkloom AI’s dual deterministic engine and pgvector RAG pipeline catches unapproved terminology, incorrect tone, and regulatory violations instantly.
+            BrandLens’s dual deterministic engine and pgvector RAG pipeline catches unapproved terminology, incorrect tone, and regulatory violations instantly.
           </p>
         </div>
 

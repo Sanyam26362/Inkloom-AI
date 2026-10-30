@@ -282,7 +282,7 @@ export default function ReportsAndAnalyticsPage() {
     const lines: string[] = [];
 
     // 1. Report Metadata Header
-    lines.push("=== INKLOOM AI BRANDLENS GOVERNANCE REPORT ===");
+    lines.push("=== BRANDLENS GOVERNANCE REPORT ===");
     lines.push(`Report Type,${escapeCsvValue("Compliance & Governance Audit Ledger")}`);
     lines.push(`Brand Name,${escapeCsvValue(brandName)}`);
     lines.push(`Brand ID,${escapeCsvValue(activeBrandId)}`);

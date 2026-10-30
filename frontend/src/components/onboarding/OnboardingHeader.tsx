@@ -23,11 +23,11 @@ export function OnboardingHeader({
       {/* Brand Logo & Subtitle */}
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#635BFF] flex items-center justify-center shadow-xs select-none shrink-0">
-          <span className="font-black text-white text-sm tracking-tight">IK</span>
+          <span className="font-black text-white text-sm tracking-tight">BL</span>
         </div>
         <div className="flex flex-col">
           <span className="font-bold text-sm text-slate-900 dark:text-white tracking-tight leading-none">
-            Inkloom AI
+            BrandLens
           </span>
           <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-1">
             Enterprise Brand Governance

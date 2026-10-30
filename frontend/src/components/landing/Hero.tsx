@@ -35,7 +35,7 @@ export function Hero() {
             </h1>
 
             <p className="nb-mono text-base sm:text-lg leading-relaxed text-[var(--nb-ink)] mb-8 max-w-xl font-medium">
-              Inkloom AI checks every post, image, voiceover and video against your brand rules before it goes live, and keeps a signed record of every decision.
+              BrandLens checks every post, image, voiceover and video against your brand rules before it goes live, and keeps a signed record of every decision.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 mb-8">

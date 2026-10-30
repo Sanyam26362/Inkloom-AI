@@ -117,7 +117,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
             <span className="w-3 h-3 bg-[var(--green)] border border-black inline-block shrink-0" />
             <span className="w-3 h-3 bg-[var(--pink)] border border-black inline-block shrink-0" />
             <span className="text-xs font-mono font-black tracking-wider uppercase ml-1.5">
-              INKLOOM AI // GATEWAY_AUTH.EXE
+              BRANDLENS // GATEWAY_AUTH.EXE
             </span>
           </div>
 
@@ -143,7 +143,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                   id="auth-modal-title"
                   className="text-xl sm:text-2xl font-black font-archivo tracking-tight uppercase"
                 >
-                  Get Started with Inkloom AI
+                  Get Started with BrandLens
                 </h2>
                 <p className="text-xs font-mono leading-relaxed text-[#555] dark:text-[#a0a5b5]">
                   Select your authorization role to access brand ruleset ingestion, pre-flight campaign checks, and automated compliance auditing.
@@ -435,7 +435,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
               >
                 <div>
                   <h3 className="font-mono font-black text-sm uppercase text-[var(--ink)] dark:text-white">
-                    Sign In to Inkloom AI
+                    Sign In to BrandLens
                   </h3>
                   <p className="text-[10px] font-mono text-[#666] dark:text-[#999]">
                     AUTHENTICATE VIA CLERK IDENTITY PROVIDER

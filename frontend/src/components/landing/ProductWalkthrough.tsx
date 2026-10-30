@@ -19,7 +19,7 @@ export function ProductWalkthrough() {
             <div className="flex items-center gap-3">
               <span className="w-3 h-3 bg-[var(--nb-yellow)] border border-[var(--nb-ink)]"></span>
               <span className="nb-mono text-xs sm:text-sm font-bold tracking-wider">
-                INKLOOM AUDIT / BRAND: NORTHWIND FOODS
+                BRANDLENS AUDIT / BRAND: NORTHWIND FOODS
               </span>
             </div>
             <div className="flex items-center gap-2">

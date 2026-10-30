@@ -9,7 +9,7 @@ export function Section12_DemoConsultation() {
   const { openAuthModal } = useApp();
   const perks = [
     "Personal analysis of your existing approval process and guideline rules",
-    "Live insight into the Inkloom AI platform and its pgvector RAG pipeline",
+    "Live insight into the BrandLens platform and its pgvector RAG pipeline",
     "Hands-on demonstration of reverse-offset PII scrubbing for confidential text",
     "Role-based governance setup for Creators, Reviewers, and Brand Managers",
     "GDPR-compliant, ISO 27001-certified architecture with audit-ready logging",
@@ -22,7 +22,7 @@ export function Section12_DemoConsultation() {
           {/* Left Column: Demo Information */}
           <div className="lg:col-span-7 p-8 sm:p-12 lg:p-14">
             <h2 className="font-serif text-2xl font-bold leading-[1.2] text-equally-action-color mb-4">
-              See how Inkloom AI can make your approvals stress-free in just 30 minutes!
+              See how BrandLens can make your approvals stress-free in just 30 minutes!
             </h2>
 
             <p className="font-sans text-base leading-[1.4] text-text-muted mb-6">
@@ -66,7 +66,7 @@ export function Section12_DemoConsultation() {
             <div className="relative w-full h-full max-w-[420px] rounded-sm overflow-hidden shadow-sm border border-border">
               <Image
                 src="/images/16-book-a-demo-with-our-sales-team-1024x787.webp"
-                alt="Book a demo with the Inkloom AI team"
+                alt="Book a demo with the BrandLens team"
                 width={500}
                 height={384}
                 className="w-full h-auto object-cover"

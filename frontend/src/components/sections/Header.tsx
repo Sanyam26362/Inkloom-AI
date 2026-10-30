@@ -20,7 +20,7 @@ export function Header() {
             </svg>
           </div>
           <span className="font-serif text-xl font-bold text-equally-action-color tracking-tight leading-none">
-            Inkloom AI
+            BrandLens
           </span>
         </Link>
 

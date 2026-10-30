@@ -61,7 +61,7 @@ export function FinalCta() {
           </h2>
 
           <p className="nb-mono text-base sm:text-lg text-[var(--nb-ink)] font-bold">
-            See Inkloom AI audit your own content in a 30-minute walkthrough.
+            See BrandLens audit your own content in a 30-minute walkthrough.
           </p>
         </div>
 
@@ -251,7 +251,7 @@ export function FinalCta() {
                 SELF-SERVE OPTION
               </span>
               <h3 className="nb-mono text-lg font-bold uppercase text-[var(--nb-ink)] mb-4 leading-snug">
-                WANT TO TEST INKLOOM INSTANTLY?
+                WANT TO TEST BRANDLENS INSTANTLY?
               </h3>
               <p className="nb-mono text-sm sm:text-base text-[var(--nb-ink)] opacity-95 leading-relaxed mb-6 font-medium">
                 Set up a sandbox workspace, upload your brand rules, and run live multi-modal checks right away.

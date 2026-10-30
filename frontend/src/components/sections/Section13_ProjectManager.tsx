@@ -109,7 +109,7 @@ export function Section13_ProjectManager() {
           </div>
           <div className="flex-1">
             <p className="font-serif text-lg font-normal italic leading-[1.4] text-equally-action-color mb-2">
-              &ldquo;Before Inkloom AI, our review process was pretty chaotic. Feedback came flying in from all directions – emails, Slack, decks, even WhatsApp. Unverified delivery claims and prohibited terminology slipped into campaign collateral. Inkloom AI catches every discrepancy before launch.&rdquo;
+              &ldquo;Before BrandLens, our review process was pretty chaotic. Feedback came flying in from all directions – emails, Slack, decks, even WhatsApp. Unverified delivery claims and prohibited terminology slipped into campaign collateral. BrandLens catches every discrepancy before launch.&rdquo;
             </p>
             <p className="font-sans text-base leading-[1.4]">
               <span className="font-bold text-equally-action-color">Melissa Abrini</span> — <span className="text-text-muted">Creative Director at Creative Agency Story</span>

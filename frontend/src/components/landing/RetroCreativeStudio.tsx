@@ -11,7 +11,7 @@ export function RetroCreativeStudio({ onReset }: RetroCreativeStudioProps) {
     <div
       className="nb-studio-container relative w-full h-full overflow-hidden select-none font-mono flex flex-col justify-between p-2 sm:p-2.5"
       role="region"
-      aria-label="Inkloom Retro AI Creative Studio Animation"
+      aria-label="BrandLens Retro AI Creative Studio Animation"
     >
       {/* Background Pixel Grid & Corner Crosshairs */}
       <div className="absolute inset-0 pointer-events-none opacity-20 nb-studio-grid" />

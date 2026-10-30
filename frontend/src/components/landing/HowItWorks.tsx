@@ -5,7 +5,7 @@ export function HowItWorks() {
     {
       num: "01 / INGEST",
       title: "DROP IT IN.",
-      desc: "Upload your brand guidelines as a PDF or text. Inkloom turns them into a reviewable ruleset: colours, banned terms, required phrases, tone and format limits.",
+      desc: "Upload your brand guidelines as a PDF or text. BrandLens turns them into a reviewable ruleset: colours, banned terms, required phrases, tone and format limits.",
       stepLabel: "Step 1 of 3",
       bgColor: "bg-[var(--nb-pink)]",
     },

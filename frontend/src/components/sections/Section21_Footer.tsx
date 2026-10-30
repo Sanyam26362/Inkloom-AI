@@ -58,7 +58,7 @@ export function Section21_Footer() {
                 </svg>
               </div>
               <span className="font-serif text-xl font-bold text-equally-action-color">
-                Inkloom AI
+                BrandLens
               </span>
             </Link>
             <p className="font-sans text-xs leading-[1.4] text-text-muted mb-6 max-w-[320px]">

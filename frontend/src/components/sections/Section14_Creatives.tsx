@@ -31,7 +31,7 @@ const tabs: Tab[] = [
   {
     id: "to-do-lists",
     label: "To-do lists",
-    heading: "Use comments as a to-do list in Inkloom AI",
+    heading: "Use comments as a to-do list in BrandLens",
     description:
       "Check off items as revisions are completed so you never miss a required edit or overlook critical stakeholder input.",
     image: "/images/08-to-do-lists.webp",
@@ -109,7 +109,7 @@ export function Section14_Creatives() {
           </div>
           <div className="flex-1">
             <p className="font-serif text-lg font-normal italic leading-[1.4] text-equally-action-color mb-2">
-              &ldquo;Our designer simply uploads the video reel, sends it to the group, and everyone is able to comment and select the area where the changes need to happen. Inkloom AI immediately verifies our claims against our facts database.&rdquo;
+              &ldquo;Our designer simply uploads the video reel, sends it to the group, and everyone is able to comment and select the area where the changes need to happen. BrandLens immediately verifies our claims against our facts database.&rdquo;
             </p>
             <p className="font-sans text-base leading-[1.4]">
               <span className="font-bold text-equally-action-color">Naeran Rubio</span> — <span className="text-text-muted">Associate Director of Content &amp; Communications, Sharp</span>

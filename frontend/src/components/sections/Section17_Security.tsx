@@ -34,7 +34,7 @@ export function Section17_Security() {
             </h2>
 
             <p className="font-sans text-base leading-[1.4] text-text-primary mb-8">
-              Inkloom AI protects your files with enterprise-grade security, including local reverse-offset PII scrubbers. Sensitive credentials, internal pricing, and customer records never leave your infrastructure without explicit redaction.
+              BrandLens protects your files with enterprise-grade security, including local reverse-offset PII scrubbers. Sensitive credentials, internal pricing, and customer records never leave your infrastructure without explicit redaction.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full mb-8">

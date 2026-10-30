@@ -38,7 +38,7 @@ export function Section16_Integrations() {
             Fits seamlessly into your team’s existing workflow
           </h2>
           <p className="font-sans text-base leading-[1.4] text-text-muted">
-            Connect Inkloom AI with your project management, creative, and collaboration tools so approvals stay in sync across your workflow.
+            Connect BrandLens with your project management, creative, and collaboration tools so approvals stay in sync across your workflow.
           </p>
         </div>
 

@@ -9,24 +9,24 @@ interface FaqItem {
 
 const faqs: FaqItem[] = [
   {
-    question: "What is online proofing software and how does Inkloom AI work?",
+    question: "What is online proofing software and how does BrandLens work?",
     answer:
-      "Online proofing software is a tool used to review and approve creative assets, including artwork, documents, videos, and audio. Inkloom AI adds computational governance: auditing marketing collateral, social captions, audio voiceovers, and video reels against brand guidelines, prohibited terminology, approved facts, and WCAG accessibility standards before publication.",
+      "Online proofing software is a tool used to review and approve creative assets, including artwork, documents, videos, and audio. BrandLens adds computational governance: auditing marketing collateral, social captions, audio voiceovers, and video reels against brand guidelines, prohibited terminology, approved facts, and WCAG accessibility standards before publication.",
   },
   {
     question: "Who uses online proofing and brand governance platforms?",
     answer:
-      "Creative and marketing teams of all sizes use online proofing software to speed up review cycles. Inkloom AI is designed for brands and agencies that produce high volumes of content, collaborate across multiple reviewers, and must maintain strict compliance.",
+      "Creative and marketing teams of all sizes use online proofing software to speed up review cycles. BrandLens is designed for brands and agencies that produce high volumes of content, collaborate across multiple reviewers, and must maintain strict compliance.",
   },
   {
     question: "How does multi-modal auditing work for audio and video?",
     answer:
-      "Inkloom AI automatically transcribes spoken dialogue and extracts meaningful on-screen text from audio files (MP3, WAV, AAC, FLAC) and video reels (MP4, MOV, WEBM). The transcript is structured into an editable revision with timestamp markers and audited directly against your brand rules.",
+      "BrandLens automatically transcribes spoken dialogue and extracts meaningful on-screen text from audio files (MP3, WAV, AAC, FLAC) and video reels (MP4, MOV, WEBM). The transcript is structured into an editable revision with timestamp markers and audited directly against your brand rules.",
   },
   {
     question: "How does the reverse-offset PII scrubber protect confidential data?",
     answer:
-      "Before sending content for semantic AI analysis, Inkloom AI’s in-memory regex scrubber replaces sensitive emails, phone numbers, API keys, and employee names with non-colliding tokens. After evaluation, original text entities are restored locally, ensuring confidential data never leaks to external providers.",
+      "Before sending content for semantic AI analysis, BrandLens’s in-memory regex scrubber replaces sensitive emails, phone numbers, API keys, and employee names with non-colliding tokens. After evaluation, original text entities are restored locally, ensuring confidential data never leaks to external providers.",
   },
   {
     question: "How is the 0–100 compliance score calculated?",
