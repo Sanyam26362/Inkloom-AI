@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppContextProvider } from "@/context/AppContext";
@@ -35,13 +36,15 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
         />
-        <script
+      </head>
+      <body className="min-h-full antialiased font-sans bg-surface text-on-surface" suppressHydrationWarning>
+        <Script
+          id="inkloom-theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('inkloom_theme');if(t==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})();`,
           }}
         />
-      </head>
-      <body className="min-h-full antialiased font-sans bg-surface text-on-surface" suppressHydrationWarning>
         <ClerkProvider>
           <AppContextProvider>
             <AppShell>{children}</AppShell>

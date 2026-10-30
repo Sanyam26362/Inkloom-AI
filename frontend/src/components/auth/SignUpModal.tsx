@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { SignUp, SignIn } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { SignUp, SignIn, useUser } from "@clerk/nextjs";
+import { useRouter, usePathname } from "next/navigation";
 import { UserRole } from "@/lib/types";
 import { useAppContext } from "@/context/AppContext";
 import { resolvePostAuthRedirect } from "@/lib/auth-resolver";
@@ -15,8 +15,24 @@ interface SignUpModalProps {
 
 export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) {
   const router = useRouter();
-  const { loginAsDemoUser, theme } = useAppContext();
+  const pathname = usePathname();
+  const { user: clerkUser } = useUser();
+  const { user, loginAsDemoUser, theme } = useAppContext();
   const isDark = theme === "dark";
+
+  // Guard: Never render auth modal on internal pages or if user is already authenticated
+  const isInternalPage = pathname !== "/";
+  const isAuthenticated = Boolean(
+    clerkUser ||
+    user ||
+    (typeof window !== "undefined" && (localStorage.getItem("inkloom_token") || localStorage.getItem("inkloom_user")))
+  );
+
+  useEffect(() => {
+    if (isOpen && (isInternalPage || isAuthenticated)) {
+      onClose();
+    }
+  }, [isOpen, isInternalPage, isAuthenticated, onClose]);
 
   const [selectedRole, setSelectedRole] = useState<"REVIEWER" | "CREATOR" | "ADMIN" | null>(
     initialRole === "CREATOR" ? "CREATOR" : initialRole === "ADMIN" ? "ADMIN" : initialRole === "REVIEWER" ? "REVIEWER" : null
@@ -35,6 +51,26 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
     }
   }, [initialRole]);
 
+  // Handle hash navigation to switch between signin and signup
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleHash = () => {
+      if (typeof window === "undefined") return;
+      if (window.location.hash.includes("sso-callback")) {
+        onClose();
+        return;
+      }
+      if (window.location.hash === "#signin") {
+        setAuthMode("signin");
+      } else if (window.location.hash === "#signup") {
+        setAuthMode("signup");
+      }
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, [isOpen]);
+
   // Keyboard accessibility: Close on Escape key press
   useEffect(() => {
     if (!isOpen) return;
@@ -47,7 +83,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || isInternalPage || isAuthenticated) return null;
 
   const handleSelectRole = (role: "REVIEWER" | "CREATOR" | "ADMIN") => {
     setSelectedRole(role);
@@ -398,6 +434,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                 } flex justify-center`}
               >
                 <SignUp
+                  routing="hash"
                   appearance={{
                     elements: {
                       rootBox: "w-full",
@@ -407,8 +444,20 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                   unsafeMetadata={{
                     role: selectedRole || "CREATOR",
                   }}
-                  fallbackRedirectUrl="/auth/callback"
-                  forceRedirectUrl="/auth/callback"
+                  fallbackRedirectUrl={
+                    selectedRole === "REVIEWER"
+                      ? "/setup?step=1"
+                      : selectedRole === "CREATOR"
+                      ? "/content"
+                      : "/dashboard"
+                  }
+                  forceRedirectUrl={
+                    selectedRole === "REVIEWER"
+                      ? "/setup?step=1"
+                      : selectedRole === "CREATOR"
+                      ? "/content"
+                      : "/dashboard"
+                  }
                   signInUrl="#signin"
                 />
               </div>
@@ -461,6 +510,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                 } flex justify-center`}
               >
                 <SignIn
+                  routing="hash"
                   appearance={{
                     elements: {
                       rootBox: "w-full",
@@ -471,6 +521,16 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
                   forceRedirectUrl="/auth/callback"
                   signUpUrl="#signup"
                 />
+              </div>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("signup")}
+                  className="text-xs font-mono font-bold text-[var(--ink)] dark:text-[#f5f0e7] underline hover:opacity-80 cursor-pointer"
+                >
+                  Don't have an account? Sign Up →
+                </button>
               </div>
             </div>
           )}

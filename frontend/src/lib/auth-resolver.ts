@@ -6,15 +6,25 @@ import { UserProfileResponse } from "./types";
  */
 export function resolvePostAuthRedirect(user: UserProfileResponse | null | undefined): string {
   let role = (user?.role || "").toUpperCase();
-  if (!role && typeof window !== "undefined") {
+  let isSignupRole = false;
+  if (typeof window !== "undefined") {
     try {
-      const saved = localStorage.getItem("inkloom_signup_role") || localStorage.getItem("inkloom_role");
-      if (saved) role = saved.toUpperCase();
+      const signupRole = localStorage.getItem("inkloom_signup_role");
+      if (signupRole) {
+        role = signupRole.toUpperCase();
+        isSignupRole = true;
+      } else {
+        const saved = localStorage.getItem("inkloom_role");
+        if (saved && !role) role = saved.toUpperCase();
+      }
     } catch {}
   }
 
   // Brand Manager / Reviewer / Brand Tenancy Lifecycle
   if (role === "REVIEWER" || role === "BRAND" || role === "MANAGER") {
+    if (isSignupRole) {
+      return "/setup?step=1";
+    }
     if (user?.onboarding_status === "COMPLETED") {
       return "/guidelines";
     }

@@ -4,6 +4,17 @@ import React from "react";
 import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
 
 export default function SSOCallbackPage() {
+  const role =
+    typeof window !== "undefined"
+      ? (localStorage.getItem("inkloom_signup_role") || localStorage.getItem("inkloom_role") || "").toUpperCase()
+      : "";
+  const ssoDestination =
+    role === "REVIEWER" || role === "MANAGER" || role === "BRAND"
+      ? "/setup?step=1"
+      : role === "CREATOR"
+      ? "/content"
+      : "/dashboard";
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-[#101010] text-[#f5f0e7] font-mono">
       <div className="w-full max-w-md p-6 border-4 border-black bg-[#1c1d22] shadow-[8px_8px_0px_#000] text-center">
@@ -19,10 +30,10 @@ export default function SSOCallbackPage() {
 
         <div className="flex justify-center">
           <AuthenticateWithRedirectCallback
-            signInFallbackRedirectUrl="/auth/callback"
-            signUpFallbackRedirectUrl="/auth/callback"
-            signInForceRedirectUrl="/auth/callback"
-            signUpForceRedirectUrl="/auth/callback"
+            signInFallbackRedirectUrl={ssoDestination}
+            signUpFallbackRedirectUrl={ssoDestination}
+            signInForceRedirectUrl={ssoDestination}
+            signUpForceRedirectUrl={ssoDestination}
           />
         </div>
 
@@ -33,4 +44,3 @@ export default function SSOCallbackPage() {
     </div>
   );
 }
-

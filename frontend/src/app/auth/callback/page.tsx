@@ -11,6 +11,26 @@ export default function AuthCallbackPage() {
   const isDark = theme === "dark";
 
   useEffect(() => {
+    const savedRole =
+      typeof window !== "undefined"
+        ? (localStorage.getItem("inkloom_signup_role") || localStorage.getItem("inkloom_role") || "").toUpperCase()
+        : "";
+
+    if (savedRole === "REVIEWER" || savedRole === "MANAGER" || savedRole === "BRAND") {
+      router.replace("/setup?step=1");
+      return;
+    }
+
+    if (savedRole === "CREATOR") {
+      router.replace("/content");
+      return;
+    }
+
+    if (savedRole === "ADMIN" || savedRole === "JUDGE") {
+      router.replace("/dashboard");
+      return;
+    }
+
     if (user) {
       const destination = resolvePostAuthRedirect(user);
       router.replace(destination);
@@ -44,4 +64,3 @@ export default function AuthCallbackPage() {
     </div>
   );
 }
-

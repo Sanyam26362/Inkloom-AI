@@ -4,6 +4,7 @@ import { useUser } from "@clerk/nextjs";
 import { SignUpModal } from "@/components/auth/SignUpModal";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { BrandProfile, HealthCheckResponse, UserRole, UserProfileResponse, Campaign } from "@/lib/types";
 import { api } from "@/lib/api";
 
@@ -98,10 +99,24 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
   const syncedClerkIdRef = useRef<string | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
 
+  const pathname = usePathname();
+
+  // Dismiss auth modal whenever navigating away from landing page or when authenticated
+  useEffect(() => {
+    if (isAuthModalOpen) {
+      if (user || clerkUser || (pathname && pathname !== "/")) {
+        setIsAuthModalOpen(false);
+      }
+    }
+  }, [user, clerkUser, pathname, isAuthModalOpen]);
+
   const openAuthModal = useCallback((role?: UserRole) => {
+    if (user || clerkUser || (pathname && pathname !== "/")) {
+      return;
+    }
     setAuthModalRole(role);
     setIsAuthModalOpen(true);
-  }, []);
+  }, [user, clerkUser, pathname]);
 
   const closeAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);

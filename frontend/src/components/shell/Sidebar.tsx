@@ -401,11 +401,11 @@ export function Sidebar() {
                   <div className="w-5 h-5 bg-[#F8C200] border border-[var(--ink)] flex items-center justify-center shrink-0">
                     <span className="font-black text-[12px] text-[#1C1C1E] font-mono -mt-0.5 leading-none">b</span>
                   </div>
-                  <div className="flex flex-col text-left min-w-0">
-                    <span className="text-xs font-mono font-bold truncate text-white leading-none mb-0.5">
+                  <div className="flex flex-col text-left min-w-0" suppressHydrationWarning>
+                    <span suppressHydrationWarning className="text-xs font-mono font-bold truncate text-white leading-none mb-0.5">
                       {activeBrand ? activeBrand.name : "Blinkit"}
                     </span>
-                    <span className="text-[9.5px] font-mono text-[#888] leading-none">
+                    <span suppressHydrationWarning className="text-[9.5px] font-mono text-[#888] leading-none">
                       {isCreator ? "Demo Partner (Locked)" : "Active Brand"}
                     </span>
                   </div>
@@ -490,7 +490,7 @@ export function Sidebar() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="w-full flex items-center justify-between h-9 px-3.5 bg-[var(--yellow)] text-[var(--ink)] font-mono font-black text-xs uppercase tracking-wider border-2 border-[var(--ink)] shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 active:translate-x-1 active:translate-y-1 transition-all cursor-pointer"
               >
-                <span className="truncate">{isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}</span>
+                <span suppressHydrationWarning className="truncate">{isCreator ? "Upload Content" : isAdminOrJudge ? "Judge Canvas" : "New Audit"}</span>
                 <Plus size={16} className="shrink-0 stroke-[3]" />
               </Link>
             )}
@@ -756,11 +756,11 @@ export function Sidebar() {
                   <div className="w-8 h-8 shrink-0 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[1px_1px_0px_#000]">
                     {initials}
                   </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-xs font-mono font-black text-white truncate leading-tight">
+                  <div className="flex flex-col min-w-0" suppressHydrationWarning>
+                    <span suppressHydrationWarning className="text-xs font-mono font-black text-white truncate leading-tight">
                       {displayName}
                     </span>
-                    <span className="text-[9.5px] font-mono text-[#888] truncate leading-tight mt-0.5">
+                    <span suppressHydrationWarning className="text-[9.5px] font-mono text-[#888] truncate leading-tight mt-0.5">
                       {displayRoleSubtitle}
                     </span>
                   </div>

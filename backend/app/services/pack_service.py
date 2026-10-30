@@ -169,48 +169,78 @@ class PackService:
         )
         await session.flush()
 
-        # 3. Extract chunks from all documents in manifest
-        all_raw_chunks = []
-        for doc_info in manifest.get("documents", []):
-            doc_path = pack_dir / doc_info["filename"]
-            if not doc_path.exists():
-                logger.warning(f"Pack document {doc_path} not found; skipping.")
-                continue
+        # 3. Load precomputed chunks if available (Instant Loading for Premade Packs)
+        precomputed_file = pack_dir / "precomputed_chunks.json"
+        saved_chunks: List[GuidelineChunk] = []
 
-            file_bytes = doc_path.read_bytes()
-            raw_chunks = DocumentService.extract_chunks(
-                file_bytes=file_bytes,
-                filename=doc_info["filename"],
-                document_type=doc_info.get("document_type", "guidelines"),
-            )
-            for rc in raw_chunks:
-                rc["document_id"] = f"pack:{pack_name}:{doc_info['filename']}"
-                all_raw_chunks.append(rc)
+        if precomputed_file.exists():
+            try:
+                cached_data = json.loads(precomputed_file.read_text(encoding="utf-8"))
+                for rc in cached_data:
+                    saved_chunks.append(
+                        GuidelineChunk(
+                            brand_id=brand_id,
+                            source_kind="premade",
+                            document_id=rc.get("document_id"),
+                            content_hash=rc.get("content_hash"),
+                            document_type=rc.get("document_type", "guidelines"),
+                            source_document=rc["source_document"],
+                            page_number=rc.get("page_number", 1),
+                            section_reference=rc.get("section_reference", "General"),
+                            rule_category=rc.get("rule_category", "GENERAL"),
+                            content_text=rc["content_text"],
+                            embedding=rc.get("embedding"),
+                            embedding_status=rc.get("embedding_status", "completed"),
+                        )
+                    )
+                logger.info(f"Loaded {len(saved_chunks)} precomputed chunks from {precomputed_file}")
+            except Exception as e:
+                logger.warning(f"Failed to load precomputed chunks from {precomputed_file}: {e}")
+                saved_chunks = []
 
-        # 4. Batched embeddings with concurrency limit
-        sem = asyncio.Semaphore(5)
+        # If not precomputed, extract chunks and embed with batching
+        if not saved_chunks:
+            all_raw_chunks = []
+            for doc_info in manifest.get("documents", []):
+                doc_path = pack_dir / doc_info["filename"]
+                if not doc_path.exists():
+                    logger.warning(f"Pack document {doc_path} not found; skipping.")
+                    continue
 
-        async def embed_chunk(chunk_data: dict) -> GuidelineChunk:
-            async with sem:
-                emb = await gemini_service.generate_embedding(
-                    chunk_data["content_text"], task_type="RETRIEVAL_DOCUMENT"
+                file_bytes = doc_path.read_bytes()
+                raw_chunks = DocumentService.extract_chunks(
+                    file_bytes=file_bytes,
+                    filename=doc_info["filename"],
+                    document_type=doc_info.get("document_type", "guidelines"),
                 )
-                return GuidelineChunk(
-                    brand_id=brand_id,
-                    source_kind="premade",
-                    document_id=chunk_data.get("document_id"),
-                    content_hash=chunk_data.get("content_hash"),
-                    document_type=chunk_data.get("document_type", "guidelines"),
-                    source_document=chunk_data["source_document"],
-                    page_number=chunk_data.get("page_number", 1),
-                    section_reference=chunk_data.get("section_reference", "General"),
-                    rule_category=chunk_data.get("rule_category", "GENERAL"),
-                    content_text=chunk_data["content_text"],
-                    embedding=emb,
-                    embedding_status="completed" if emb else "failed",
-                )
+                for rc in raw_chunks:
+                    rc["document_id"] = f"pack:{pack_name}:{doc_info['filename']}"
+                    all_raw_chunks.append(rc)
 
-        saved_chunks = await asyncio.gather(*(embed_chunk(rc) for rc in all_raw_chunks))
+            sem = asyncio.Semaphore(5)
+
+            async def embed_chunk(chunk_data: dict) -> GuidelineChunk:
+                async with sem:
+                    emb = await gemini_service.generate_embedding(
+                        chunk_data["content_text"], task_type="RETRIEVAL_DOCUMENT"
+                    )
+                    return GuidelineChunk(
+                        brand_id=brand_id,
+                        source_kind="premade",
+                        document_id=chunk_data.get("document_id"),
+                        content_hash=chunk_data.get("content_hash"),
+                        document_type=chunk_data.get("document_type", "guidelines"),
+                        source_document=chunk_data["source_document"],
+                        page_number=chunk_data.get("page_number", 1),
+                        section_reference=chunk_data.get("section_reference", "General"),
+                        rule_category=chunk_data.get("rule_category", "GENERAL"),
+                        content_text=chunk_data["content_text"],
+                        embedding=emb,
+                        embedding_status="completed" if emb else "failed",
+                    )
+
+            saved_chunks = await asyncio.gather(*(embed_chunk(rc) for rc in all_raw_chunks))
+
         for sc in saved_chunks:
             session.add(sc)
         await session.flush()
