@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import { useApp } from "@/context/AppContext";
 import { UserRole } from "@/lib/types";
 import {
@@ -22,10 +23,15 @@ import {
   PanelLeftOpen,
   X,
   ExternalLink,
+  User,
+  Sliders,
+  LogOut,
 } from "@/components/ui/icons";
 
 export function Sidebar() {
   const pathname = usePathname() ?? "";
+  const router = useRouter();
+  const { signOut } = useClerk();
   const {
     brands,
     activeBrand,
@@ -39,6 +45,8 @@ export function Sidebar() {
     toggleTheme,
     isSidebarCollapsed,
     toggleSidebar,
+    user,
+    logout,
   } = useApp();
 
   const isDark = theme === "dark";
@@ -46,6 +54,7 @@ export function Sidebar() {
   // Dropdown states
   const [isBrandDropdownOpen, setIsBrandDropdownOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSetupDone, setIsSetupDone] = useState(false);
 
@@ -60,6 +69,7 @@ export function Sidebar() {
 
   const brandRef = useRef<HTMLDivElement>(null);
   const roleRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Close dropdowns on click outside
@@ -70,6 +80,9 @@ export function Sidebar() {
       }
       if (roleRef.current && !roleRef.current.contains(event.target as Node)) {
         setIsRoleDropdownOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -97,6 +110,44 @@ export function Sidebar() {
   const isBrand = currentRole === "REVIEWER" || currentRole === "MANAGER";
   const isCreator = currentRole === "CREATOR";
   const isAdminOrJudge = currentRole === "ADMIN" || currentRole === "JUDGE";
+
+  // Derive dynamic user details
+  const rawUserName =
+    user?.user_name?.trim() ||
+    (user?.email ? user.email.split("@")[0] : "") ||
+    (currentRole === "CREATOR"
+      ? "Alex Rivera"
+      : currentRole === "ADMIN"
+      ? "Jordan Vance"
+      : "Sasha Bloom");
+
+  // Clean trailing parenthesized role like "(Creator)" or "(Admin)"
+  const displayName = rawUserName.replace(/\s*\([^)]*\)$/, "").trim();
+  const displayEmail = user?.email || `${(user?.role || currentRole).toLowerCase()}@inkloom.ai`;
+
+  // Initials generator (e.g. "Alex Rivera" -> "AR", "Jordan Vance" -> "JV")
+  const getInitials = (name: string): string => {
+    if (!name) return "U";
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
+  const initials = getInitials(displayName);
+  const displayRoleSubtitle = `${(user?.role || currentRole).toLowerCase()} · inkloom`;
+
+  const handleLogout = async () => {
+    setIsUserMenuOpen(false);
+    try {
+      await signOut();
+    } catch (err) {
+      console.warn("Clerk signOut error:", err);
+    }
+    logout();
+    router.push("/");
+  };
 
   const navItems = isCreator
     ? [
@@ -661,37 +712,160 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* 9. User Profile Card (Target Neo-Brutalism Pink Accent Block) */}
-          {isSidebarCollapsed ? (
-            <div
-              className="flex justify-center cursor-pointer"
-              title={`Alex Rivera · ${currentRole.toLowerCase()}`}
-            >
-              <div className="relative">
-                <div className="w-9 h-9 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[2px_2px_0px_#000]">
-                  AR
+          {/* 9. User Profile Card & Interactive Logout Popover */}
+          <div className="relative" ref={userMenuRef}>
+            {isSidebarCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="w-full flex justify-center cursor-pointer focus:outline-none"
+                title={`${displayName} (${displayRoleSubtitle}) — click for options`}
+                aria-label="User profile menu"
+                aria-expanded={isUserMenuOpen}
+              >
+                <div className="relative">
+                  <div
+                    className={`w-9 h-9 bg-[var(--pink)] border-2 ${
+                      isUserMenuOpen
+                        ? "border-[var(--yellow)] shadow-[3px_3px_0px_#000]"
+                        : "border-white hover:border-[var(--yellow)] shadow-[2px_2px_0px_#000]"
+                    } flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] transition-all`}
+                  >
+                    {initials}
+                  </div>
+                  <span
+                    className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border border-black ${roleColors[currentRole].dot}`}
+                  />
                 </div>
-                <span className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 border border-black ${roleColors[currentRole].dot}`} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className={`w-full flex items-center justify-between p-2 border-2 ${
+                  isUserMenuOpen
+                    ? "border-[var(--yellow)] bg-[#1a1a1e]"
+                    : "border-[#333] hover:border-[var(--yellow)] bg-[#141416]"
+                } shadow-[2px_2px_0px_#000] transition-colors cursor-pointer text-left focus:outline-none`}
+                aria-label="User profile menu"
+                aria-expanded={isUserMenuOpen}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 shrink-0 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[1px_1px_0px_#000]">
+                    {initials}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-mono font-black text-white truncate leading-tight">
+                      {displayName}
+                    </span>
+                    <span className="text-[9.5px] font-mono text-[#888] truncate leading-tight mt-0.5">
+                      {displayRoleSubtitle}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-none border border-black ${roleColors[currentRole].dot}`}
+                  />
+                  <ChevronDown
+                    size={12}
+                    className={`text-[#888] transition-transform duration-200 ${
+                      isUserMenuOpen ? "rotate-180 text-[var(--yellow)]" : ""
+                    }`}
+                  />
+                </div>
+              </button>
+            )}
+
+            {/* Popover Menu */}
+            {isUserMenuOpen && (
+              <div
+                className={`absolute ${
+                  isSidebarCollapsed
+                    ? "left-14 bottom-0 w-60"
+                    : "left-0 right-0 bottom-full mb-2 w-full"
+                } border-3 border-[var(--ink)] bg-[#101010] shadow-[6px_6px_0px_#000] p-2.5 z-60 text-white`}
+              >
+                {/* User Header Details */}
+                <div className="flex items-center gap-2.5 pb-2 border-b-2 border-[#262626]">
+                  <div className="w-8 h-8 shrink-0 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[1px_1px_0px_#000]">
+                    {initials}
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-xs font-mono font-black text-white truncate leading-tight">
+                      {displayName}
+                    </span>
+                    <span
+                      className="text-[10px] font-mono text-[#888] truncate leading-tight mt-0.5"
+                      title={displayEmail}
+                    >
+                      {displayEmail}
+                    </span>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="px-1 py-0.2 text-[8px] font-mono font-bold bg-[#222] border border-[#444] text-[var(--yellow)] uppercase">
+                        {currentRole}
+                      </span>
+                      {user?.organization_name && (
+                        <span
+                          className="px-1 py-0.2 text-[8px] font-mono font-medium bg-[#1e293b] border border-[#334155] text-[#93c5fd] truncate max-w-[90px]"
+                          title={user.organization_name}
+                        >
+                          {user.organization_name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profile / Navigation Links */}
+                <div className="py-2 flex flex-col gap-1">
+                  {isCreator && (
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-2 py-1.5 text-xs font-mono font-bold text-[#d1d5db] hover:text-black hover:bg-[var(--yellow)] transition-colors border border-transparent hover:border-black hover:shadow-[2px_2px_0px_#000]"
+                    >
+                      <User size={13} className="shrink-0" />
+                      <span>Creator Profile</span>
+                    </Link>
+                  )}
+
+                  {isBrand && (
+                    <Link
+                      href="/setup?reconfigure=true"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-2 py-1.5 text-xs font-mono font-bold text-[#d1d5db] hover:text-black hover:bg-[var(--yellow)] transition-colors border border-transparent hover:border-black hover:shadow-[2px_2px_0px_#000]"
+                    >
+                      <Sliders size={13} className="shrink-0" />
+                      <span>Brand Settings</span>
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-2 py-1.5 text-xs font-mono font-bold text-[#d1d5db] hover:text-black hover:bg-[var(--yellow)] transition-colors border border-transparent hover:border-black hover:shadow-[2px_2px_0px_#000]"
+                  >
+                    <LayoutDashboard size={13} className="shrink-0" />
+                    <span>Dashboard</span>
+                  </Link>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t-2 border-[#262626] my-1" />
+
+                {/* Logout Button */}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full mt-1 flex items-center justify-center gap-2 px-2.5 py-1.5 text-xs font-mono font-black bg-[#ff4d4d] hover:bg-[#ff3333] text-black border-2 border-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer transition-transform"
+                >
+                  <LogOut size={13} className="stroke-[2.5]" />
+                  <span>LOG OUT</span>
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between p-2 border-2 border-[#333] bg-[#141416] shadow-[2px_2px_0px_#000]">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 shrink-0 bg-[var(--pink)] border-2 border-white flex items-center justify-center font-mono font-black text-xs text-[var(--ink)] shadow-[1px_1px_0px_#000]">
-                  AR
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-mono font-black text-white truncate leading-tight">
-                    Alex Rivera
-                  </span>
-                  <span className="text-[9.5px] font-mono text-[#888] truncate leading-tight mt-0.5">
-                    {currentRole.toLowerCase()} · inkloom
-                  </span>
-                </div>
-              </div>
-              <span className={`w-2.5 h-2.5 rounded-none border border-black shrink-0 ${roleColors[currentRole].dot}`} />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </aside>
     </>
