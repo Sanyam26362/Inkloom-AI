@@ -190,22 +190,25 @@ async def get_current_user(
             tenant_id=payload.get("tenant_id", "tenant_default"),
         )
 
-    # 2. Rejection of untrusted raw x-user-role headers
+    # 2. Support demo role header when AUTH_DEMO_MODE is active
+    if settings.AUTH_DEMO_MODE:
+        role_to_use = normalize_role(x_user_role) if x_user_role else UserRole.REVIEWER
+        user_name_to_use = x_user_name or ("Elena Rostova" if role_to_use == UserRole.REVIEWER else "Alex Rivera (Creator)")
+        user_id_to_use = x_user_id or ("usr_reviewer_001" if role_to_use == UserRole.REVIEWER else "usr_creator_001")
+        return CurrentUser(
+            user_id=user_id_to_use,
+            user_name=user_name_to_use,
+            role=role_to_use,
+            email=f"{role_to_use.value.lower()}@brandlens.ai",
+            tenant_id="tenant_default",
+        )
+
+    # 3. Rejection of untrusted raw x-user-role headers in production non-demo mode
     if x_user_role is not None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Raw x-user-role header is not trusted without valid JWT authentication. Please login to obtain a Bearer token.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # 3. Fallback when AUTH_DEMO_MODE is active and no auth headers supplied
-    if settings.AUTH_DEMO_MODE:
-        return CurrentUser(
-            user_id="usr_creator_001",
-            user_name="Alex Rivera (Creator)",
-            role=UserRole.CREATOR,
-            email="creator@inkloom.ai",
-            tenant_id="tenant_default",
         )
 
     # 4. Strict rejection in non-demo mode

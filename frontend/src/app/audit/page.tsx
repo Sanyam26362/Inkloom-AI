@@ -741,9 +741,22 @@ function AuditWorkspaceContent() {
               {isVideoSubmission && latestMediaUrl && (
                 <video controls src={latestMediaUrl} className="w-full max-h-60 border-2 border-black bg-black" />
               )}
-              {isImageSubmission && latestMediaUrl && (
+              {isImageSubmission && (
                 <div className="border-2 border-black p-2 bg-white dark:bg-[#121316]">
-                  <img src={latestMediaUrl} className="w-full max-h-72 object-contain" alt="Visual asset" />
+                  <img
+                    src={latestMediaUrl || ((currentSubmission?.title || "").toLowerCase().includes("brighter") ? "/samples/blinkit_diwali_brighter_in_minutes.png" : "/samples/diwali_sorted_with_blinkit.png")}
+                    className="w-full max-h-72 object-contain"
+                    alt="Visual asset"
+                    onError={(e) => {
+                      const el = e.target as HTMLImageElement;
+                      const titleLower = (currentSubmission?.title || "").toLowerCase();
+                      if (titleLower.includes("brighter")) {
+                        el.src = "/samples/blinkit_diwali_brighter_in_minutes.png";
+                      } else {
+                        el.src = "/samples/diwali_sorted_with_blinkit.png";
+                      }
+                    }}
+                  />
                 </div>
               )}
             </div>

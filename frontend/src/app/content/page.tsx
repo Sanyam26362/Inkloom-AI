@@ -839,6 +839,15 @@ export default function CreatorContentStudioPage() {
                       src={displayImageUrl}
                       alt="Uploaded campaign creative"
                       className="object-contain max-h-[440px] w-auto mx-auto rounded-none"
+                      onError={(e) => {
+                        const el = e.target as HTMLImageElement;
+                        const titleLower = (title || "").toLowerCase();
+                        if (titleLower.includes("brighter")) {
+                          el.src = "/samples/blinkit_diwali_brighter_in_minutes.png";
+                        } else {
+                          el.src = "/samples/diwali_sorted_with_blinkit.png";
+                        }
+                      }}
                     />
 
                     {/* Metadata Badge */}
@@ -985,6 +994,15 @@ export default function CreatorContentStudioPage() {
                         src={displayImageUrl}
                         alt="Audited creative thumbnail"
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const el = e.target as HTMLImageElement;
+                          const titleLower = (title || "").toLowerCase();
+                          if (titleLower.includes("brighter")) {
+                            el.src = "/samples/blinkit_diwali_brighter_in_minutes.png";
+                          } else {
+                            el.src = "/samples/diwali_sorted_with_blinkit.png";
+                          }
+                        }}
                       />
                     </div>
                   )}

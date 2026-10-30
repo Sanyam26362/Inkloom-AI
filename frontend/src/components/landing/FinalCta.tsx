@@ -17,6 +17,7 @@ export function FinalCta() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -39,9 +40,8 @@ export function FinalCta() {
     e.preventDefault();
     if (!validate()) return;
 
-    // TODO: connect to backend/CRM
-    // Do not send data anywhere.
     setIsSubmitted(true);
+    setShowToast(true);
   };
 
   return (
@@ -85,8 +85,13 @@ export function FinalCta() {
                   Request Received
                 </h3>
                 <p className="nb-mono text-base font-bold text-[var(--nb-ink)]">
-                  Thanks. We&apos;ll be in touch within one business day.
+                  Thanks for reaching out!
                 </p>
+                <div className="p-3 border-2 border-[var(--nb-ink)] bg-white shadow-[2px_2px_0_var(--nb-ink)]">
+                  <p className="nb-mono text-sm font-black text-[var(--nb-ink)] uppercase tracking-wider">
+                    Note: We will contact you soon.
+                  </p>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
@@ -282,6 +287,23 @@ export function FinalCta() {
           </div>
         </div>
       </div>
+
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 border-[3px] border-[var(--nb-ink)] bg-[var(--nb-yellow)] text-[var(--nb-ink)] shadow-[6px_6px_0_var(--nb-ink)] flex items-center gap-3 max-w-md">
+          <span className="material-symbols-outlined text-2xl">mail</span>
+          <div>
+            <div className="font-mono text-xs font-black uppercase tracking-wider">Demo Request Received</div>
+            <div className="font-mono text-sm font-bold">We will contact you soon.</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowToast(false)}
+            className="ml-auto w-6 h-6 border-2 border-[var(--nb-ink)] bg-white text-[var(--nb-ink)] font-black text-xs flex items-center justify-center cursor-pointer hover:bg-[var(--nb-ink)] hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </section>
   );
 }
