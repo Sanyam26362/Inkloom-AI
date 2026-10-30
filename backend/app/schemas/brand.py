@@ -22,7 +22,7 @@ class BrandProfileBase(BaseModel):
         default_factory=dict,
         description="Dictionary mapping deprecated phrases to approved terminology",
     )
-    approved_facts: List[Dict[str, Any]] = Field(
+    approved_facts: List[Any] = Field(
         default_factory=list,
         description="Verified corporate facts and claims with citations",
     )
@@ -51,7 +51,7 @@ class BrandProfileUpdate(BaseModel):
     approved_hex_palette: Optional[List[str]] = None
     banned_terms: Optional[List[str]] = None
     preferred_terminology: Optional[Dict[str, str]] = None
-    approved_facts: Optional[List[Dict[str, Any]]] = None
+    approved_facts: Optional[List[Any]] = None
     visual_guidelines_summary: Optional[str] = None
     min_wcag_contrast: Optional[float] = Field(None, ge=1.0, le=21.0)
     tenant_id: Optional[str] = None
