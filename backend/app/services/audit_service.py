@@ -263,14 +263,14 @@ class AuditService:
             c_res = await session.execute(
                 select(Campaign).where(Campaign.id == campaign_id, Campaign.brand_id == brand_id)
             )
-            campaign = c_res.scalar_one_or_none()
+            campaign = c_res.scalars().first()
         elif event_name and event_name.strip():
             c_res = await session.execute(
                 select(Campaign)
                 .where(Campaign.brand_id == brand_id, Campaign.name.ilike(f"%{event_name.strip()}%"))
                 .order_by(Campaign.created_at.desc())
             )
-            campaign = c_res.scalar_one_or_none()
+            campaign = c_res.scalars().first()
 
         ruleset: Optional[RuleSet] = None
         if campaign:
