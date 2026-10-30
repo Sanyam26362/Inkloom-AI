@@ -19,6 +19,15 @@ import { GovernanceAnalytics, Submission, SubmissionStatus } from "@/lib/types";
 import TechText from "@/components/ui/TechText";
 import DriftWall from "@/components/ui/DriftWall";
 
+const resolveMediaUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://inkloom-ai-backend.onrender.com").replace(/\/api\/v1\/?$/, "");
+    return url.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/, base);
+  }
+  return url;
+};
+
 export default function GovernanceDashboardPage() {
   const { user, activeBrandId, currentRole, setCurrentRole, brands, theme, refreshKey, setActiveBrandId, refreshBrands } = useApp();
   const [expandedSubId, setExpandedSubId] = useState<number | null>(null);
@@ -963,12 +972,13 @@ export default function GovernanceDashboardPage() {
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-3">
                               {(() => {
-                                const thumbUrl = sub.revisions?.find((r) => r.media_urls && r.media_urls.length > 0)?.media_urls?.[0] || sub.revisions?.[0]?.media_urls?.[0];
+                                const thumbUrl = resolveMediaUrl(sub.revisions?.find((r) => r.media_urls && r.media_urls.length > 0)?.media_urls?.[0] || sub.revisions?.[0]?.media_urls?.[0]);
                                 return thumbUrl ? (
                                   <img
                                     src={thumbUrl}
                                     alt={sub.title}
                                     className="w-12 h-12 object-cover border-2 border-black shrink-0 shadow-[1px_1px_0px_#000] bg-black"
+                                    onError={(e) => { const el = e.target as HTMLImageElement; el.style.display = "none"; }}
                                   />
                                 ) : (
                                   <div className="w-12 h-12 border-2 border-black bg-[var(--yellow)]/30 shrink-0 flex items-center justify-center shadow-[1px_1px_0px_#000]">
@@ -1115,13 +1125,14 @@ export default function GovernanceDashboardPage() {
                                 <div className="flex flex-col md:flex-row gap-5 items-start">
                                   {/* Media Thumbnail */}
                                   {(() => {
-                                    const drawerMediaUrl = sub.revisions?.find((r) => r.media_urls && r.media_urls.length > 0)?.media_urls?.[0] || sub.revisions?.[0]?.media_urls?.[0];
+                                    const drawerMediaUrl = resolveMediaUrl(sub.revisions?.find((r) => r.media_urls && r.media_urls.length > 0)?.media_urls?.[0] || sub.revisions?.[0]?.media_urls?.[0]);
                                     return drawerMediaUrl ? (
                                       <div className="w-48 shrink-0 border-2 border-black shadow-[2px_2px_0px_#000] overflow-hidden bg-black">
                                         <img
                                           src={drawerMediaUrl}
                                           alt={sub.title}
                                           className="w-full h-auto object-cover max-h-60"
+                                          onError={(e) => { const el = e.target as HTMLImageElement; el.style.display = "none"; }}
                                         />
                                         <div className="p-1.5 bg-[var(--ink)] text-[9px] text-white font-mono text-center truncate">
                                           Asset Preview

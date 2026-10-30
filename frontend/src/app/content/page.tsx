@@ -9,6 +9,15 @@ import { Submission, AuditExecutionResponse, AuditFinding } from "@/lib/types";
 
 type ContentFormatType = "INSTAGRAM_POST" | "TWEET" | "POSTER" | "VIDEO_REEL" | "AUDIO_AD";
 
+const resolveMediaUrl = (url?: string | null): string | null => {
+  if (!url) return null;
+  if (url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
+    const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://inkloom-ai-backend.onrender.com").replace(/\/api\/v1\/?$/, "");
+    return url.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/, base);
+  }
+  return url;
+};
+
 export default function CreatorContentStudioPage() {
   const router = useRouter();
   const { user, activeBrandId, currentRole, setCurrentRole, brands, setActiveBrandId, theme } = useApp();
@@ -77,9 +86,11 @@ export default function CreatorContentStudioPage() {
   // Fallback image URL from server if local preview is not set
   const displayImageUrl =
     imagePreviewUrl ||
-    (submissionData?.revisions && submissionData.revisions.length > 0
-      ? submissionData.revisions[submissionData.revisions.length - 1]?.media_urls?.[0]
-      : null);
+    resolveMediaUrl(
+      submissionData?.revisions && submissionData.revisions.length > 0
+        ? submissionData.revisions[submissionData.revisions.length - 1]?.media_urls?.[0]
+        : null
+    );
 
   // Load Evaluator Benchmark Creative Sample
   const handleLoadBenchmarkSample = async (sampleType: "sample1" | "sample2") => {
@@ -394,11 +405,9 @@ export default function CreatorContentStudioPage() {
         "Creator verified with AI governance pre-flight audit. Forwarded to brand review queue.",
         { userRole: currentRole }
       );
-      setSuccessMessage(`Submission #${submissionData.id} forwarded to Brand Review Queue! Redirecting to Brand Dashboard...`);
-      // Seamlessly switch to Brand Reviewer role and navigate directly to brand dashboard
-      setCurrentRole("REVIEWER");
+      setSuccessMessage(`Submission #${submissionData.id} forwarded to Brand Review Queue! Redirecting to Content Dashboard...`);
       setTimeout(() => {
-        router.push(`/dashboard?view=brand&highlight=${submissionData.id}`);
+        router.push(`/content`);
       }, 600);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

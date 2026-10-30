@@ -641,8 +641,8 @@ export function Sidebar() {
             </button>
           )}
 
-          {/* 8. User Role Switcher */}
-          <div className="relative" ref={roleRef}>
+          {/* 8. User Role Switcher — hidden */}
+          <div className="relative hidden" ref={roleRef}>
             {isSidebarCollapsed ? (
               <div className="flex justify-center">
                 <button

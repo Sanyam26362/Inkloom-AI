@@ -5,7 +5,7 @@ import { AppContextProvider } from "@/context/AppContext";
 import { AppShell } from "@/components/shell/AppShell";
 
 export const metadata: Metadata = {
-  title: "Inkloom AI — Enterprise Brand Governance & Multi-Modal Content Auditing",
+  title: "BrandLens — Enterprise Brand Governance & Multi-Modal Content Auditing",
   description:
     "Autonomous computational policy adherence across cross-channel collateral, multi-modal audio & video QA, and pgvector RAG pipeline.",
   icons: {

@@ -161,6 +161,32 @@ class PackService:
             except Exception:
                 pass
 
+        # Early-exit if pack chunks already indexed for this brand (idempotency fast path)
+        existing_count_stmt = text(
+            "SELECT COUNT(*) FROM guideline_chunks WHERE brand_id = :brand_id AND source_kind = 'premade'"
+        )
+        existing_count_result = await session.execute(existing_count_stmt, {"brand_id": brand_id})
+        existing_count = existing_count_result.scalar() or 0
+
+        if existing_count > 0:
+            # Chunks already exist — skip expensive re-embedding and return cached summary
+            existing_ruleset_stmt = select(RuleSet).where(
+                RuleSet.brand_id == brand_id, RuleSet.is_active == True
+            ).order_by(RuleSet.id.desc())
+            existing_ruleset_result = await session.execute(existing_ruleset_stmt)
+            existing_ruleset = existing_ruleset_result.scalar_one_or_none()
+            await session.commit()
+            return PackLoadResponse(
+                pack_name=pack_name,
+                brand_id=brand_id,
+                campaign_id=campaign.id if campaign else None,
+                ruleset_id=existing_ruleset.id if existing_ruleset else None,
+                indexed_chunks_count=existing_count,
+                documents_indexed=len(manifest.get("documents", [])),
+                chunks_created=0,
+                message=f"Premade pack '{pack_name}' already loaded ({existing_count} chunks cached). Returning fast.",
+            )
+
         await session.execute(
             delete(GuidelineChunk).where(
                 GuidelineChunk.brand_id == brand_id,
