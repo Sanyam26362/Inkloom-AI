@@ -675,4 +675,11 @@ export const api = {
   async getAnalytics(brandId: number, options?: RequestOptions): Promise<GovernanceAnalytics> {
     return fetchJson<GovernanceAnalytics>(`/analytics/${brandId}`, options);
   },
+
+  async resetDatabase(options?: RequestOptions): Promise<{ status: string; message: string }> {
+    return fetchJson<{ status: string; message: string }>("/admin/reset-database", {
+      ...options,
+      method: "POST",
+    });
+  },
 };

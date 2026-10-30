@@ -254,3 +254,24 @@ async def get_admin_stats(
         total_overrides=total_overrides,
         override_rate_by_guideline=guideline_stats,
     )
+
+
+@router.post("/reset-database")
+async def reset_database_endpoint():
+    """Wipes all submissions, audit findings, and restores clean default state."""
+    from sqlalchemy import text
+    from app.core.database import engine, init_db
+    from app.main import auto_seed_default_brand, auto_seed_demo_accounts
+
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE review_comments, workflow_events, audit_findings, submission_revisions, "
+                "submissions, guideline_chunks, rulesets, campaigns, user_accounts, brand_profiles CASCADE;"
+            )
+        )
+
+    await init_db()
+    await auto_seed_default_brand()
+    await auto_seed_demo_accounts()
+    return {"status": "ok", "message": "Database wiped and re-seeded with clean default state."}

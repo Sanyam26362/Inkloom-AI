@@ -891,15 +891,7 @@ function AuditWorkspaceContent() {
                   {/* Action Controls */}
                   <div className="flex items-center justify-between pt-2 border-t-2 border-black">
                     <div className="flex items-center gap-2">
-                      {finding.suggested_correction && finding.resolution_state === "OPEN" && (
-                        <button
-                          type="button"
-                          onClick={() => handleApplyFix(finding)}
-                          className="px-3 py-1 border-2 border-black bg-[var(--yellow)] text-[var(--ink)] text-xs font-mono font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
-                        >
-                          Apply Fix
-                        </button>
-                      )}
+{/* Apply Fix button commented out as requested */}
                     </div>
 
                     {finding.resolution_state === "OPEN" && (

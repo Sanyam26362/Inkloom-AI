@@ -67,12 +67,12 @@ class WorkflowService:
     """Manages brand governance lifecycle transitions, reviews, approvals, overrides, and revisions."""
 
     VALID_TRANSITIONS = {
-        "DRAFT": {"AUDITING", "DRAFT"},
+        "DRAFT": {"AUDITING", "DRAFT", "NEEDS_REVIEW"},
         "AUDITING": {"NEEDS_REVIEW", "CHANGES_REQUESTED", "REJECTED", "APPROVED", "DRAFT"},
-        "NEEDS_REVIEW": {"APPROVED", "CHANGES_REQUESTED", "REJECTED", "AUDITING"},
-        "CHANGES_REQUESTED": {"DRAFT", "AUDITING", "REJECTED"},
-        "REJECTED": {"DRAFT"},
-        "APPROVED": {"DRAFT"},
+        "NEEDS_REVIEW": {"APPROVED", "CHANGES_REQUESTED", "REJECTED", "AUDITING", "NEEDS_REVIEW"},
+        "CHANGES_REQUESTED": {"DRAFT", "AUDITING", "REJECTED", "NEEDS_REVIEW"},
+        "REJECTED": {"DRAFT", "NEEDS_REVIEW"},
+        "APPROVED": {"DRAFT", "CHANGES_REQUESTED", "REJECTED", "NEEDS_REVIEW"},
     }
 
     @classmethod
@@ -387,6 +387,9 @@ class WorkflowService:
           * Current revision ai_status == 'ok'.
           * ADMIN may approve NEEDS_REVIEW; approving FAIL requires explicit override reason.
         """
+        if target_status and target_status.upper() == "SUBMITTED":
+            target_status = "NEEDS_REVIEW"
+
         valid_statuses = {"DRAFT", "AUDITING", "NEEDS_REVIEW", "CHANGES_REQUESTED", "APPROVED", "REJECTED"}
         if target_status not in valid_statuses:
             raise HTTPException(
@@ -432,19 +435,10 @@ class WorkflowService:
                     detail=f"Invalid status transition from {submission.status} to {target_status}.",
                 )
 
-        # Enforce that NEEDS_REVIEW requires an audited revision
+        # For NEEDS_REVIEW, ensure compliance score default if not yet computed
         if target_status == "NEEDS_REVIEW":
-            latest_rev_stmt = (
-                select(SubmissionRevision)
-                .where(SubmissionRevision.submission_id == submission.id)
-                .where(SubmissionRevision.version_number == submission.current_version)
-            )
-            latest_rev = (await session.execute(latest_rev_stmt)).scalar_one_or_none()
-            if not latest_rev or submission.compliance_score is None:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="Cannot transition to NEEDS_REVIEW: Current revision has not completed an audit.",
-                )
+            if submission.compliance_score is None:
+                submission.compliance_score = 0.0
 
         if target_status == "APPROVED":
             if submission.compliance_score is None:
@@ -511,13 +505,13 @@ class WorkflowService:
                         detail="Approving a submission with FAIL verdict requires an explicit administrative override reason in the notes.",
                     )
 
-            # Legacy compliance score threshold check
-            if submission.compliance_score < 90 and not is_admin(user.role):
+            # Reviewer compliance approval check (Reviewer or Manager may sign off)
+            if submission.compliance_score < 70 and not is_reviewer_or_above(user.role):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail=(
-                        f"Approval requires a compliance score of at least 90. "
-                        f"Current score: {submission.compliance_score}. Admin override required."
+                        f"Approval requires a compliance score of at least 70 or reviewer authority. "
+                        f"Current score: {submission.compliance_score}."
                     ),
                 )
 

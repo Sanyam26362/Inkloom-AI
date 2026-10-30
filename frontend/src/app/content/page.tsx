@@ -42,6 +42,7 @@ export default function CreatorContentStudioPage() {
   const [generatedFile, setGeneratedFile] = useState<File | null>(null);
   const [isFixing, setIsFixing] = useState(false);
   const [fixError, setFixError] = useState<string | null>(null);
+  const [isSubmittingQueue, setIsSubmittingQueue] = useState(false);
 
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -396,18 +397,26 @@ export default function CreatorContentStudioPage() {
   // Submit to Brand Review Queue and Route to Brand Dashboard
   const handleSubmitToBrandQueue = async () => {
     if (!submissionData) return;
+    setIsSubmittingQueue(true);
+    setErrorMessage(null);
     try {
-      await api.updateStatus(submissionData.id, "SUBMITTED", "Creator verified with AI governance pre-flight audit. Forwarded to brand review.", {
-        userRole: currentRole,
-      });
-      setSuccessMessage(`Submission #${submissionData.id} forwarded to Brand Governance Queue! Redirecting to Brand Dashboard...`);
+      await api.updateStatus(
+        submissionData.id,
+        "NEEDS_REVIEW",
+        "Creator verified with AI governance pre-flight audit. Forwarded to brand review queue.",
+        { userRole: currentRole }
+      );
+      setSuccessMessage(`Submission #${submissionData.id} forwarded to Brand Review Queue! Redirecting to Brand Dashboard...`);
       // Seamlessly switch to Brand Reviewer role and navigate directly to brand dashboard
       setCurrentRole("REVIEWER");
       setTimeout(() => {
         router.push(`/dashboard?view=brand&highlight=${submissionData.id}`);
-      }, 500);
-    } catch {
-      setErrorMessage("Failed to submit to brand queue.");
+      }, 600);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMessage(`Failed to submit to brand queue: ${msg}`);
+    } finally {
+      setIsSubmittingQueue(false);
     }
   };
 
@@ -1086,34 +1095,17 @@ export default function CreatorContentStudioPage() {
                 </div>
 
                 <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleOpenFixModal}
-                    disabled={isFixing || isAuditing}
-                    className="px-3.5 py-2 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 transition-all"
-                  >
-                    <span className={`material-symbols-outlined text-[18px] ${isFixing ? "animate-spin" : ""}`}>
-                      {isFixing ? "autorenew" : "magic_button"}
-                    </span>
-                    {isFixing ? "Remediating..." : "Apply Suggested Fixes 🪄"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleApplyAllFixes}
-                    disabled={isFixing || isAuditing}
-                    className="px-3 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <span className="material-symbols-outlined text-[17px]">auto_fix_high</span>
-                    Fix Copy Only
-                  </button>
+{/* Apply Suggested Fixes & Fix Copy Only buttons commented out as requested */}
                   <button
                     type="button"
                     onClick={handleSubmitToBrandQueue}
-                    disabled={isFixing || isAuditing}
-                    className="px-3 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                    disabled={isFixing || isAuditing || isSubmittingQueue}
+                    className="px-3 py-2 border-2 border-black bg-[var(--yellow)] hover:bg-[#ffcf00] text-black font-mono font-black text-xs uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 transition-all"
                   >
-                    <span className="material-symbols-outlined text-[17px]">send</span>
-                    Submit to Queue
+                    <span className={`material-symbols-outlined text-[17px] ${isSubmittingQueue ? "animate-spin" : ""}`}>
+                      {isSubmittingQueue ? "sync" : "send"}
+                    </span>
+                    {isSubmittingQueue ? "Submitting..." : "Submit to Queue"}
                   </button>
                 </div>
               </div>
@@ -1268,15 +1260,7 @@ export default function CreatorContentStudioPage() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleOpenFixModal}
-                        disabled={isFixing || isAuditing}
-                        className="px-3.5 py-1.5 bg-[var(--yellow)] hover:bg-[#ffcf00] text-black border-2 border-black font-mono text-[11px] font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 shrink-0"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">magic_button</span>
-                        Auto-Apply All Improvements 🪄
-                      </button>
+{/* Auto-Apply button commented out as requested */}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1436,13 +1420,7 @@ export default function CreatorContentStudioPage() {
                                 </p>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => handleApplySingleCorrection(finding)}
-                                className="px-3 py-1.5 border-2 border-black bg-[var(--yellow)] text-black text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 shrink-0 transition-all cursor-pointer"
-                              >
-                                Apply Fix
-                              </button>
+{/* Apply Fix button commented out as requested */}
                             </div>
                           )}
                         </div>

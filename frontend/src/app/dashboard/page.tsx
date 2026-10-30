@@ -48,6 +48,26 @@ export default function GovernanceDashboardPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [isResettingDb, setIsResettingDb] = useState<boolean>(false);
+  const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [resetSuccessToast, setResetSuccessToast] = useState<string | null>(null);
+
+  const handleResetDatabase = async () => {
+    setIsResettingDb(true);
+    setError(null);
+    try {
+      await api.resetDatabase({ userRole: currentRole });
+      setResetSuccessToast("Database wiped and clean Blinkit brand pack restored!");
+      setTimeout(() => setResetSuccessToast(null), 6000);
+      await loadDashboardData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(`Failed to reset database: ${msg}`);
+    } finally {
+      setIsResettingDb(false);
+      setShowResetConfirm(false);
+    }
+  };
 
   // Future Clients & Enterprise Prospects Pipeline
   const futureClients = [
@@ -771,7 +791,19 @@ export default function GovernanceDashboardPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={isResettingDb}
+                className="px-3 py-2 border-2 border-black bg-[var(--red)] hover:bg-[#ff3333] text-white text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                title="Wipe database and re-seed clean default state"
+              >
+                <span className={`material-symbols-outlined text-[16px] ${isResettingDb ? "animate-spin" : ""}`}>
+                  {isResettingDb ? "sync" : "delete_forever"}
+                </span>
+                {isResettingDb ? "Wiping DB..." : "Reset Database"}
+              </button>
               <Link
                 href="/guidelines"
                 className="px-3.5 py-2 border-2 border-black bg-white dark:bg-[#1c1d22] text-black dark:text-white text-xs font-mono font-black uppercase shadow-[3px_3px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
@@ -929,9 +961,29 @@ export default function GovernanceDashboardPage() {
                           }`}
                         >
                           <td className="py-3 px-4">
-                            <div className="font-bold text-sm text-[var(--ink)] dark:text-white uppercase">{sub.title}</div>
-                            <div className="text-[10px] text-[#666] dark:text-[#999]">
-                              SUB-#{sub.id} · v{sub.current_version} · {new Date(sub.created_at).toLocaleDateString()}
+                            <div className="flex items-center gap-3">
+                              {(() => {
+                                const thumbUrl = sub.revisions?.find((r) => r.media_urls && r.media_urls.length > 0)?.media_urls?.[0] || sub.revisions?.[0]?.media_urls?.[0];
+                                return thumbUrl ? (
+                                  <img
+                                    src={thumbUrl}
+                                    alt={sub.title}
+                                    className="w-12 h-12 object-cover border-2 border-black shrink-0 shadow-[1px_1px_0px_#000] bg-black"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 border-2 border-black bg-[var(--yellow)]/30 shrink-0 flex items-center justify-center shadow-[1px_1px_0px_#000]">
+                                    <span className="material-symbols-outlined text-[20px]">
+                                      {sub.content_format === "IMAGE" ? "image" : "description"}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+                              <div>
+                                <div className="font-bold text-sm text-[var(--ink)] dark:text-white uppercase">{sub.title}</div>
+                                <div className="text-[10px] text-[#666] dark:text-[#999]">
+                                  SUB-#{sub.id} · v{sub.current_version} · {new Date(sub.created_at).toLocaleDateString()}
+                                </div>
+                              </div>
                             </div>
                           </td>
 
@@ -1062,23 +1114,26 @@ export default function GovernanceDashboardPage() {
                               <div className="border-3 border-black bg-white dark:bg-[#141518] p-4 sm:p-5 shadow-[4px_4px_0px_#000] text-left font-mono">
                                 <div className="flex flex-col md:flex-row gap-5 items-start">
                                   {/* Media Thumbnail */}
-                                  {sub.revisions?.[0]?.media_urls?.[0] ? (
-                                    <div className="w-48 shrink-0 border-2 border-black shadow-[2px_2px_0px_#000] overflow-hidden bg-black">
-                                      <img
-                                        src={sub.revisions[0].media_urls[0]}
-                                        alt={sub.title}
-                                        className="w-full h-auto object-cover max-h-60"
-                                      />
-                                      <div className="p-1.5 bg-[var(--ink)] text-[9px] text-white font-mono text-center truncate">
-                                        Asset Preview
+                                  {(() => {
+                                    const drawerMediaUrl = sub.revisions?.find((r) => r.media_urls && r.media_urls.length > 0)?.media_urls?.[0] || sub.revisions?.[0]?.media_urls?.[0];
+                                    return drawerMediaUrl ? (
+                                      <div className="w-48 shrink-0 border-2 border-black shadow-[2px_2px_0px_#000] overflow-hidden bg-black">
+                                        <img
+                                          src={drawerMediaUrl}
+                                          alt={sub.title}
+                                          className="w-full h-auto object-cover max-h-60"
+                                        />
+                                        <div className="p-1.5 bg-[var(--ink)] text-[9px] text-white font-mono text-center truncate">
+                                          Asset Preview
+                                        </div>
                                       </div>
-                                    </div>
-                                  ) : (
-                                    <div className="w-40 h-32 shrink-0 border-2 border-black bg-[var(--yellow)]/20 flex flex-col items-center justify-center text-center p-3 shadow-[2px_2px_0px_#000]">
-                                      <span className="material-symbols-outlined text-[32px] mb-1">image</span>
-                                      <span className="text-[10px] font-black uppercase">{sub.content_format}</span>
-                                    </div>
-                                  )}
+                                    ) : (
+                                      <div className="w-40 h-32 shrink-0 border-2 border-black bg-[var(--yellow)]/20 flex flex-col items-center justify-center text-center p-3 shadow-[2px_2px_0px_#000]">
+                                        <span className="material-symbols-outlined text-[32px] mb-1">image</span>
+                                        <span className="text-[10px] font-black uppercase">{sub.content_format}</span>
+                                      </div>
+                                    );
+                                  })()}
 
                                   {/* Submission Details & Findings */}
                                   <div className="flex-1 min-w-0">
@@ -1097,14 +1152,17 @@ export default function GovernanceDashboardPage() {
                                     </div>
 
                                     {/* Content Copy Excerpt */}
-                                    {sub.revisions?.[0]?.content_body && (
-                                      <div className="mb-3 p-2.5 border-2 border-black bg-black/5 dark:bg-white/5 text-xs text-[var(--ink)] dark:text-[#e0e0e0] leading-relaxed">
-                                        <span className="text-[9px] font-black uppercase text-[#666] dark:text-[#888] block mb-1">
-                                          SUBMISSION COPY:
-                                        </span>
-                                        "{sub.revisions[0].content_body}"
-                                      </div>
-                                    )}
+                                    {(() => {
+                                      const drawerCopy = sub.revisions?.find((r) => r.content_body && r.content_body !== "Visual Image Asset")?.content_body || sub.revisions?.[0]?.content_body;
+                                      return drawerCopy ? (
+                                        <div className="mb-3 p-2.5 border-2 border-black bg-black/5 dark:bg-white/5 text-xs text-[var(--ink)] dark:text-[#e0e0e0] leading-relaxed">
+                                          <span className="text-[9px] font-black uppercase text-[#666] dark:text-[#888] block mb-1">
+                                            SUBMISSION COPY:
+                                          </span>
+                                          &ldquo;{drawerCopy}&rdquo;
+                                        </div>
+                                      ) : null;
+                                    })()}
 
                                     {/* Detailed Findings List */}
                                     <div>
@@ -1890,6 +1948,55 @@ export default function GovernanceDashboardPage() {
           )}
         </>
       )}
+          {/* Confirmation Modal for Reset Database */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md border-4 border-black bg-white dark:bg-[#1c1d22] p-6 shadow-[8px_8px_0px_#000] font-mono text-left space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-2 text-[var(--red)] border-b-2 border-black pb-2">
+              <span className="material-symbols-outlined text-[24px]">warning</span>
+              <h3 className="font-archivo font-black text-base uppercase text-[var(--red)] dark:text-[#ff7b72]">
+                Purge &amp; Reset Database?
+              </h3>
+            </div>
+            <p className="text-xs text-[#333] dark:text-[#ccc] leading-relaxed">
+              This action will permanently delete <strong>all submissions, revisions, and audit findings</strong> across the platform, and restore a pristine, clean Blinkit default brand pack and demo user accounts.
+            </p>
+            <div className="p-3 border-2 border-black bg-[var(--yellow)]/20 text-[11px] font-bold text-black dark:text-white">
+              ⚠️ You can safely log in fresh and test clean end-to-end poster audits afterwards.
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                disabled={isResettingDb}
+                className="px-4 py-2 border-2 border-black bg-white dark:bg-[#25262c] text-black dark:text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleResetDatabase}
+                disabled={isResettingDb}
+                className="px-4 py-2 border-2 border-black bg-[var(--red)] hover:bg-[#ff3333] text-white text-xs font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <span className={`material-symbols-outlined text-[16px] ${isResettingDb ? "animate-spin" : ""}`}>
+                  {isResettingDb ? "sync" : "delete_forever"}
+                </span>
+                {isResettingDb ? "Wiping..." : "Yes, Purge Database"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Success Toast */}
+      {resetSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-50 p-3.5 border-3 border-black bg-[var(--green)] text-black font-mono font-black text-xs uppercase shadow-[4px_4px_0px_#000] flex items-center gap-2 animate-bounce">
+          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+          <span>{resetSuccessToast}</span>
+        </div>
+      )}
+
     </div>
   );
 }
