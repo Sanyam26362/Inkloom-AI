@@ -11,17 +11,18 @@ export function resolvePostAuthRedirect(user: UserProfileResponse | null | undef
 
   // Content Creator Lifecycle
   if (role === "CREATOR") {
-    // If creator hasn't submitted their organization/agency profile, send to profile setup
+    // If creator has submitted profile/completed onboarding, route to Creator Studio
     if (user.onboarding_status === "COMPLETED" || user.creator_type) {
       return "/content";
     }
     return "/profile";
   }
 
-  // Brand Manager / Reviewer / Admin Lifecycle
-  if (role === "REVIEWER" || role === "ADMIN" || role === "BRAND" || role === "JUDGE") {
+  // Brand Manager / Reviewer / Brand Tenancy Lifecycle
+  if (role === "REVIEWER" || role === "BRAND" || role === "MANAGER") {
     if (user.onboarding_status === "COMPLETED") {
-      return "/dashboard";
+      // Completed brand setup leads directly to Brand Guidelines Console
+      return "/guidelines";
     }
     if (user.onboarding_status === "IN_PROGRESS" && user.onboarding_step) {
       return `/setup?step=${user.onboarding_step}`;
@@ -29,6 +30,10 @@ export function resolvePostAuthRedirect(user: UserProfileResponse | null | undef
     return "/setup?step=1";
   }
 
+  // Admin / Judge Lifecycle
+  if (role === "ADMIN" || role === "JUDGE") {
+    return "/dashboard";
+  }
+
   return "/dashboard";
 }
-

@@ -84,17 +84,34 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
     if (syncedClerkIdRef.current === clerkUser.id) return;
     syncedClerkIdRef.current = clerkUser.id;
 
-    const rawRole = (clerkUser.unsafeMetadata?.role as string) || (clerkUser.publicMetadata?.role as string) || "CREATOR";
-    const mappedRole = (rawRole.toUpperCase() === "REVIEWER" || rawRole.toUpperCase() === "BRAND") ? "REVIEWER" : (rawRole.toUpperCase() === "ADMIN" ? "ADMIN" : "CREATOR") as UserRole;
+    const savedSignupRole = typeof window !== "undefined" ? localStorage.getItem("inkloom_signup_role") : null;
+    const rawRole = (clerkUser.unsafeMetadata?.role as string) || (clerkUser.publicMetadata?.role as string) || savedSignupRole || "CREATOR";
+    const mappedRole = (rawRole.toUpperCase() === "REVIEWER" || rawRole.toUpperCase() === "BRAND" || rawRole.toUpperCase() === "MANAGER")
+      ? "REVIEWER"
+      : (rawRole.toUpperCase() === "ADMIN" || rawRole.toUpperCase() === "JUDGE")
+      ? "ADMIN"
+      : "CREATOR";
+
+    const userName =
+      clerkUser.fullName ||
+      clerkUser.firstName ||
+      (clerkUser.primaryEmailAddress?.emailAddress ? clerkUser.primaryEmailAddress.emailAddress.split("@")[0] : "") ||
+      "Inkloom User";
 
     api.clerkSync({
       clerk_id: clerkUser.id,
       email: clerkUser.primaryEmailAddress?.emailAddress || `${clerkUser.id}@inkloom.user`,
-      user_name: clerkUser.fullName || clerkUser.firstName || "Inkloom User",
+      user_name: userName,
       role: mappedRole,
     }).then(async (res) => {
       setUser(res.user);
       setCurrentRoleState(mappedRole);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("inkloom_token", res.access_token);
+          localStorage.setItem("inkloom_user", JSON.stringify(res.user));
+        } catch {}
+      }
       if (mappedRole === "CREATOR") {
         const brandList = brandsRef.current.length > 0 ? brandsRef.current : await api.listBrands().catch(() => []);
         const blinkit = brandList.find((b) => b.name.toLowerCase() === "blinkit");
@@ -181,8 +198,21 @@ export function AppContextProvider({ children }: { children: React.ReactNode }) 
 
   const setCurrentRole = useCallback((role: UserRole) => {
     setCurrentRoleState(role);
-    loginAsDemoUser(role);
-  }, [loginAsDemoUser]);
+    setUser((prevUser) => {
+      if (prevUser && prevUser.email && !prevUser.email.endsWith("@inkloom.ai")) {
+        const updated = { ...prevUser, role };
+        try {
+          localStorage.setItem("inkloom_user", JSON.stringify(updated));
+        } catch {}
+        return updated;
+      }
+      return prevUser;
+    });
+
+    if (!user || !user.email || user.email.endsWith("@inkloom.ai")) {
+      loginAsDemoUser(role);
+    }
+  }, [user, loginAsDemoUser]);
 
   const logout = useCallback(() => {
     api.logout();

@@ -119,6 +119,8 @@ export function Sidebar() {
       ? "Alex Rivera"
       : currentRole === "ADMIN"
       ? "Jordan Vance"
+      : currentRole === "REVIEWER" || currentRole === "MANAGER"
+      ? "Elena Rostova"
       : "Sasha Bloom");
 
   // Clean trailing parenthesized role like "(Creator)" or "(Admin)"
@@ -136,7 +138,7 @@ export function Sidebar() {
   };
 
   const initials = getInitials(displayName);
-  const displayRoleSubtitle = `${(user?.role || currentRole).toLowerCase()} · inkloom`;
+  const displayRoleSubtitle = `${(currentRole || user?.role || "creator").toLowerCase()} · inkloom`;
 
   const handleLogout = async () => {
     setIsUserMenuOpen(false);

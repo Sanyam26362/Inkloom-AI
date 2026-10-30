@@ -20,7 +20,22 @@ import TechText from "@/components/ui/TechText";
 import DriftWall from "@/components/ui/DriftWall";
 
 export default function GovernanceDashboardPage() {
-  const { activeBrandId, currentRole, brands, theme, refreshKey, setActiveBrandId, refreshBrands } = useApp();
+  const { user, activeBrandId, currentRole, setCurrentRole, brands, theme, refreshKey, setActiveBrandId, refreshBrands } = useApp();
+  const [expandedSubId, setExpandedSubId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const view = params.get("view");
+      const highlight = params.get("highlight");
+      if (view === "brand" && currentRole !== "REVIEWER" && currentRole !== "MANAGER") {
+        setCurrentRole("REVIEWER");
+      }
+      if (highlight) {
+        setExpandedSubId(parseInt(highlight, 10));
+      }
+    }
+  }, [currentRole, setCurrentRole]);
   const isDark = theme === "dark";
   const activeBrandReady = activeBrandId > 0 && brands.some((brand) => brand.id === activeBrandId);
 
@@ -557,9 +572,16 @@ export default function GovernanceDashboardPage() {
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-mono font-black text-sm uppercase text-[var(--ink)] dark:text-white">
-                            {sub.title}
-                          </h3>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-mono font-black text-sm uppercase text-[var(--ink)] dark:text-white">
+                              {sub.title}
+                            </h3>
+                            {(user?.user_name && sub.creator_name === user.user_name) && (
+                              <span className="px-1.5 py-0.2 border border-black bg-[var(--yellow)] text-black text-[9px] font-black uppercase shadow-[1px_1px_0px_#000]">
+                                Your Submission
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-[10px] font-mono text-[#666] dark:text-[#999] mt-0.5 flex-wrap">
                             <span className="font-bold">SUB-#{sub.id}</span>
                             <span>•</span>
@@ -900,8 +922,8 @@ export default function GovernanceDashboardPage() {
                         sub.findings?.filter((f) => f.severity === "WARNING").length || 0;
 
                       return (
+                        <React.Fragment key={sub.id}>
                         <tr
-                          key={sub.id}
                           className={`hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${
                             updatingId === sub.id ? "opacity-50" : ""
                           }`}
@@ -974,39 +996,200 @@ export default function GovernanceDashboardPage() {
 
                           <td className="py-3 px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1.5">
-                              {sub.status !== "APPROVED" && (
+                              {sub.status === "APPROVED" ? (
+                                <span className="px-2 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--green)]/60 text-black">
+                                  ✓ Approved
+                                </span>
+                              ) : (
                                 <button
                                   type="button"
                                   onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
                                   disabled={updatingId === sub.id}
-                                  className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--green)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
-                                  title="Approve for publication"
+                                  className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--green)] hover:bg-[#a6ec93] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
+                                  title="Approve submission"
                                 >
                                   ✓ Approve
                                 </button>
                               )}
 
-                              {sub.status !== "CHANGES_REQUESTED" && (
+                              {sub.status === "CHANGES_REQUESTED" || sub.status === "REJECTED" ? (
                                 <button
                                   type="button"
                                   onClick={() => setRejectingSub(sub)}
                                   disabled={updatingId === sub.id}
                                   className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--red)] text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
-                                  title="Reject with notes"
+                                  title="Update rejection notes"
+                                >
+                                  ✕ Rejected (Edit)
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setRejectingSub(sub)}
+                                  disabled={updatingId === sub.id}
+                                  className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--red)] hover:bg-[#ff3333] text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer disabled:opacity-50"
+                                  title="Reject with feedback"
                                 >
                                   ✕ Reject
                                 </button>
                               )}
 
+                              <button
+                                type="button"
+                                onClick={() => setExpandedSubId(expandedSubId === sub.id ? null : sub.id)}
+                                className={`px-2 py-1 border-2 border-black text-[10px] font-black uppercase shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer ${
+                                  expandedSubId === sub.id
+                                    ? "bg-[var(--yellow)] text-black"
+                                    : "bg-white dark:bg-[#1c1d22] text-black dark:text-white"
+                                }`}
+                                title="Inspect every detail and findings"
+                              >
+                                {expandedSubId === sub.id ? "▲ Less" : "▼ Details"}
+                              </button>
+
                               <Link
                                 href={`/audit?id=${sub.id}`}
-                                className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-white dark:bg-[#1c1d22] text-black dark:text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
+                                className="px-2.5 py-1 border-2 border-black text-[10px] font-black uppercase bg-[var(--yellow)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
                               >
                                 Audit
                               </Link>
                             </div>
                           </td>
                         </tr>
+                        {expandedSubId === sub.id && (
+                          <tr className="bg-black/5 dark:bg-white/5 border-b-3 border-black">
+                            <td colSpan={6} className="p-4 sm:p-5">
+                              <div className="border-3 border-black bg-white dark:bg-[#141518] p-4 sm:p-5 shadow-[4px_4px_0px_#000] text-left font-mono">
+                                <div className="flex flex-col md:flex-row gap-5 items-start">
+                                  {/* Media Thumbnail */}
+                                  {sub.revisions?.[0]?.media_urls?.[0] ? (
+                                    <div className="w-48 shrink-0 border-2 border-black shadow-[2px_2px_0px_#000] overflow-hidden bg-black">
+                                      <img
+                                        src={sub.revisions[0].media_urls[0]}
+                                        alt={sub.title}
+                                        className="w-full h-auto object-cover max-h-60"
+                                      />
+                                      <div className="p-1.5 bg-[var(--ink)] text-[9px] text-white font-mono text-center truncate">
+                                        Asset Preview
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="w-40 h-32 shrink-0 border-2 border-black bg-[var(--yellow)]/20 flex flex-col items-center justify-center text-center p-3 shadow-[2px_2px_0px_#000]">
+                                      <span className="material-symbols-outlined text-[32px] mb-1">image</span>
+                                      <span className="text-[10px] font-black uppercase">{sub.content_format}</span>
+                                    </div>
+                                  )}
+
+                                  {/* Submission Details & Findings */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 border-b-2 border-black/10 pb-2 mb-3">
+                                      <div>
+                                        <h4 className="font-archivo font-black text-sm uppercase text-[var(--ink)] dark:text-white">
+                                          {sub.title}
+                                        </h4>
+                                        <span className="text-[10px] text-[#666] dark:text-[#999]">
+                                          Creator: <strong className="text-black dark:text-white">{sub.creator_name}</strong> · Version {sub.current_version} · Status: <span className="font-black uppercase">{sub.status.replace("_", " ")}</span>
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-black px-2.5 py-1 border-2 border-black bg-[var(--yellow)] text-black shadow-[2px_2px_0px_#000]">
+                                        COMPLIANCE SCORE: {sub.compliance_score ?? 0}%
+                                      </span>
+                                    </div>
+
+                                    {/* Content Copy Excerpt */}
+                                    {sub.revisions?.[0]?.content_body && (
+                                      <div className="mb-3 p-2.5 border-2 border-black bg-black/5 dark:bg-white/5 text-xs text-[var(--ink)] dark:text-[#e0e0e0] leading-relaxed">
+                                        <span className="text-[9px] font-black uppercase text-[#666] dark:text-[#888] block mb-1">
+                                          SUBMISSION COPY:
+                                        </span>
+                                        "{sub.revisions[0].content_body}"
+                                      </div>
+                                    )}
+
+                                    {/* Detailed Findings List */}
+                                    <div>
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-[#666] dark:text-[#888] block mb-1.5">
+                                        GOVERNANCE POLICY FINDINGS ({sub.findings?.length || 0}):
+                                      </span>
+                                      {sub.findings && sub.findings.length > 0 ? (
+                                        <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                                          {sub.findings.map((f, fIdx) => (
+                                            <div
+                                              key={fIdx}
+                                              className={`p-2.5 border-2 border-black text-xs ${
+                                                f.severity === "CRITICAL"
+                                                  ? "bg-[var(--red)]/15 border-[var(--red)]"
+                                                  : f.severity === "WARNING"
+                                                  ? "bg-[var(--yellow)]/20 border-black"
+                                                  : "bg-blue-500/10 border-blue-400"
+                                              }`}
+                                            >
+                                              <div className="flex items-center justify-between gap-1 mb-1">
+                                                <span className="font-black text-[9px] uppercase px-1.5 py-0.2 border border-black bg-black text-white">
+                                                  {f.severity} // {f.category}
+                                                </span>
+                                                {f.guideline_citation && (
+                                                  <span className="text-[9px] text-[#666] dark:text-[#999] truncate max-w-[220px]">
+                                                    {f.guideline_citation}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <p className="font-bold text-[11px] text-[var(--ink)] dark:text-white">
+                                                "{f.flagged_excerpt}"
+                                              </p>
+                                              <p className="text-[10px] text-[#555] dark:text-[#bbb] mt-0.5">
+                                                {f.explanation}
+                                              </p>
+                                              {f.suggested_correction && (
+                                                <div className="mt-1 text-[10px] text-[var(--green)] dark:text-[#8ce99a] font-bold">
+                                                  ✓ Suggested Fix: "{f.suggested_correction}"
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="p-2.5 border-2 border-black bg-[var(--green)]/20 text-xs font-bold text-black dark:text-[#b9f4a8]">
+                                          ✓ Zero violations detected. Asset conforms to brand specifications.
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Action Bar */}
+                                    <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t-2 border-black/10 flex-wrap">
+                                      <div className="text-[10px] text-[#666] dark:text-[#999]">
+                                        ID: <span className="font-bold">SUB-#{sub.id}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleQuickStatusUpdate(sub.id, "APPROVED")}
+                                          className="px-3.5 py-1.5 border-2 border-black text-xs font-black uppercase bg-[var(--green)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                                        >
+                                          ✓ Approve Asset
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setRejectingSub(sub)}
+                                          className="px-3.5 py-1.5 border-2 border-black text-xs font-black uppercase bg-[var(--red)] text-white shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 cursor-pointer"
+                                        >
+                                          ✕ Request Changes / Reject
+                                        </button>
+                                        <Link
+                                          href={`/audit?id=${sub.id}`}
+                                          className="px-3.5 py-1.5 border-2 border-black text-xs font-black uppercase bg-[var(--yellow)] text-black shadow-[2px_2px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5"
+                                        >
+                                          Full Audit Studio →
+                                        </Link>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>

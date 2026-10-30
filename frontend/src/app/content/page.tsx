@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { api, ApiError } from "@/lib/api";
 import { Submission, AuditExecutionResponse, AuditFinding } from "@/lib/types";
@@ -9,7 +10,8 @@ import { Submission, AuditExecutionResponse, AuditFinding } from "@/lib/types";
 type ContentFormatType = "INSTAGRAM_POST" | "TWEET" | "POSTER" | "VIDEO_REEL" | "AUDIO_AD";
 
 export default function CreatorContentStudioPage() {
-  const { user, activeBrandId, currentRole, brands, setActiveBrandId, theme } = useApp();
+  const router = useRouter();
+  const { user, activeBrandId, currentRole, setCurrentRole, brands, setActiveBrandId, theme } = useApp();
   const isDark = theme === "dark";
 
   // Form State
@@ -391,14 +393,19 @@ export default function CreatorContentStudioPage() {
 
   const handleFixAndRegenerate = handleOpenFixModal;
 
-  // Submit to Brand Review Queue
+  // Submit to Brand Review Queue and Route to Brand Dashboard
   const handleSubmitToBrandQueue = async () => {
     if (!submissionData) return;
     try {
-      await api.updateStatus(submissionData.id, "SUBMITTED", "Creator verified with AI governance pre-flight audit. Ready for brand review.", {
+      await api.updateStatus(submissionData.id, "SUBMITTED", "Creator verified with AI governance pre-flight audit. Forwarded to brand review.", {
         userRole: currentRole,
       });
-      setSuccessMessage(`Submission #${submissionData.id} forwarded to Brand Governance Queue.`);
+      setSuccessMessage(`Submission #${submissionData.id} forwarded to Brand Governance Queue! Redirecting to Brand Dashboard...`);
+      // Seamlessly switch to Brand Reviewer role and navigate directly to brand dashboard
+      setCurrentRole("REVIEWER");
+      setTimeout(() => {
+        router.push(`/dashboard?view=brand&highlight=${submissionData.id}`);
+      }, 500);
     } catch {
       setErrorMessage("Failed to submit to brand queue.");
     }

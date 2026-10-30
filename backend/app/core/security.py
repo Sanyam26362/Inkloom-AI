@@ -87,6 +87,13 @@ DEMO_ACCOUNTS: Dict[str, Dict[str, Any]] = {
         "password_hash": hash_password("judge123", salt="demo_salt_judge_2026"),
         "tenant_id": "tenant_default",
     },
+    "brand@inkloom.ai": {
+        "user_id": "usr_brand_001",
+        "user_name": "Elena Rostova (Brand Reviewer)",
+        "role": UserRole.REVIEWER,
+        "password_hash": hash_password("brand123", salt="demo_salt_brand_2026"),
+        "tenant_id": "tenant_default",
+    },
     "creator@inkloom.ai": {
         "user_id": "usr_creator_001",
         "user_name": "Alex Rivera (Creator)",
@@ -128,9 +135,9 @@ def get_demo_token(role: UserRole = UserRole.CREATOR, tenant_id: str = "tenant_d
     """Generates a pre-signed JWT token for demo / test accounts."""
     role_email_map = {
         UserRole.ADMIN: "admin@inkloom.ai",
-        UserRole.MANAGER: "admin@inkloom.ai",
+        UserRole.MANAGER: "brand@inkloom.ai",
         UserRole.JUDGE: "judge@inkloom.ai",
-        UserRole.REVIEWER: "judge@inkloom.ai",
+        UserRole.REVIEWER: "brand@inkloom.ai",
         UserRole.CREATOR: "creator@inkloom.ai",
     }
     email = role_email_map.get(role, "creator@inkloom.ai")

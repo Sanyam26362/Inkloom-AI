@@ -56,6 +56,19 @@ async def _get_or_create_user_account(
         session.add(db_user)
         await session.commit()
         await session.refresh(db_user)
+    else:
+        # Update name and role if fresh non-placeholder values are supplied
+        changed = False
+        if full_name and full_name != "Inkloom User" and db_user.full_name != full_name:
+            db_user.full_name = full_name
+            changed = True
+        if role and db_user.role != role:
+            db_user.role = role
+            changed = True
+        if changed:
+            session.add(db_user)
+            await session.commit()
+            await session.refresh(db_user)
     return db_user
 
 
@@ -78,9 +91,9 @@ async def login(
         normalized_role = normalize_role(payload.role)
         role_email_map = {
             UserRole.ADMIN: "admin@inkloom.ai",
-            UserRole.MANAGER: "admin@inkloom.ai",
+            UserRole.MANAGER: "brand@inkloom.ai",
             UserRole.JUDGE: "judge@inkloom.ai",
-            UserRole.REVIEWER: "judge@inkloom.ai",
+            UserRole.REVIEWER: "brand@inkloom.ai",
             UserRole.CREATOR: "creator@inkloom.ai",
         }
         target_email = role_email_map.get(normalized_role, "creator@inkloom.ai")
