@@ -6,18 +6,29 @@ import { RetroCreativeStudio } from "@/components/landing/RetroCreativeStudio";
 type ComputerAnimationState = "assembling" | "idle" | "playing";
 
 export function HeroComputerIllustration() {
-  const [animState, setAnimState] = useState<ComputerAnimationState>("playing");
+  const [animState, setAnimState] = useState<ComputerAnimationState>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (prefersReduced) return "idle";
+      } catch {
+        // Fallback for SSR or non-standard environments
+      }
+    }
+    return "assembling";
+  });
 
   useEffect(() => {
-    try {
-      const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (prefersReduced) {
-        setAnimState("idle");
-      }
-    } catch {
-      // Fallback for SSR or non-standard environments
-    }
-  }, []);
+    // If already in idle or playing state, no assembly timer needed
+    if (animState !== "assembling") return;
+
+    // Automatically transition from first animation (assembling) to second animation (playing) without clicking
+    const timer = setTimeout(() => {
+      setAnimState("playing");
+    }, 5350);
+
+    return () => clearTimeout(timer);
+  }, [animState]);
 
   const handlePlayClick = () => {
     setAnimState("playing");
@@ -117,9 +128,9 @@ export function HeroComputerIllustration() {
                   <button
                     type="button"
                     onClick={handlePlayClick}
-                    disabled={animState === "assembling"}
+                    
                     aria-label="Play AI Creative Studio campaign analysis demo"
-                    title={animState === "assembling" ? "Assembling studio..." : "Click to launch Retro AI Creative Studio"}
+                    title="Click to launch Retro AI Creative Studio immediately"
                     className="w-12 h-12 bg-[var(--nb-yellow)] border-[3px] border-[var(--nb-ink)] shadow-[3px_3px_0_var(--nb-ink)] flex items-center justify-center cursor-pointer transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_var(--nb-ink)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-[1px_1px_0_var(--nb-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nb-ink)] group disabled:cursor-default disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-[3px_3px_0_var(--nb-ink)]"
                   >
                     <div className="w-0 h-0 border-y-[7px] border-y-transparent border-l-[12px] border-l-[var(--nb-ink)] ml-1 group-hover:scale-110 transition-transform"></div>
