@@ -13,7 +13,7 @@ export function LandingFooter() {
                 B
               </div>
               <span
-                className="text-2xl tracking-tighter uppercase text-white"
+                className="text-2xl tracking-tighter text-white"
                 style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900 }}
               >
                 BrandLens

@@ -135,7 +135,7 @@ export default function CreatorProfilePage() {
         <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-black">
           <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase">
             <span className="w-2.5 h-2.5 bg-[var(--yellow)] border border-black inline-block"></span>
-            <span>BRANDLENS // ONBOARDING GATEWAY</span>
+            <span><span className="normal-case">BrandLens</span> // ONBOARDING GATEWAY</span>
           </div>
           <span className="text-[10px] font-black uppercase px-2 py-0.5 border border-black bg-white dark:bg-[#1a1b20] text-black dark:text-white shadow-[1px_1px_0px_#000]">
             ROLE: CONTENT CREATOR

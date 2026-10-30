@@ -72,7 +72,7 @@ export function LandingNav() {
             B
           </div>
           <span
-            className="text-xl sm:text-2xl tracking-tighter uppercase text-[var(--nb-ink)]"
+            className="text-xl sm:text-2xl tracking-tighter text-[var(--nb-ink)]"
             style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900 }}
           >
             BrandLens

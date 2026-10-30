@@ -132,7 +132,7 @@ export function Solutions() {
             {/* What BrandLens Does */}
             <div className="border-l-[4px] border-[var(--nb-ink)] pl-4 sm:pl-6 py-1">
               <span className="nb-mono text-sm sm:text-base font-bold uppercase tracking-widest text-[var(--nb-ink)] block mb-3 opacity-90">
-                WHAT BRANDLENS DOES
+                WHAT <span className="normal-case">BrandLens</span> DOES
               </span>
               <p className="nb-mono text-base sm:text-lg text-[var(--nb-ink)] font-medium leading-relaxed">
                 {current.does}

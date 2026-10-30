@@ -117,7 +117,7 @@ export function SignUpModal({ isOpen, onClose, initialRole }: SignUpModalProps) 
             <span className="w-3 h-3 bg-[var(--green)] border border-black inline-block shrink-0" />
             <span className="w-3 h-3 bg-[var(--pink)] border border-black inline-block shrink-0" />
             <span className="text-xs font-mono font-black tracking-wider uppercase ml-1.5">
-              BRANDLENS // GATEWAY_AUTH.EXE
+              <span className="normal-case">BrandLens</span> // GATEWAY_AUTH.EXE
             </span>
           </div>
 
